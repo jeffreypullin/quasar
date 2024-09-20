@@ -23,25 +23,29 @@
  */
 
 #include "cxxopts.hpp"
+#include "Quasar.hpp"
+#include "Data.hpp"
+#include "ProgramData.hpp"
 #include <iostream>
 
 int main(int argc, char* argv[]) {
 
-    cxxopts::Options options("quasar", "QTL mapping software");
+    ProgramData prog_data;
+    struct Param* params = &prog_data.params;
 
-    // Define command-line arguments
+    cxxopts::Options options("quasar", "QTL mapping software");
     options.add_options()
         ("h,help", "Display help message")
         ("v,version", "Display version information")
-        ("f,feat", "Feature annotation file", cxxopts::value<std::string>())
-        ("c,cov", "Covariate file", cxxopts::value<std::string>())
-        ("p,pheno", "Phenotype file", cxxopts::value<std::string>())
-        ("b,bcf", "BCF file", cxxopts::value<std::string>())
-        ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>())
-        ("o,output-prefix", "Output directory prefix", cxxopts::value<std::string>())
-        ("w,window", "Cis window size in base pairs", cxxopts::value<int>());
+        ("f,feat", "Feature annotation file", cxxopts::value<std::string>(params->feat_anno_file))
+        ("c,cov", "Covariate file", cxxopts::value<std::string>(params->cov_file))
+        ("p,pheno", "Phenotype file", cxxopts::value<std::string>(params->pheno_file))
+        ("b,bed", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params->bed_prefix))
+        ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params->grm_file))
+        ("o,output-prefix", "Output directory prefix", cxxopts::value<std::string>(params->output_prefix))
+        ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params->window_size));
 
-    // Parse the arguments
+    // Parse the arguments.
     auto result = options.parse(argc, argv);
 
     // Handle arguments
@@ -55,6 +59,10 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
 
-    std::cout << "Execution finished." << std::endl;
+    prog_data.read_data();
+    //prog_data::make_blocks();
+    //prog_data::map_cis_qtls();
+    //prog_data::output_results();
+    std::cout << "quasar execution finished." << std::endl;
     return 0;
 }
