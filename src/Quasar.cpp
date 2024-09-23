@@ -62,6 +62,7 @@ int main(int argc, char* argv[]) {
     std::cout << "quasar execution started." << std::endl;
     prog_data.read_non_geno_data();
     prog_data.prepare_geno_data();
+    prog_data.prepare_regions();
     std::cout << "quasar execution finished." << std::endl;
     
     return 0;

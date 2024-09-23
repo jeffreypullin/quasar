@@ -33,8 +33,8 @@
 
 struct SNP {
   int chrom;
+  int pos;
   std::string id;
-  uint32_t pos;
   std::string allele1, allele2;
   double MAF;
 };

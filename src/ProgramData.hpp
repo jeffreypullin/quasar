@@ -29,6 +29,7 @@
 #include "Quasar.hpp"
 #include "Data.hpp"
 #include "Geno.hpp"
+#include "Regions.hpp"
 
 class ProgramData {
 
@@ -40,11 +41,13 @@ class ProgramData {
         std::vector<SNP> snps_info;
         std::vector<std::string> sample_ids;
         GRM grm;
+        Regions regions;
 
         int n_samples;
 
         void read_non_geno_data();
         void prepare_geno_data();
+        void prepare_regions();
 };
 
 #endif

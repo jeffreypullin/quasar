@@ -10,6 +10,7 @@ add_executable(quasar
   ${CMAKE_SOURCE_DIR}/src/Data.cpp
   ${CMAKE_SOURCE_DIR}/src/Geno.cpp
   ${CMAKE_SOURCE_DIR}/src/Utils.cpp
+  ${CMAKE_SOURCE_DIR}/src/Regions.cpp
 )
 target_include_directories(quasar PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
