@@ -22,45 +22,26 @@
  * SOFTWARE.
  */
 
-#ifndef DATA_H
-#define DATA_H
 
+#ifndef GENO_H
+#define GENO_H
+
+#include <string>
+#include <vector>
+#include <cstdint>
 #include "Quasar.hpp"
 
-struct PhenoData {
-    int n_pheno;
-    int n_samples;
-    std::vector<std::string> pheno_ids;
-    std::vector<std::string> sample_ids;
-    Eigen::MatrixXd data;
+struct SNP {
+  int chrom;
+  std::string id;
+  uint32_t pos;
+  std::string allele1, allele2;
+  double MAF;
 };
 
-struct CovData {
-    int n_cov;
-    int n_samples;
-    std::vector<std::string> cov_ids;
-    std::vector<std::string> sample_ids;
-    Eigen::MatrixXd data;
-};
-
-struct FeatData {
-  int n_feat;
-  std::vector<std::string> feat_id;
-  std::vector<int> chrom;
-  std::vector<int> start;
-  std::vector<int> end;
-  std::vector<std::string> gene_name;
-};
-
-struct GRM {
-  int n_samps;
-  std::vector<std::string> samp_ids;
-  Eigen::MatrixXd mat;
-};
-
-void read_pheno_data(Param* params, PhenoData* pheno_data);
-void read_cov_data(Param* params, CovData* cov_data);
-void read_feat_data(Param* params, FeatData* feat_data);
-void read_grm(Param* params, GRM* grm);
+void read_bim_file(Param* params, std::vector<SNP>* snps_info);
+void read_fam_file(Param* params, std::vector<std::string>* sample_ids, int* n_samples);
+void prepare_bed_file(Param* params);
+void read_bed_file_chunk(Param* params, Eigen::MatrixXd* genotype_matrix, int n_samples, std::vector<size_t>& snp_indices);
 
 #endif

@@ -1,5 +1,6 @@
 
 #include "Data.hpp"
+#include "Utils.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -209,20 +210,4 @@ void read_grm(Param* params, GRM* grm) {
     file.close();
 
     std::cout << "Read GRM with " << grm->n_samps << " samples." << std::endl;
-}
-
-// Helpers
-std::vector<std::string> string_split(const std::string& str, const std::string& delim) {
-    std::vector<std::string> tokens;
-    size_t prev = 0, pos = 0;
-    while ((pos = str.find(delim, prev)) != std::string::npos) {
-        if (pos > prev) {
-            tokens.push_back(str.substr(prev, pos - prev));
-        }
-        prev = pos + delim.length();
-    }
-    if (prev < str.length()) {
-        tokens.push_back(str.substr(prev));
-    }
-    return tokens;
 }

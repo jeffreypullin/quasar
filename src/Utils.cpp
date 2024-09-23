@@ -1,18 +1,18 @@
 /*
  * MIT License
- *
+ * 
  * Copyright (c) 2024 Jeffrey Pullin
- *
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,45 +22,22 @@
  * SOFTWARE.
  */
 
-#ifndef DATA_H
-#define DATA_H
+#include "Utils.hpp"
 
-#include "Quasar.hpp"
+#include <vector>
+#include <string>
 
-struct PhenoData {
-    int n_pheno;
-    int n_samples;
-    std::vector<std::string> pheno_ids;
-    std::vector<std::string> sample_ids;
-    Eigen::MatrixXd data;
-};
-
-struct CovData {
-    int n_cov;
-    int n_samples;
-    std::vector<std::string> cov_ids;
-    std::vector<std::string> sample_ids;
-    Eigen::MatrixXd data;
-};
-
-struct FeatData {
-  int n_feat;
-  std::vector<std::string> feat_id;
-  std::vector<int> chrom;
-  std::vector<int> start;
-  std::vector<int> end;
-  std::vector<std::string> gene_name;
-};
-
-struct GRM {
-  int n_samps;
-  std::vector<std::string> samp_ids;
-  Eigen::MatrixXd mat;
-};
-
-void read_pheno_data(Param* params, PhenoData* pheno_data);
-void read_cov_data(Param* params, CovData* cov_data);
-void read_feat_data(Param* params, FeatData* feat_data);
-void read_grm(Param* params, GRM* grm);
-
-#endif
+std::vector<std::string> string_split(const std::string& str, const std::string& delim) {
+    std::vector<std::string> tokens;
+    size_t prev = 0, pos = 0;
+    while ((pos = str.find(delim, prev)) != std::string::npos) {
+        if (pos > prev) {
+            tokens.push_back(str.substr(prev, pos - prev));
+        }
+        prev = pos + delim.length();
+    }
+    if (prev < str.length()) {
+        tokens.push_back(str.substr(prev));
+    }
+    return tokens;
+}

@@ -28,6 +28,7 @@
 #include <iostream>
 #include "Quasar.hpp"
 #include "Data.hpp"
+#include "Geno.hpp"
 
 class ProgramData {
 
@@ -36,9 +37,14 @@ class ProgramData {
         PhenoData pheno_data;
         CovData cov_data;
         FeatData feat_data;
+        std::vector<SNP> snps_info;
+        std::vector<std::string> sample_ids;
         GRM grm;
 
-        void read_data();
+        int n_samples;
+
+        void read_non_geno_data();
+        void prepare_geno_data();
 };
 
 #endif

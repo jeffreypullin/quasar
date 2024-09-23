@@ -59,10 +59,10 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
 
-    prog_data.read_data();
-    //prog_data::make_blocks();
-    //prog_data::map_cis_qtls();
-    //prog_data::output_results();
+    std::cout << "quasar execution started." << std::endl;
+    prog_data.read_non_geno_data();
+    prog_data.prepare_geno_data();
     std::cout << "quasar execution finished." << std::endl;
+    
     return 0;
 }

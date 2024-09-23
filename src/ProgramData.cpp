@@ -25,11 +25,19 @@
 #include "ProgramData.hpp"
 #include "Data.hpp"
 
-void ProgramData::read_data() {
+void ProgramData::read_non_geno_data() {
 
-    std::cout << "Reading data..." << std::endl;
+    std::cout << "Reading non-genotype data..." << std::endl;
     read_pheno_data(&params, &pheno_data);
     read_cov_data(&params, &cov_data);
     read_feat_data(&params, &feat_data);
     read_grm(&params, &grm); 
+}
+
+void ProgramData::prepare_geno_data() {
+
+    std::cout << "Preparing genotype data..." << std::endl;
+    read_fam_file(&params, &sample_ids, &n_samples);
+    read_bim_file(&params, &snps_info);
+    prepare_bed_file(&params);
 }
