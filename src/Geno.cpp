@@ -30,9 +30,9 @@
 #include <vector>
 #include <string>
 
-void read_bim_file(Param* params, std::vector<SNP>* snps_info) {
+void GenoData::read_bim_file() {
 
-    std::string bim_file = params->bed_prefix + ".bim";
+    std::string bim_file = bed_prefix + ".bim";
     std::ifstream file(bim_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BIM file " << bim_file << std::endl;
@@ -54,21 +54,19 @@ void read_bim_file(Param* params, std::vector<SNP>* snps_info) {
         snp.pos = std::stoul(tokens[3]);
         snp.allele1 = tokens[4];
         snp.allele2 = tokens[5];
-        // Placeholder, MAF calculation not included in this function.
-        snp.MAF = 0.0;
 
-        snps_info->push_back(snp);
+        snps_info.push_back(snp);
     }
 
-    std::cout << "Number of SNPs read: " << snps_info->size() << std::endl;
+    std::cout << "Number of SNPs read: " << snps_info.size() << std::endl;
 
     file.close();
 
 }
 
-void read_fam_file(Param* params, std::vector<std::string>* sample_ids, int* n_samples) {
+void GenoData::read_fam_file() {
 
-    std::string fam_file = params->bed_prefix + ".fam";
+    std::string fam_file = bed_prefix + ".fam";
     std::ifstream file(fam_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open FAM file " << fam_file << std::endl;
@@ -84,17 +82,17 @@ void read_fam_file(Param* params, std::vector<std::string>* sample_ids, int* n_s
             return;
         }
 
-        sample_ids->push_back(tokens[0] + "_" + tokens[1]);
+        sample_ids.push_back(tokens[0] + "_" + tokens[1]);
     }
-    *n_samples = sample_ids->size();
+    n_samples = sample_ids.size();
 
-    std::cout << "Number of samples read: " << sample_ids->size() << std::endl;
+    std::cout << "Number of samples read: " << n_samples << std::endl;
 
     file.close();
 }
 
-void prepare_bed_file(Param* params) {
-    std::string bed_file = params->bed_prefix + ".bed";
+void GenoData::prepare_bed_file() {
+    std::string bed_file = bed_prefix + ".bed";
     std::ifstream file(bed_file, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BED file " << bed_file << std::endl;
@@ -115,8 +113,8 @@ void prepare_bed_file(Param* params) {
     file.close();
 }
 
-void read_bed_file_chunk(Param* params, Eigen::MatrixXd* genotype_matrix, int* n_samples, std::vector<size_t>& snp_indices) {
-    std::string bed_file = params->bed_prefix + ".bed";
+void GenoData::read_bed_file_chunk(std::vector<size_t>& snp_indices) {
+    std::string bed_file = bed_prefix + ".bed";
     std::ifstream file(bed_file, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BED file " << bed_file << std::endl;
@@ -126,35 +124,34 @@ void read_bed_file_chunk(Param* params, Eigen::MatrixXd* genotype_matrix, int* n
     // Skip the magic number and mode.
     file.seekg(3, std::ios::beg);
 
-    int n = *n_samples;
-    genotype_matrix->resize(snp_indices.size(), n);
+    genotype_matrix.resize(snp_indices.size(), n_samples);
 
     for (size_t i = 0; i < snp_indices.size(); ++i) {
         size_t snp_index = snp_indices[i];
-            file.seekg(3 + snp_index * ((n + 3) / 4), std::ios::beg);
+            file.seekg(3 + snp_index * ((n_samples + 3) / 4), std::ios::beg);
 
-        for (size_t j = 0; j < n; j += 4) {
+        for (size_t j = 0; j < n_samples; j += 4) {
             char byte;
             file.read(&byte, 1);
 
-            for (size_t k = 0; k < 4 && j + k < n; ++k) {
+            for (size_t k = 0; k < 4 && j + k < n_samples; ++k) {
                 char genotype = (byte >> (2 * k)) & 0x03;
                 switch (genotype) {
                     // Homozygous for allele1.
                     case 0x00:
-                        (*genotype_matrix)(i, j + k) = 0;
+                        genotype_matrix(i, j + k) = 0;
                         break;
                     // Heterozygous.
                     case 0x01:
-                        (*genotype_matrix)(i, j + k) = 1;
+                        genotype_matrix(i, j + k) = 1;
                         break;
                     // Homozygous for allele2.
                     case 0x02:
-                        (*genotype_matrix)(i, j + k) = 2;
+                        genotype_matrix(i, j + k) = 2;
                         break;
                     // Missing genotype.
                     case 0x03:
-                        (*genotype_matrix)(i, j + k) = -1;
+                        genotype_matrix(i, j + k) = -1;
                         break;
                 }
             }

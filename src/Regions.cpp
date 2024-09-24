@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include "Data.hpp"
 #include "Regions.hpp"
 #include "Utils.hpp"
 
@@ -30,21 +31,35 @@
 #include <vector>
 #include <string>
 
-void construct_regions(Param* params, Regions* regions, FeatData* feat_data, std::vector<SNP>* snps_info) {
+void seek_to(int& i, std::vector<int>& chr, std::vector<int>& pos, int& target_chr, int target_pos){
+	while (chr[i] != target_chr && i < chr.size() - 1 ){
+		i++;
+	}
+	while (chr[i] == target_chr && pos[i] < target_pos && i < chr.size() - 1 ){
+		if (chr[i + 1] == target_chr && pos[i + 1] < target_pos){
+            i++;
+		} else{
+			break;
+		}
+	}
+}
 
-	std::vector<int>& chr_f = feat_data->chrom;
-	std::vector<int>& start_f = feat_data->start; 
-	std::vector<int>& end_f = feat_data->end; 
+void Regions::construct_regions(FeatData& feat_data, GenoData& geno_data, int& window_size) {
 
+	std::vector<int>& chr_f = feat_data.chrom;
+	std::vector<int>& start_f = feat_data.start; 
+	std::vector<int>& end_f = feat_data.end; 
+
+	std::vector<SNP>& snps_info = geno_data.snps_info;
 	std::vector<int> chr_g;
-	std::transform(snps_info->begin(), snps_info->end(), std::back_inserter(chr_g), 
+	std::transform(geno_data.snps_info.begin(), geno_data.snps_info.end(), std::back_inserter(chr_g), 
                    [](const SNP& snp) { return snp.chrom; });
 
     std::vector<int> pos_g;
-	std::transform(snps_info->begin(), snps_info->end(), std::back_inserter(pos_g), 
-                   [](const SNP& snp) { return snp.chrom; });
+	std::transform(snps_info.begin(), snps_info.end(), std::back_inserter(pos_g), 
+                   [](const SNP& snp) { return snp.pos; });
 
-	int window = params->window_size;
+	int window = window_size;
 	
 	int n_f = chr_f.size();
 	int n_g = chr_g.size();
@@ -77,10 +92,10 @@ void construct_regions(Param* params, Regions* regions, FeatData* feat_data, std
 			
 			if (i_f_e >= i_f && pos_g[i_g] - end_f[i_f] <= window && chr_g[i_g] == chr_f[i_f] ){
 				
-				regions->feat_s.push_back(i_f);
-				regions->feat_e.push_back(i_f_e);
-				regions->geno_s.push_back(i_g);
-				regions->geno_e.push_back(i_g_e);
+				feat_s.push_back(i_f);
+				feat_e.push_back(i_f_e);
+				geno_s.push_back(i_g);
+				geno_e.push_back(i_g_e);
 				
 				for(int j = i_g; j <= i_g_e; ++j){
 					if (geno_id_s[j] == -1) {
@@ -91,7 +106,7 @@ void construct_regions(Param* params, Regions* regions, FeatData* feat_data, std
 				
 				std::string region = chr_g[i_g] + ":" + std::to_string(pos_g[i_g]) + "-" + std::to_string(pos_g[i_g_e]);
 				
-				regions->regions_id.push_back(region);
+				regions_id.push_back(region);
 
 				for (int i = i_f; i <= i_f_e; ++i) {
 					if (feat_id_s[i] == -1) {
@@ -104,18 +119,5 @@ void construct_regions(Param* params, Regions* regions, FeatData* feat_data, std
 		}
 		i_f = i_f_e + 1;
 		std::cerr << block_ind << " blocks ...\n";
-	}
-}
-
-void seek_to(int& i, std::vector<int>& chr, std::vector<int>& pos, int& target_chr, int target_pos){
-	while (chr[i] != target_chr && i < chr.size() - 1 ){
-		i++;
-	}
-	while (chr[i] == target_chr && pos[i] < target_pos && i < chr.size() - 1 ){
-		if (chr[i + 1] == target_chr && pos[i + 1] < target_pos){
-            i++;
-		} else{
-			break;
-		}
 	}
 }

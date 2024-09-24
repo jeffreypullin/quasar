@@ -29,19 +29,31 @@
 #include <string>
 #include <vector>
 #include <cstdint>
-#include "Quasar.hpp"
+
+#include "Eigen/Dense"
 
 struct SNP {
   int chrom;
   int pos;
   std::string id;
   std::string allele1, allele2;
-  double MAF;
 };
 
-void read_bim_file(Param* params, std::vector<SNP>* snps_info);
-void read_fam_file(Param* params, std::vector<std::string>* sample_ids, int* n_samples);
-void prepare_bed_file(Param* params);
-void read_bed_file_chunk(Param* params, Eigen::MatrixXd* genotype_matrix, int n_samples, std::vector<size_t>& snp_indices);
+class GenoData {
+  public:
+    std::string bed_prefix;
+    Eigen::MatrixXd genotype_matrix;
+    std::vector<std::string> sample_ids;
+    std::vector<SNP> snps_info;
+    int n_samples;
+    GenoData(std::string bed_prefix) {
+      this->bed_prefix = bed_prefix;
+    }
+
+    void read_bim_file();
+    void read_fam_file();
+    void prepare_bed_file();
+    void read_bed_file_chunk(std::vector<size_t>& snp_indices);
+};
 
 #endif

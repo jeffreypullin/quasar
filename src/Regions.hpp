@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-#ifndef REGIONS_HPP
-#define REGIONS_HPP
+#ifndef REGIONS_H
+#define REGIONS_H
 
 #include <vector>
 #include <string>
@@ -32,22 +32,24 @@
 #include "Quasar.hpp"
 #include "Geno.hpp"
 
-struct Regions {    
+class Regions {    
 
-    // Here s denotes start and e denotes end.
-    std::vector<int> feat_s;
-    std::vector<int> feat_e;
-    std::vector<int> geno_s;
-    std::vector<int> geno_e;
-	std::vector<int> geno_s_ind;
-	std::vector<int> geno_e_ind;
-	std::vector<int> feat_s_ind;
-	std::vector<int> feat_e_ind;
-	std::vector<std::string> regions_id;
-
+    public:
+      // Here s denotes start and e denotes end.
+      std::vector<int> feat_s;
+      std::vector<int> feat_e;
+      std::vector<int> geno_s;
+      std::vector<int> geno_e;
+	  std::vector<int> geno_s_ind;
+	  std::vector<int> geno_e_ind;
+	  std::vector<int> feat_s_ind;
+	  std::vector<int> feat_e_ind;
+	  std::vector<std::string> regions_id;
+      int window_size;
+      Regions(FeatData& feat_data, GenoData& geno_data, int& window_size){
+        construct_regions(feat_data, geno_data, window_size);
+      };
+      void construct_regions(FeatData& feat_data, GenoData& geno_data, int& window_size);
 };
-
-void construct_regions(Param* params, Regions* regions, FeatData* feat_data, std::vector<SNP>* snps_info);
-void seek_to(int& i, std::vector<int>& chr, std::vector<int>& pos, int& target_chr, int target_pos);
 
 #endif
