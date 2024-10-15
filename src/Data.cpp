@@ -14,15 +14,14 @@ void PhenoData::read_pheno_data() {
         std::cerr << "Error: Unable to open phenotype file " << pheno_file << std::endl;
         return;
     }
-
     std::string line;
     std::vector<std::string> tokens;
 
     if (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
-        tokens = string_split(line, "\t");
-        if (tokens.size() < 2 || tokens[0] != "feature_id") {
-            std::cerr << "Error: Invalid header in covariate file. Expected 'feature_id' as the first column." << std::endl;
+        remove_carriage_return(line);
+        tokens = string_split(line, "\t ");
+        if (tokens[0] != "feature_id") {
+            std::cerr << "Error: Invalid header in phenotype file. Expected 'feature_id' as the first column." << std::endl;
             return;
         }
         sample_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
@@ -46,7 +45,8 @@ void PhenoData::read_pheno_data() {
 
     int row = 0;
     while (std::getline(file, line) && row < n_pheno) {
-        tokens = string_split(line, "\t");
+        remove_carriage_return(line);
+        tokens = string_split(line, "\t ");
         if (tokens.size() != n_samples + 1) {
             std::cerr << "Error: Inconsistent number of columns in phenotype file." << std::endl;
             return;
@@ -60,7 +60,25 @@ void PhenoData::read_pheno_data() {
 
     file.close();
 
-    std::cout << "Read " << n_pheno << " features and " << n_samples << " samples from phenotype file." << std::endl;
+    std::cout << "Read " << n_pheno << " features for " << n_samples << " samples from phenotype file." << std::endl;
+}
+
+void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
+    
+    Eigen::VectorXi columns;
+    columns.resize(sample_ids.size());
+    for (int i = 0; i < sample_ids.size(); ++i) {
+        auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
+        if (it != this->sample_ids.end()) {
+            columns(i) = std::distance(this->sample_ids.begin(), it);
+        } else {
+            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
+            return;
+        }
+    }
+    this->data = data(Eigen::all, columns);
+    this->sample_ids = sample_ids;
+    n_samples = sample_ids.size();
 }
 
 void CovData::read_cov_data() {
@@ -74,7 +92,7 @@ void CovData::read_cov_data() {
     std::vector<std::string> tokens;
 
     if (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
+        tokens = string_split(line, "\t ");
         if (tokens.size() < 2 || tokens[0] != "sample_id") {
             std::cerr << "Error: Invalid header in covariate file. Expected 'sample_id' as the first column." << std::endl;
             return;
@@ -100,7 +118,7 @@ void CovData::read_cov_data() {
 
     int row = 0;
     while (std::getline(file, line) && row < n_samples) {
-        tokens = string_split(line, "\t");
+        tokens = string_split(line, "\t ");
         if (tokens.size() != n_cov + 1) {
             std::cerr << "Error: Inconsistent number of columns in covariate file at line " << row + 2 << std::endl;
             return;
@@ -114,7 +132,25 @@ void CovData::read_cov_data() {
 
     file.close();
 
-    std::cout << "Read " << n_samples << " samples and " << n_cov << " covariates from covariate file." << std::endl;
+    std::cout << "Read " << n_cov << " covariates for "<< n_samples << " samples from covariate file." << std::endl;
+}
+
+void CovData::slice_samples(std::vector<std::string>& sample_ids) {
+    
+    Eigen::VectorXi rows;
+    rows.resize(sample_ids.size());
+    for (int i = 0; i < sample_ids.size(); ++i) {
+        auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
+        if (it != this->sample_ids.end()) {
+            rows(i) = std::distance(this->sample_ids.begin(), it);
+        } else {
+            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
+            return;
+        }
+    }
+    this->data = data(rows, Eigen::all);
+    this->sample_ids = sample_ids;
+    n_samples = sample_ids.size();
 }
 
 void FeatData::read_feat_data() {
@@ -129,7 +165,8 @@ void FeatData::read_feat_data() {
     std::vector<std::string> tokens;
 
     if (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
+        remove_carriage_return(line);
+        tokens = string_split(line, "\t ");
         if (tokens.size() < 4 || tokens[0] != "feature_id" || tokens[1] != "chrom" || tokens[2] != "start" || tokens[3] != "end") {
             std::cerr << "Error: Invalid header in feature annotation file. Expected 'feature_id', 'chrom', 'start', 'end' as the first four columns." << std::endl;
             return;
@@ -138,7 +175,8 @@ void FeatData::read_feat_data() {
 
     n_feat = 0;
     while (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
+        remove_carriage_return(line);
+        tokens = string_split(line, "\t ");
         if (tokens.size() < 4) {
             std::cerr << "Error: Inconsistent number of columns in feature annotation file at line " << n_feat + 2 << std::endl;
             return;
@@ -175,20 +213,20 @@ void GRM::read_grm() {
     std::vector<std::string> tokens;
 
     if (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
+        tokens = string_split(line, "\t ");
         if (tokens.size() < 2 || tokens[0] != "sample_id") {
             std::cerr << "Error: Invalid header in GRM file. Expected 'sample_id' as the first column." << std::endl;
             return;
         }
         n_samps = tokens.size() - 1;
-        samp_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
+        sample_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
     }
 
     mat = Eigen::MatrixXd::Zero(n_samps, n_samps);
 
     int row = 0;
     while (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
+        tokens = string_split(line, "\t ");
         if (tokens.size() != n_samps + 1) {
             std::cerr << "Error: Inconsistent number of columns in GRM file at line " << row + 2 << std::endl;
             return;
@@ -209,4 +247,29 @@ void GRM::read_grm() {
     file.close();
 
     std::cout << "Read GRM with " << n_samps << " samples." << std::endl;
+}
+
+void GRM::slice_samples(std::vector<std::string>& sample_ids) {
+
+    Eigen::VectorXi ind;
+    ind.resize(sample_ids.size());
+    for (int i = 0; i < sample_ids.size(); ++i) {
+        auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
+        if (it != this->sample_ids.end()) {
+            ind(i) = std::distance(this->sample_ids.begin(), it);
+        } else {
+            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in GRM file." << std::endl;   
+            return;
+        }
+    }
+    Eigen::MatrixXd sliced_mat(ind.size(), ind.size());
+    for (int i = 0; i < ind.size(); ++i) {
+        for (int j = 0; j < ind.size(); ++j) {
+            sliced_mat(i, j) = mat(ind(i), ind(j));
+        }
+    }
+    this->mat = sliced_mat;
+
+    this->sample_ids = sample_ids;
+    n_samps = sample_ids.size();
 }

@@ -40,6 +40,7 @@ class PhenoData {
         this->pheno_file = pheno_file;
       }
       void read_pheno_data();
+      void slice_samples(std::vector<std::string>& sample_ids);
 };
 
 class CovData {
@@ -55,6 +56,7 @@ class CovData {
         this->cov_file = cov_file;
       }
       void read_cov_data();
+      void slice_samples(std::vector<std::string>& sample_ids);
 };
 
 class FeatData {
@@ -78,11 +80,12 @@ class GRM {
   public:
     std::string grm_file;
     int n_samps;
-    std::vector<std::string> samp_ids;
+    std::vector<std::string> sample_ids;
     Eigen::MatrixXd mat;
     GRM(std::string grm_file) {
       this->grm_file = grm_file;
     }
+    void slice_samples(std::vector<std::string>& sample_ids);
     void read_grm();
 };
 

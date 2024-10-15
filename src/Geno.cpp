@@ -41,8 +41,9 @@ void GenoData::read_bim_file() {
 
     std::string line;
     std::vector<std::string> tokens;
+    size_t index = 0;
     while (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
+        tokens = string_split(line, " ");
         if (tokens.size() != 6) {
             std::cerr << "Error: Invalid BIM file format." << std::endl;
             return;
@@ -54,10 +55,12 @@ void GenoData::read_bim_file() {
         snp.pos = std::stoul(tokens[3]);
         snp.allele1 = tokens[4];
         snp.allele2 = tokens[5];
-
+        snp.index = index;
         snps_info.push_back(snp);
+        index++;
     }
 
+    n_snps = snps_info.size();
     std::cout << "Number of SNPs read: " << snps_info.size() << std::endl;
 
     file.close();
@@ -76,13 +79,13 @@ void GenoData::read_fam_file() {
     std::string line;
     std::vector<std::string> tokens;
     while (std::getline(file, line)) {
-        tokens = string_split(line, "\t");
+        tokens = string_split(line, " ");
         if (tokens.size() < 6) {
             std::cerr << "Error: Invalid FAM file format." << std::endl;
             return;
         }
 
-        sample_ids.push_back(tokens[0] + "_" + tokens[1]);
+        sample_ids.push_back(tokens[1]);
     }
     n_samples = sample_ids.size();
 
@@ -113,7 +116,7 @@ void GenoData::prepare_bed_file() {
     file.close();
 }
 
-void GenoData::read_bed_file_chunk(std::vector<size_t>& snp_indices) {
+void GenoData::read_bed_file() {
     std::string bed_file = bed_prefix + ".bed";
     std::ifstream file(bed_file, std::ios::binary);
     if (!file.is_open()) {
@@ -124,11 +127,11 @@ void GenoData::read_bed_file_chunk(std::vector<size_t>& snp_indices) {
     // Skip the magic number and mode.
     file.seekg(3, std::ios::beg);
 
-    genotype_matrix.resize(snp_indices.size(), n_samples);
+    genotype_matrix.resize(n_snps, n_samples);
 
-    for (size_t i = 0; i < snp_indices.size(); ++i) {
-        size_t snp_index = snp_indices[i];
-            file.seekg(3 + snp_index * ((n_samples + 3) / 4), std::ios::beg);
+    for (size_t i = 0; i < n_snps; ++i) {
+        size_t snp_index = snps_info[i].index;
+        file.seekg(3 + snp_index * ((n_samples + 3) / 4), std::ios::beg);
 
         for (size_t j = 0; j < n_samples; j += 4) {
             char byte;
@@ -162,3 +165,28 @@ void GenoData::read_bed_file_chunk(std::vector<size_t>& snp_indices) {
 
     file.close();
 }
+
+void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
+    
+    // Create a vector to store the indices of the samples we want to keep
+    Eigen::VectorXi cols;
+    cols.resize(sample_ids.size());
+    for (int i = 0; i < sample_ids.size(); ++i) {
+        auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
+        if (it != this->sample_ids.end()) {
+            cols(i) = std::distance(this->sample_ids.begin(), it);
+        } else {
+            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
+            return;
+        }
+    }
+    // Create a new matrix with the selected columns
+    Eigen::MatrixXd sliced_genotype_matrix(genotype_matrix.rows(), cols.size());
+    for (size_t i = 0; i < cols.size(); ++i) {
+        sliced_genotype_matrix.col(i) = genotype_matrix.col(cols[i]);
+    }
+    
+    this->genotype_matrix = sliced_genotype_matrix;
+    this->sample_ids = sample_ids;
+    n_samples = sample_ids.size();
+}   

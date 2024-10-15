@@ -118,6 +118,5 @@ void Regions::construct_regions(FeatData& feat_data, GenoData& geno_data, int& w
 			}
 		}
 		i_f = i_f_e + 1;
-		std::cerr << block_ind << " blocks ...\n";
 	}
 }

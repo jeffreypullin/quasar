@@ -26,7 +26,10 @@
 #include "Data.hpp"
 #include "Geno.hpp"
 #include "Regions.hpp"
+#include "QTLmapping.hpp"
+#include "Utils.hpp"
 #include <iostream>
+#include <utility>
 
 int main(int argc, char* argv[]) {
 
@@ -58,28 +61,51 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
 
-    std::cout << "quasar execution started." << std::endl;
+    std::cout << "\nquasar execution started." << std::endl;
 
-    std::cout << "Preparing genotype data..." << std::endl;
+    std::cout << "\nReading genotype data..." << std::endl;
     GenoData geno_data(params.bed_prefix);
     geno_data.read_bim_file();
     geno_data.read_fam_file();
     geno_data.prepare_bed_file();
+    geno_data.read_bed_file();
 
-    std::cout << "Reading non-genotype data..." << std::endl;
+    std::cout << "\nReading non-genotype data..." << std::endl;
     PhenoData pheno_data(params.pheno_file);
     pheno_data.read_pheno_data();
     CovData cov_data(params.cov_file);
     cov_data.read_cov_data();
     FeatData feat_data(params.feat_file);
     feat_data.read_feat_data();
-    GRM grm_data(params.grm_file);
-    grm_data.read_grm();
+    GRM grm(params.grm_file);
+    grm.read_grm();
 
-    std::cout << "Constructing regions..." << std::endl;
+    std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
+    std::vector<std::vector<std::string>> sample_ids_vecs = {
+        grm.sample_ids, 
+        cov_data.sample_ids, 
+        pheno_data.sample_ids, 
+        geno_data.sample_ids
+    };
+    std::vector<std::string> int_sample_ids = intersection(sample_ids_vecs);
+
+    pheno_data.slice_samples(int_sample_ids);
+    cov_data.slice_samples(int_sample_ids);
+    grm.slice_samples(int_sample_ids);
+    geno_data.slice_samples(int_sample_ids);
+     
+    std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs" << std::endl;
+
+    std::cout << "\nConstructing regions..." << std::endl;
     Regions regions(feat_data, geno_data, params.window_size);
+    std::cout << "Regions constructed." << std::endl;
+    
+    std::cout << "\nRunning QTL mapping..." << std::endl;
+    run_qtl_mapping(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+    
+    std::cout << "\nQTL mapping finished." << std::endl;
 
-    std::cout << "quasar execution finished." << std::endl;
+    std::cout << "\nquasar execution finished." << std::endl;
     
     return 0;
 }

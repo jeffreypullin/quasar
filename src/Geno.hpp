@@ -37,6 +37,7 @@ struct SNP {
   int pos;
   std::string id;
   std::string allele1, allele2;
+  size_t index;
 };
 
 class GenoData {
@@ -46,6 +47,7 @@ class GenoData {
     std::vector<std::string> sample_ids;
     std::vector<SNP> snps_info;
     int n_samples;
+    int n_snps;
     GenoData(std::string bed_prefix) {
       this->bed_prefix = bed_prefix;
     }
@@ -53,7 +55,8 @@ class GenoData {
     void read_bim_file();
     void read_fam_file();
     void prepare_bed_file();
-    void read_bed_file_chunk(std::vector<size_t>& snp_indices);
+    void read_bed_file();
+    void slice_samples(std::vector<std::string>& sample_ids);
 };
 
 #endif

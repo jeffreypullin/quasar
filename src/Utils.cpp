@@ -26,18 +26,57 @@
 
 #include <vector>
 #include <string>
+#include <cstring>
+#include <algorithm>
+#include <unordered_set>
+#include <iostream>
 
-std::vector<std::string> string_split(const std::string& str, const std::string& delim) {
-    std::vector<std::string> tokens;
-    size_t prev = 0, pos = 0;
-    while ((pos = str.find(delim, prev)) != std::string::npos) {
-        if (pos > prev) {
-            tokens.push_back(str.substr(prev, pos - prev));
-        }
-        prev = pos + delim.length();
-    }
-    if (prev < str.length()) {
-        tokens.push_back(str.substr(prev));
-    }
-    return tokens;
+// From regenie.
+std::vector<std::string> string_split(std::string const& s, const char* delims) {
+
+  std::vector<std::string> out;
+
+  if (s.size() == 0) {
+    return out;
+  }
+
+  const char* p = s.c_str();
+  const char* q = strpbrk(p + 1, delims);
+
+  for( ; q != NULL; q = strpbrk(p, delims)){
+    out.push_back( std::string(p,q) );
+    p = q + 1;
+  }
+
+  if (p && (p[0] != '\0')) {
+    out.push_back(std::string(p));
+  }
+
+  return(out);
+}
+
+// From regenie.
+void remove_carriage_return(std::string& str) {
+  if (!str.empty() && str.back() == '\r') {
+    str.pop_back();
+  }
+}
+
+std::vector<std::string> intersection(std::vector<std::vector<std::string>> &vecs) {
+
+  // Sort each vector.
+  for (auto& vec : vecs) {
+    std::sort(vec.begin(), vec.end());
+  }
+  
+  auto last_intersection = vecs[0];
+  std::vector<std::string> curr_intersection;
+  for (std::size_t i = 1; i < vecs.size(); ++i) {
+      std::set_intersection(last_intersection.begin(), last_intersection.end(),
+          vecs[i].begin(), vecs[i].end(),
+          std::back_inserter(curr_intersection));
+      std::swap(last_intersection, curr_intersection);
+      curr_intersection.clear();
+  }
+  return last_intersection;
 }

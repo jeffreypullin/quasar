@@ -22,14 +22,13 @@
  * SOFTWARE.
  */
 
-#ifndef UTILS_HPP
-#define UTILS_HPP
+#ifndef QTLMAPPING_HPP
+#define QTLMAPPING_HPP
 
-#include <vector>
-#include <string>
+#include "Geno.hpp"
+#include "Data.hpp"
+#include "Regions.hpp"
 
-std::vector<std::string> string_split(std::string const& s, const char* delims);
-void remove_carriage_return(std::string& str);
-std::vector<std::string> intersection(std::vector<std::vector<std::string>> &vecs);
+void run_qtl_mapping(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions);
 
 #endif
