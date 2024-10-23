@@ -34,6 +34,7 @@
 #include "Data.hpp"
 
 #include "Eigen/Dense"
+#include "Eigen/Sparse"
 #include "Eigen/StdVector"
 #include "cxxopts.hpp"
 

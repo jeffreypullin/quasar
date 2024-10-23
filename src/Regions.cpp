@@ -50,14 +50,8 @@ void Regions::construct_regions(FeatData& feat_data, GenoData& geno_data, int& w
 	std::vector<int>& start_f = feat_data.start; 
 	std::vector<int>& end_f = feat_data.end; 
 
-	std::vector<SNP>& snps_info = geno_data.snps_info;
-	std::vector<int> chr_g;
-	std::transform(geno_data.snps_info.begin(), geno_data.snps_info.end(), std::back_inserter(chr_g), 
-                   [](const SNP& snp) { return snp.chrom; });
-
-    std::vector<int> pos_g;
-	std::transform(snps_info.begin(), snps_info.end(), std::back_inserter(pos_g), 
-                   [](const SNP& snp) { return snp.pos; });
+	std::vector<int>& chr_g = geno_data.chrom;
+    std::vector<int>& pos_g = geno_data.pos;
 
 	int window = window_size;
 	
@@ -81,32 +75,31 @@ void Regions::construct_regions(FeatData& feat_data, GenoData& geno_data, int& w
 	while (i_f < n_f) {
 		
 		i_f_e = i_f;
-		
+
 		seek_to(i_f_e, chr_f, start_f, chr_f[i_f], end_f[i_f] + magic_fraction * window);
 		seek_to(i_g, chr_g, pos_g, chr_f[i_f], start_f[i_f] - window);
-		
+
 		if (chr_g[i_g] == chr_f[i_f]) {
 			
 			i_g_e = i_g_e > i_g ? i_g_e : i_g;
 			seek_to(i_g_e, chr_g, pos_g, chr_f[i_f], end_f[i_f_e] + window + 1);
 			
-			if (i_f_e >= i_f && pos_g[i_g] - end_f[i_f] <= window && chr_g[i_g] == chr_f[i_f] ){
+			if (i_f_e >= i_f && pos_g[i_g] - end_f[i_f] <= window && chr_g[i_g] == chr_f[i_f]) {
+				
+				std::string region = std::to_string(chr_g[i_g]) + ":" + std::to_string(pos_g[i_g]) + "-" + std::to_string(pos_g[i_g_e]);
+				regions_id.push_back(region);
 				
 				feat_s.push_back(i_f);
 				feat_e.push_back(i_f_e);
 				geno_s.push_back(i_g);
 				geno_e.push_back(i_g_e);
 				
-				for(int j = i_g; j <= i_g_e; ++j){
+				for (int j = i_g; j <= i_g_e; ++j){
 					if (geno_id_s[j] == -1) {
                         geno_id_s[j] = block_ind;
 					}
 					geno_id_e[j] = block_ind;
 				}
-				
-				std::string region = chr_g[i_g] + ":" + std::to_string(pos_g[i_g]) + "-" + std::to_string(pos_g[i_g_e]);
-				
-				regions_id.push_back(region);
 
 				for (int i = i_f; i <= i_f_e; ++i) {
 					if (feat_id_s[i] == -1) {

@@ -69,6 +69,7 @@ int main(int argc, char* argv[]) {
     geno_data.read_fam_file();
     geno_data.prepare_bed_file();
     geno_data.read_bed_file();
+    geno_data.compute_variant_var();
 
     std::cout << "\nReading non-genotype data..." << std::endl;
     PhenoData pheno_data(params.pheno_file);
@@ -101,7 +102,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Regions constructed." << std::endl;
     
     std::cout << "\nRunning QTL mapping..." << std::endl;
-    run_qtl_mapping(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+    run_qtl_mapping_lmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
     
     std::cout << "\nQTL mapping finished." << std::endl;
 

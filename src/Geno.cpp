@@ -48,23 +48,19 @@ void GenoData::read_bim_file() {
             std::cerr << "Error: Invalid BIM file format." << std::endl;
             return;
         }
-
-        SNP snp;
-        snp.chrom = std::stoi(tokens[0]);
-        snp.id = tokens[1];
-        snp.pos = std::stoul(tokens[3]);
-        snp.allele1 = tokens[4];
-        snp.allele2 = tokens[5];
-        snp.index = index;
-        snps_info.push_back(snp);
+        chrom.push_back(std::stoi(tokens[0]));
+        id.push_back(tokens[1]);
+        pos.push_back(std::stoul(tokens[3]));
+        allele1.push_back(tokens[4]);
+        allele2.push_back(tokens[5]);
+        this->index.push_back(index);
         index++;
     }
 
-    n_snps = snps_info.size();
-    std::cout << "Number of SNPs read: " << snps_info.size() << std::endl;
+    n_snps = index;
+    std::cout << "Number of SNPs read: " << n_snps << std::endl;
 
     file.close();
-
 }
 
 void GenoData::read_fam_file() {
@@ -130,7 +126,8 @@ void GenoData::read_bed_file() {
     genotype_matrix.resize(n_snps, n_samples);
 
     for (size_t i = 0; i < n_snps; ++i) {
-        size_t snp_index = snps_info[i].index;
+        size_t snp_index = index[i];
+
         file.seekg(3 + snp_index * ((n_samples + 3) / 4), std::ios::beg);
 
         for (size_t j = 0; j < n_samples; j += 4) {
@@ -190,3 +187,11 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
 }   
+
+void GenoData::compute_variant_var() {
+    var.resize(n_snps);
+    for (size_t i = 0; i < n_snps; ++i) {
+        double mean = genotype_matrix.row(i).mean();
+        var[i] = (genotype_matrix.row(i).array().pow(2).sum() - (mean * mean) * n_samples) / (n_samples - 1);
+    }
+}

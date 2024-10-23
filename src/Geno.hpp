@@ -32,22 +32,25 @@
 
 #include "Eigen/Dense"
 
-struct SNP {
-  int chrom;
-  int pos;
-  std::string id;
-  std::string allele1, allele2;
-  size_t index;
-};
-
 class GenoData {
   public:
     std::string bed_prefix;
+    
     Eigen::MatrixXd genotype_matrix;
-    std::vector<std::string> sample_ids;
-    std::vector<SNP> snps_info;
+    
     int n_samples;
+    std::vector<std::string> sample_ids;
+    
+    // SNP information.
     int n_snps;
+    std::vector<int> chrom;
+    std::vector<int> pos;
+    std::vector<std::string> id;
+    std::vector<std::string> allele1;
+    std::vector<std::string> allele2;
+    std::vector<size_t> index;
+    std::vector<double> var;
+
     GenoData(std::string bed_prefix) {
       this->bed_prefix = bed_prefix;
     }
@@ -57,6 +60,7 @@ class GenoData {
     void prepare_bed_file();
     void read_bed_file();
     void slice_samples(std::vector<std::string>& sample_ids);
+    void compute_variant_var();
 };
 
 #endif

@@ -28,7 +28,21 @@
 #include "Geno.hpp"
 #include "Data.hpp"
 #include "Regions.hpp"
+#include <boost/math/distributions/normal.hpp>
+#include <boost/math/distributions/cauchy.hpp>
 
-void run_qtl_mapping(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions);
+typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalXd;
+
+void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions);
+double estimate_r(const Eigen::MatrixXd& X, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, double sigma2_g, double delta);
+std::vector<int> rank_vector(const std::vector<double>& v);
+void rank_normalize(Eigen::MatrixXd& Y);
+
+double ACAT(const std::vector<double>& pvals);
+
+double pnorm(double x, bool lower);
+double qnorm(double p, bool lower);
+double qcauchy(double p, bool lower);
+double pcauchy(double x, bool lower);
 
 #endif
