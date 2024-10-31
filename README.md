@@ -77,4 +77,5 @@ Elements of the code and interface of quasar are based off
 - (APEX)[https://corbinq.github.io/apex/doc/]
 - regenie
 - limix_qtl
+- PQLseq2
 

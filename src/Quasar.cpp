@@ -39,6 +39,7 @@ int main(int argc, char* argv[]) {
     options.add_options()
         ("h,help", "Display help message")
         ("v,version", "Display version information")
+        ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("f,feat", "Feature annotation file", cxxopts::value<std::string>(params.feat_file))
         ("c,cov", "Covariate file", cxxopts::value<std::string>(params.cov_file))
         ("p,pheno", "Phenotype file", cxxopts::value<std::string>(params.pheno_file))
@@ -102,11 +103,17 @@ int main(int argc, char* argv[]) {
     std::cout << "Regions constructed." << std::endl;
     
     std::cout << "\nRunning QTL mapping..." << std::endl;
-    run_qtl_mapping_lmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
-    
+    std::cout << "Using model: " << params.model << std::endl;
+    if (params.model == "lmm") {
+        run_qtl_mapping_lmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+    } else if (params.model == "glmm") {
+        run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+    } else {
+        std::cerr << "Invalid model specified. Please use 'lmm' or 'glmm'." << std::endl;
+        exit(1);
+    }
     std::cout << "\nQTL mapping finished." << std::endl;
 
     std::cout << "\nquasar execution finished." << std::endl;
-    
     return 0;
 }

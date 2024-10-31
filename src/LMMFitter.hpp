@@ -70,7 +70,7 @@ class LMMFitter {
 			return ll;
 		};
 	
-		void fit_reml() {
+		void fit() {
 			
 			std::function<double(double)> f = [this](double x) { 
                 return neg_ll_reml(x);

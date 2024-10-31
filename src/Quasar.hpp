@@ -46,6 +46,7 @@ struct Param {
     std::string feat_file;
     std::string cov_file;
     std::string pheno_file;
+    std::string model;
 
     // Parameters.
     int window_size = 500000;
