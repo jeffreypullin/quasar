@@ -26,7 +26,7 @@
 #include "Data.hpp"
 #include "Geno.hpp"
 #include "Regions.hpp"
-#include "QTLmapping.hpp"
+#include "QTLMapping.hpp"
 #include "Utils.hpp"
 #include <iostream>
 #include <utility>

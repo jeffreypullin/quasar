@@ -22,14 +22,14 @@
  * SOFTWARE.
  */
 
-#ifndef GLMFITTER_H
-#define GLMFITTER_H
+#ifndef GLM_H
+#define GLM_H
 
 #include <Eigen/Dense>
 #include <iostream>
 
 // This is currently spcialised to Poisson GLMs.
-class GLMFitter {
+class GLM {
 	
     private:
 		const Eigen::Ref<Eigen::MatrixXd> X;
@@ -46,7 +46,7 @@ class GLMFitter {
         Eigen::VectorXd mu;
         Eigen::MatrixXd eta;
 
-        GLMFitter(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_) : 
+        GLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_) : 
 			X(X_),
 			y(y_)
 		{

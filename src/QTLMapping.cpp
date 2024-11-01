@@ -1,36 +1,39 @@
 /*
- * MIT License
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+MIT License
 
-#include "QTLmapping.hpp"
-#include "GLMFitter.hpp"
-#include "LMMFitter.hpp"
-#include "GLMMFitter.hpp"
+Copyright (c) 2024 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+#include "QTLMapping.hpp"
+#include "GLM.hpp"
+#include "LMM.hpp"
+#include "GLMM.hpp"
+#include "QTLMappingUtils.hpp"
+#include "VarRatioApprox.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
 #include <numeric>
-#include <random>
 
 void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){
 
@@ -72,11 +75,11 @@ void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_
         DiagonalXd D_inv;
         double sigma2_g, delta;
 
-        LMMFitter fit(QtX, QtY.col(i), lambda);
-        fit.fit();
-        D_inv = fit.D_inv;
-		sigma2_g = fit.sigma2;
-		delta = fit.delta;
+        LMM lmm(QtX, QtY.col(i), lambda);
+        lmm.fit();
+        D_inv = lmm.D_inv;
+		sigma2_g = lmm.sigma2;
+		delta = lmm.delta;
 
         Eigen::MatrixXd XtDX = X.transpose() * D_inv * X;
 		Eigen::VectorXd XtDy = X.transpose() * D_inv * Y.col(i);
@@ -220,55 +223,6 @@ void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_
     }
 }
 
-double estimate_r(const Eigen::MatrixXd& X, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, double sigma2_g, double delta){
-
-	int n_rand_samples = 30;
-	
-	int n_var = G.cols();
-	int n_samples = GRM.rows();
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-
-	double sigma2_e = delta * sigma2_g;
-	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_samples, n_samples);
-	Eigen::MatrixXd Omega = sigma2_g * GRM + sigma2_e * I;
-	Eigen::MatrixXd Omega_inv = Omega.inverse();
-
-	double var_num, var_denom;
-	Eigen::VectorXd r_vec(n_rand_samples);
-
-	Eigen::MatrixXd Omega_inv_X = Omega_inv * X;
-	Eigen::MatrixXd Xt_Omega_inv_X = X.transpose() * Omega_inv_X;
-	Eigen::MatrixXd Xt_Omega_inv_X_inv = Xt_Omega_inv_X.inverse();
-
-	for (int i = 0; i < n_rand_samples; ++i) {	
-
-		std::uniform_int_distribution<> dis(0, n_var - 1);
-		int rand_ind = dis(gen);
-
-		Eigen::VectorXd g_rand = G.col(rand_ind);
-
-		// FIXME: Why are there negative values?
-		if (g_rand.cwiseAbs().sum() <= 20) {
-			continue;
-		}
-
-		Eigen::VectorXd Omega_inv_g = Omega_inv * g_rand;
-    	double a = g_rand.dot(Omega_inv_g);
-    
-		Eigen::VectorXd Xt_Omega_inv_g = X.transpose() * Omega_inv_g;
-    	Eigen::VectorXd temp = Xt_Omega_inv_X_inv * Xt_Omega_inv_g;
-    	double b = g_rand.dot(Omega_inv_X * temp);
-
-		var_num = a + b;
-		var_denom = g_rand.squaredNorm();
-
-		r_vec(i) = var_num / var_denom;
-	}
-	return r_vec.mean();
-}
-
 void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){
 
     Eigen::MatrixXd& Y = pheno_data.data;
@@ -300,25 +254,25 @@ void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov
 
 		// Fit a GLM to get initial beta.
 		Eigen::VectorXd y = Y.col(i).array() + 300;
-		GLMFitter glm_fit(X, y);
-		glm_fit.fit();
+		GLM glm(X, y);
+		glm.fit();
 		
-		Eigen::VectorXd init_beta = glm_fit.beta;	
+		Eigen::VectorXd init_beta = glm.beta;	
 		Eigen::VectorXd init_tau = Eigen::VectorXd::Ones(2);
 		
 		std::cout << "i: " << i << std::endl;
-        GLMMFitter glmm_fit(X, y, Ks, lib_size, init_beta, init_tau);
-        glmm_fit.fit();
-		tau1 = glmm_fit.tau[0];
+        GLMM glmm(X, y, Ks, lib_size, init_beta, init_tau);
+        glmm.fit();
+		tau1 = glmm.tau[0];
 		std::cout << "tau1: " << tau1 << std::endl;
-		tau2 = glmm_fit.tau[1];
+		tau2 = glmm.tau[1];
 		std::cout << "tau2: " << tau2 << std::endl;
 		
-		Eigen::VectorXd y_hat = X * glmm_fit.beta;
+		Eigen::VectorXd y_hat = X * glmm.beta;
 		Eigen::VectorXd y_res = Y.col(i) - y_hat;
 
 		// FIXME: Check this.
-		double sigma2 = glmm_fit.tau.sum();
+		double sigma2 = glmm.tau.sum();
 		if (sigma2 > 0) {
 			Y.col(i) = (y_res / sigma2).eval();
 		} else {
@@ -328,7 +282,7 @@ void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov
 		sigma2_vec[i] = sigma2;
         pheno_data.std_dev[i] = std::sqrt(sigma2);
 
-		r_vec[i] = estimate_r_glmm(X, grm.mat, G, glmm_fit.P, glmm_fit.d);
+		r_vec[i] = estimate_r_glmm(X, grm.mat, G, glmm.P, glmm.d);
     }
     std::cout << "Null GLMMs fitted." << std::endl;
 	std::cout << "Correction factor estimation finished." << std::endl;
@@ -450,149 +404,3 @@ void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov
 		}
     }
 }
-
-double estimate_r_glmm(const Eigen::MatrixXd& X, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, Eigen::MatrixXd& P, Eigen::VectorXd& d){
-
-	int n_rand_samples = 30;
-	
-	int n_var = G.cols();
-	int n_samples = GRM.rows();
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-
-	double var_num, var_denom;
-	Eigen::VectorXd r_vec(n_rand_samples);
-
-	for (int i = 0; i < n_rand_samples; ++i) {	
-
-		std::uniform_int_distribution<> dis(0, n_var - 1);
-		int rand_ind = dis(gen);
-
-		Eigen::VectorXd g_rand = G.col(rand_ind);
-
-		// FIXME: Why are there negative values?
-		if (g_rand.cwiseAbs().sum() <= 20) {
-			continue;
-		}
-
-		Eigen::VectorXd Pg = P * g_rand;
-    	double var_num = g_rand.dot(Pg);
-
-		Eigen::MatrixXd D = d.asDiagonal();
-		double var_denom = g_rand.dot(D * g_rand);
-
-		r_vec(i) = var_num / var_denom;
-	}
-	return r_vec.mean();
-}
-
-
-double pnorm(double x, bool lower) {
-	boost::math::normal N01(0.0, 1.0);
-	if (lower) { 
-        return boost::math::cdf(boost::math::complement(N01, x));
-    } 
-	return boost::math::cdf(N01, x);
-}
-
-double p_bd = 1e-300;
-double q_bd = 3e+299;
-
-double qnorm(double p, bool lower){
-	boost::math::normal N01(0.0, 1.0);
-	if (lower) { 
-        return boost::math::quantile(boost::math::complement(N01, p));
-    } 
-	return boost::math::quantile(N01, p);
-}
-
-double qcauchy(double p, bool lower){
-	p = p > p_bd ? p : p_bd;
-	p = p < 1 - p_bd ? p : 1 - p_bd;
-	
-	boost::math::cauchy C01(0.0, 1.0);
-	if (lower) {
-		return boost::math::quantile(boost::math::complement(C01, p));
-	}
-	return boost::math::quantile(C01, p);
-}
-
-double pcauchy(double x, bool lower){
-	x = x < q_bd ? x : q_bd;
-	x = x > -q_bd ? x : -q_bd;
-	
-	boost::math::cauchy C01(0.0, 1.0);
-	if (lower) {
-		return boost::math::cdf(boost::math::complement(C01, x));
-	}
-	return boost::math::cdf(C01, x);
-}
-
-void rank_normalize(Eigen::MatrixXd& Y){
-	double n = Y.rows();
-	double p = Y.cols();
-	
-	std::vector<double> z((int) n);
-	std::vector<double> rk((int) n);
-	
-	double mu = 0;
-	double sd = 0;
-	for (int i = 0; i < n; ++i){
-		z[i] = qnorm(((double)i+1.0) / ((double)n+1.0), true);
-		mu += z[i];
-		sd += z[i] * z[i];
-	}
-	sd = std::sqrt(sd / (n - 1) - mu * mu / (n * (n - 1.0)));
-	mu = mu / n;
-	for (int i = 0; i < n; ++i){
-		z[i] = (z[i] - mu) / sd;
-	}
-	
-	for (int j = 0; j < p; ++j){
-
-		std::vector<double> v(n);
-		for (int i = 0; i < n; ++i){
-			v[i] = Y(i, j);
-		}
-		
-		std::vector<int> ranks = rank_vector(v);
-		for (int i = 0; i < n; ++i){
-			Y(i, j) = z[ranks[i] - 1];
-		}
-	}
-}
-
-std::vector<int> rank_vector(const std::vector<double>& v){
-    
-	std::vector<size_t> w(v.size());
-    std::iota(w.begin(), w.end(), 0);
-    std::sort(w.begin(), w.end(), [&v](size_t i, size_t j) { return v[i] < v[j]; });
-
-    std::vector<int> r(w.size());
-    for (size_t n, i = 0; i < w.size(); i += n) {
-        n = 1;
-        while (i + n < w.size() && v[w[i]] == v[w[i+n]]) ++n;
-        for (size_t k = 0; k < n; ++k) {
-            r[w[i+k]] = i + (n + 1) / 2.0;
-        }
-    }
-    return r;
-}
-
-double ACAT(const std::vector<double>& pvals) {
-	long double sum = 0.0;
-	double n = pvals.size();
-	for (const double& p: pvals) {
-		if (p >= 1){
-			sum += qcauchy(1 - 1 / n, true);
-		} else if (p <= 0){
-			std::cerr << "ACAT failed; input pval <= 0. \n";
-			exit(1);
-		} else {
-			sum += qcauchy(p, true);
-		}
-	}
-	return pcauchy(sum, true);
-}
-

@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-#ifndef GLMMFITTER_H
-#define GLMMFITTER_H
+#ifndef GLMM_H
+#define GLMM_H
 
 #include <Eigen/Dense>
 #include <limits>
@@ -34,7 +34,8 @@ double var(const Eigen::VectorXd& x) {
     return (x.array() - mean).square().sum() / (x.size() - 1);
 }
 
-class GLMMFitter {
+// Currently speclialised to Poisson GLMMs.
+class GLMM {
 	
 	public:
 
@@ -197,7 +198,7 @@ class GLMMFitter {
             is_converged = false;
         }
 
-        GLMMFitter(
+        GLMM(
             const Eigen::Ref<Eigen::MatrixXd> X_, 
             const Eigen::Ref<Eigen::VectorXd> y_, 
             const std::vector<Eigen::MatrixXd> Ks_, 

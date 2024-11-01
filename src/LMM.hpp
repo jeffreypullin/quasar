@@ -22,13 +22,14 @@
  * SOFTWARE.
  */
 
-#ifndef LMMFITTER_H
-#define LMMFITTER_H
+#ifndef LMM_H
+#define LMM_H
 
 #include <Eigen/Dense>
 #include <brent_fmin.hpp>
 
-class LMMFitter {
+// Speclised to use the FastLMM algorithm.
+class LMM {
 	
 	private:
 		const Eigen::Ref<Eigen::MatrixXd> X_tilde;
@@ -42,7 +43,7 @@ class LMMFitter {
 		double sigma2;
 		double delta;
 
-        LMMFitter(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_, const Eigen::Ref<Eigen::VectorXd> lambda_) : 
+        LMM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_, const Eigen::Ref<Eigen::VectorXd> lambda_) : 
 			X_tilde(X_),
 			y_tilde(y_),
 			lambda(lambda_)
