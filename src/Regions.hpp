@@ -40,11 +40,11 @@ class Regions {
       std::vector<int> feat_e;
       std::vector<int> geno_s;
       std::vector<int> geno_e;
-	    std::vector<int> geno_s_ind;
-	    std::vector<int> geno_e_ind;
-	    std::vector<int> feat_s_ind;
-	    std::vector<int> feat_e_ind;
-	    std::vector<std::string> regions_id;
+      std::vector<int> geno_s_ind;
+      std::vector<int> geno_e_ind;
+      std::vector<int> feat_s_ind;
+      std::vector<int> feat_e_ind;
+      std::vector<std::string> regions_id;
       int window_size;
 
       int size() {

@@ -97,13 +97,13 @@ int main(int argc, char* argv[]) {
     grm.read_grm();
 
     // Check interaction covariates are in the covariate matrix.
-	std::vector<std::string> cov_ids = cov_data.cov_ids;
-	for (const auto& cov : params.int_covs) {
-		if (std::find(cov_ids.begin(), cov_ids.end(), cov) == cov_ids.end()) {
-			std::cerr << "Interaction covariate " << cov << " not found in covariate data." << std::endl;
-			exit(1);
-		}
-	}
+    std::vector<std::string> cov_ids = cov_data.cov_ids;
+    for (const auto& cov : params.int_covs) {
+        if (std::find(cov_ids.begin(), cov_ids.end(), cov) == cov_ids.end()) {
+            std::cerr << "Interaction covariate " << cov << " not found in covariate data." << std::endl;
+            exit(1);
+        }
+    }
 
     std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
     std::vector<std::vector<std::string>> sample_ids_vecs = {

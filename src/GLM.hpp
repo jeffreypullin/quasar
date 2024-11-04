@@ -30,16 +30,16 @@
 
 // This is currently spcialised to Poisson GLMs.
 class GLM {
-	
+
     private:
-		const Eigen::Ref<Eigen::MatrixXd> X;
-		const Eigen::Ref<Eigen::VectorXd> y;
+        const Eigen::Ref<Eigen::MatrixXd> X;
+        const Eigen::Ref<Eigen::VectorXd> y;
         int n;
         int p;
         double tol = 1e-5;
 
-	public:
-	
+    public:
+
         Eigen::VectorXd w;
         Eigen::VectorXd beta;
         Eigen::VectorXd y_tilde;
@@ -47,9 +47,9 @@ class GLM {
         Eigen::MatrixXd eta;
 
         GLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_) : 
-			X(X_),
-			y(y_)
-		{
+            X(X_),
+            y(y_)
+        {
             n = y.size();
             p = X.cols();
             beta = Eigen::VectorXd::Zero(p);
@@ -70,7 +70,7 @@ class GLM {
         }
 
         // Fit the GLM using IRLS.
-		void fit() {
+        void fit() {
 
             double delta = 1;
             int iter = 1;
@@ -91,7 +91,7 @@ class GLM {
 
                 iter++;
             }
-		}
+        }
 };
 
 #endif

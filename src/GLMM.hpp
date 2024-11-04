@@ -206,11 +206,11 @@ class GLMM {
             const Eigen::Ref<Eigen::VectorXd> init_beta_,
             const Eigen::Ref<Eigen::VectorXd> init_tau_
         ) : 
-			y(y_),
-			X(X_),
+            y(y_),
+            X(X_),
             Ks(Ks_),
             lib_size(lib_size_)
-		{
+        {
             n = X.rows();
             p = X.cols();
             init_params(init_beta_, init_tau_);
