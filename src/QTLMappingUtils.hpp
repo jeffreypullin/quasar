@@ -21,5 +21,7 @@ double pnorm(double x, bool lower);
 double qnorm(double p, bool lower);
 double qcauchy(double p, bool lower);
 double pcauchy(double x, bool lower);
+double qchisq(double p, double df, bool lower);
+double pchisq(double x, double df, bool lower);
 
 #endif

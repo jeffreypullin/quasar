@@ -46,10 +46,14 @@ struct Param {
     std::string feat_file;
     std::string cov_file;
     std::string pheno_file;
-    std::string model;
-
-    // Parameters.
+    
+    // QTL mapping parameters.
     int window_size = 500000;
+    std::string model;
+    
+    // Interaction parameters.
+    bool run_interaction = false;
+    std::vector<std::string> int_covs;
 
     // Data.
     std::string output_prefix;

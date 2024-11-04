@@ -27,6 +27,7 @@
 
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/cauchy.hpp>
+#include <boost/math/distributions/chi_squared.hpp>
 #include <vector>
 #include <iostream>
 #include <numeric>
@@ -70,6 +71,22 @@ double pcauchy(double x, bool lower){
 		return boost::math::cdf(boost::math::complement(C01, x));
 	}
 	return boost::math::cdf(C01, x);
+}
+
+double qchisq(double p, double df, bool lower){
+	boost::math::chi_squared CHISQ(df);
+	if (lower) { 
+		return boost::math::quantile(boost::math::complement(CHISQ, p));
+	}
+	return boost::math::quantile(CHISQ, p);
+}
+
+double pchisq(double x, double df, bool lower){
+	boost::math::chi_squared CHISQ(df);
+	if (lower) { 
+		return boost::math::cdf(boost::math::complement(CHISQ, x));
+	}
+	return boost::math::cdf(CHISQ, x);
 }
 
 void rank_normalize(Eigen::MatrixXd& Y){

@@ -39,19 +39,22 @@ int main(int argc, char* argv[]) {
     options.add_options()
         ("h,help", "Display help message")
         ("v,version", "Display version information")
-        ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
+        // Data arguments.
         ("f,feat", "Feature annotation file", cxxopts::value<std::string>(params.feat_file))
         ("c,cov", "Covariate file", cxxopts::value<std::string>(params.cov_file))
         ("p,pheno", "Phenotype file", cxxopts::value<std::string>(params.pheno_file))
         ("b,bed", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.bed_prefix))
         ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file))
         ("o,output-prefix", "Output directory prefix", cxxopts::value<std::string>(params.output_prefix))
-        ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size));
+        // Model arguments.
+        ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
+        ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
+        // Interaction arguments.
+        ("i,int-covs", "Interaction covariates", cxxopts::value<std::vector<std::string>>(params.int_covs));
 
     // Parse the arguments.
     auto result = options.parse(argc, argv);
 
-    // Handle arguments
     if (result.count("help")) {
         std::cout << options.help() << std::endl;
         exit(0);
@@ -60,6 +63,17 @@ int main(int argc, char* argv[]) {
     if (result.count("version")) {
         std::cout << "quasar version 0.0.1" << std::endl;
         exit(0);
+    }
+
+    // Parse interaction arguments.
+    if (result.count("int-covs")) {
+        params.run_interaction = true;
+    }
+
+    // Check model.
+    if (params.model != "lmm" && params.model != "glmm") {
+        std::cerr << "Invalid model specified. Please use 'lmm' or 'glmm'." << std::endl;
+        exit(1);
     }
 
     std::cout << "\nquasar execution started." << std::endl;
@@ -82,6 +96,15 @@ int main(int argc, char* argv[]) {
     GRM grm(params.grm_file);
     grm.read_grm();
 
+    // Check interaction covariates are in the covariate matrix.
+	std::vector<std::string> cov_ids = cov_data.cov_ids;
+	for (const auto& cov : params.int_covs) {
+		if (std::find(cov_ids.begin(), cov_ids.end(), cov) == cov_ids.end()) {
+			std::cerr << "Interaction covariate " << cov << " not found in covariate data." << std::endl;
+			exit(1);
+		}
+	}
+
     std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
     std::vector<std::vector<std::string>> sample_ids_vecs = {
         grm.sample_ids, 
@@ -103,15 +126,24 @@ int main(int argc, char* argv[]) {
     std::cout << "Regions constructed." << std::endl;
     
     std::cout << "\nRunning QTL mapping..." << std::endl;
-    std::cout << "Using model: " << params.model << std::endl;
-    if (params.model == "lmm") {
-        run_qtl_mapping_lmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
-    } else if (params.model == "glmm") {
-        run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+
+    if (params.run_interaction) {
+        // Run interaction mapping.
+        std::cout << "\nRunning interaction mapping..." << std::endl;
+        if (params.model == "glmm") {
+            std::cerr << "Error: interaction mapping is not currently supported for GLMMs." << std::endl;
+            exit(1);
+        }
+        run_qtl_mapping_lmm_int(geno_data, feat_data, cov_data, pheno_data, grm, regions, params.int_covs);
     } else {
-        std::cerr << "Invalid model specified. Please use 'lmm' or 'glmm'." << std::endl;
-        exit(1);
+        // Run non-interaction mapping.
+        if (params.model == "lmm") {
+            run_qtl_mapping_lmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+        } else if (params.model == "glmm") {
+            run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+        }
     }
+
     std::cout << "\nQTL mapping finished." << std::endl;
 
     std::cout << "\nquasar execution finished." << std::endl;

@@ -26,8 +26,12 @@
 #define VAR_RATIO_APPROX_HPP
 
 #include <Eigen/Dense>
+#include "Data.hpp"
+#include <string>
+#include <vector>
 
 double estimate_r(const Eigen::MatrixXd& X, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, double sigma2_g, double delta);
 double estimate_r_glmm(const Eigen::MatrixXd& X, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, Eigen::MatrixXd& P, Eigen::VectorXd& d);
+Eigen::MatrixXd estimate_R_int(const CovData& cov_data, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, double sigma2_g, double delta, const std::vector<std::string>& int_cov_ids);
 
 #endif

@@ -42,6 +42,7 @@ class LMM {
 		Eigen::DiagonalMatrix<double,Eigen::Dynamic> D_inv;
 		double sigma2;
 		double delta;
+		Eigen::VectorXd beta;
 
         LMM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_, const Eigen::Ref<Eigen::VectorXd> lambda_) : 
 			X_tilde(X_),
@@ -83,10 +84,10 @@ class LMM {
 			
 			Eigen::MatrixXd XtDX = X_tilde.transpose() * D_inv * X_tilde;
 			Eigen::VectorXd XtDy = X_tilde.transpose() * D_inv * y_tilde;
-			Eigen::VectorXd beta = XtDX.colPivHouseholderQr().solve(XtDy);
+			beta = XtDX.colPivHouseholderQr().solve(XtDy);
 			
 			sigma2 = (y_tilde.dot(D_inv * y_tilde) - XtDy.dot(beta)) / df_resid;
-			
+
 			return;
 		}
 };
