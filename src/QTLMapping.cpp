@@ -552,7 +552,7 @@ void run_qtl_mapping_lmm_int(
 						U = Z_tilde.transpose() * Y.col(jj);
 						Eigen::MatrixXd ZtZ = Z_tilde.transpose() * Z_tilde;
 						V = R_vec[jj] * ZtZ.trace();
-						chi = U.transpose() * V() * U;
+						chi = U.transpose() * V * U;
 						pval_esnp = pchisq(chi, Z_tilde.cols(), true);
 					} else {
 						chi = 0;
