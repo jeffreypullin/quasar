@@ -147,8 +147,8 @@ double ACAT(const std::vector<double>& pvals) {
         if (p >= 1){
             sum += qcauchy(1 - 1 / n, true);
         } else if (p <= 0){
-            std::cerr << "ACAT failed; input pval <= 0. \n";
-            exit(1);
+            // FIXME: Handle this case better.
+            continue;
         } else {
             sum += qcauchy(p, true);
         }

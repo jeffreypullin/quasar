@@ -33,7 +33,7 @@
 
 int main(int argc, char* argv[]) {
 
-    Param params;
+    Params params;
 
     cxxopts::Options options("quasar", "QTL mapping software");
     options.add_options()
@@ -45,12 +45,13 @@ int main(int argc, char* argv[]) {
         ("p,pheno", "Phenotype file", cxxopts::value<std::string>(params.pheno_file))
         ("b,bed", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.bed_prefix))
         ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file))
-        ("o,output-prefix", "Output directory prefix", cxxopts::value<std::string>(params.output_prefix))
         // Model arguments.
         ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
         // Interaction arguments.
-        ("i,int-covs", "Interaction covariates", cxxopts::value<std::vector<std::string>>(params.int_covs));
+        ("i,int-covs", "Interaction covariates", cxxopts::value<std::vector<std::string>>(params.int_covs))
+        // Output arguments.
+        ("o,output-prefix", "Output file prefix", cxxopts::value<std::string>(params.output_prefix));
 
     // Parse the arguments.
     auto result = options.parse(argc, argv);
@@ -63,6 +64,10 @@ int main(int argc, char* argv[]) {
     if (result.count("version")) {
         std::cout << "quasar version 0.0.1" << std::endl;
         exit(0);
+    }
+
+    if (params.output_prefix == "") {
+        params.output_prefix = "quasar_output";
     }
 
     // Parse interaction arguments.
@@ -138,7 +143,7 @@ int main(int argc, char* argv[]) {
     } else {
         // Run non-interaction mapping.
         if (params.model == "lmm") {
-            run_qtl_mapping_lmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
+            run_qtl_mapping_lmm(params, geno_data, feat_data, cov_data, pheno_data, grm, regions);
         } else if (params.model == "glmm") {
             run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
         }

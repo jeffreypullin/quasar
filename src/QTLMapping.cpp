@@ -35,7 +35,7 @@ SOFTWARE.
 #include <string>
 #include <numeric>
 
-void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){
+void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){
 
     Eigen::MatrixXd& Y = pheno_data.data;
     Eigen::MatrixXd& X = cov_data.data;
@@ -94,6 +94,12 @@ void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_
 
     std::cout << "\nCalculating variant significance..." << std::endl;
 
+    std::string feat_block_file_path = params.output_prefix + "_cis_region_sig.txt";
+	std::string long_file_path = params.output_prefix + "_cis_variant_sig.txt";
+
+    std::ofstream feat_block_file(feat_block_file_path);
+    std::ofstream long_file(long_file_path);
+
     // Iterate over regions.
     for (int i = 0; i < regions.size(); ++i){
 
@@ -113,7 +119,6 @@ void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_
             std::stringstream block_line;
             
             std::vector<double> pvals;
-            std::vector<double> dist;
             double gene_tss = feat_data.start[jj];
 
             int idx_s = -1;
@@ -168,8 +173,6 @@ void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_
 
                     u = g_tilde.dot(Y.col(jj));
                     gtg = g_tilde.squaredNorm();
-                    std::cout << "gtg: " << gtg << std::endl;
-                    std::cout << "r: " << r_vec[jj] << std::endl;
                     v = r_vec[jj] * gtg;
                     if (v > 0) {
                         zscore = u / std::sqrt(v);
@@ -184,30 +187,36 @@ void run_qtl_mapping_lmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_
                 }
                 pvals.push_back(pval_esnp);
 
-                std::cout << "u: " << u << std::endl;
-                std::cout << "v: " << v << std::endl;
-                std::cout << "z-score: " << zscore << std::endl;
-                std::cout << "p-value: " << pval_esnp << std::endl;
+                long_line << 
+                    geno_data.chrom[ii] << "\t" <<
+                    geno_data.pos[ii] << "\t" <<
+					geno_data.allele1[ii] << "\t" <<
+				    geno_data.allele1[ii] << "\t" <<
+					pheno_data.pheno_ids[jj] << "\t" <<
+                    u << "\t" << 
+                    v << "\t" <<
+                    zscore << "\t" <<
+                    pval_esnp << "\n";
+                long_file << long_line.str();
             }
 
-            // TODO Turn back on.
-            if (false && pvals.size() > 0) {
+            if (pvals.size() > 0) {
 
-                std::stringstream bed_block_line;
-                std::cout << "Region results..." << std::endl;
-                std::cout << feat_data.chrom[jj] << std::endl;
-                std::cout << feat_data.start[jj] << std::endl;
-                std::cout << feat_data.end[jj] << std::endl;
-                std::cout << feat_data.feat_id[jj] << std::endl;
-                std::cout << ACAT(pvals) << std::endl;
-                std::cout << n_samples << std::endl;
-                std::cout << n_cov << std::endl;
-                std::cout << pheno_data.std_dev[jj] << std::endl;
-                std::cout << idx_n << std::endl;
+                std::stringstream feat_block_line;
 
+                feat_block_line << 
+                    feat_data.feat_id[jj] << "\t" <<
+                    feat_data.chrom[jj] << "\t" <<
+                    feat_data.start[jj] << "\t" <<
+                    feat_data.end[jj] << "\t" << 
+                    ACAT(pvals) << "\t" <<
+                    pheno_data.std_dev[jj] << "\n";
+                feat_block_file << feat_block_line.str();
             }
         }
     }
+    feat_block_file.close();
+    long_file.close();
 }
 
 void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){

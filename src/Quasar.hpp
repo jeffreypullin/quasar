@@ -38,7 +38,7 @@
 #include "Eigen/StdVector"
 #include "cxxopts.hpp"
 
-struct Param {
+struct Params {
 
     // Input files.
     std::string bed_prefix;
