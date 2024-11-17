@@ -94,129 +94,117 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
 
     std::cout << "\nCalculating variant significance..." << std::endl;
 
-    std::string feat_block_file_path = params.output_prefix + "_cis_region_sig.txt";
-	std::string long_file_path = params.output_prefix + "_cis_variant_sig.txt";
+    std::string region_file_path = params.output_prefix + "_cis_region.txt";
+	std::string variant_file_path = params.output_prefix + "_cis_variant.txt";
 
-    std::ofstream feat_block_file(feat_block_file_path);
-    std::ofstream long_file(long_file_path);
+    std::ofstream region_file(region_file_path);
+    std::ofstream variant_file(variant_file_path);
 
-    // Iterate over regions.
-    for (int i = 0; i < regions.size(); ++i){
+    Eigen::MatrixXd P_X = X * (X.transpose() * X).ldlt().solve(X.transpose());
+    // Iterate over features.
+    for (int i = 0; i < feat_data.n_feat; ++i) {
 
-        std::cout << "Processing region " << (i + 1) << " (" << regions.regions_id[i] << ")..." << std::endl;
+        int chr_f = feat_data.chrom[i];
+        int pos_f = feat_data.start[i];
 
-        int n_g = regions.geno_e[i] - regions.geno_s[i] + 1;
-        int n_e = regions.feat_e[i] - regions.feat_s[i] + 1;
+        int window_start = 0;
+        int window_end = 0; 
+        int window_n = 0;
+        int window_size = params.window_size;
 
-        int s_slice = 0;
-        int n_slice = G.cols();
+        std::vector<int> g_chr_vec = geno_data.chrom;
+        std::vector<int> g_pos_vec = geno_data.pos;
+        for (int j = 0; j < geno_data.n_snps - 1; ++j) {
+            if (g_chr_vec[j] == chr_f) {
 
-        // Iterate over phenotypes in a region.
-        for (int jj = regions.feat_s[i], jm = 0; jj < regions.feat_s[i] + n_e; ++jj, ++jm) {
-
-            std::cout << "Processing feature: " << feat_data.feat_id[jj] << std::endl;
-            
-            std::stringstream block_line;
-            
-            std::vector<double> pvals;
-            double gene_tss = feat_data.start[jj];
-
-            int idx_s = -1;
-            int idx_n = 0;
-
-            for (int ii = regions.geno_s[i], im = 0; ii < regions.geno_s[i] + n_g; ++ii, im++ ) {
-                if (geno_data.chrom[ii] == feat_data.chrom[jj] && feat_data.start[jj] - geno_data.pos[ii] < 500000 && geno_data.pos[ii] - feat_data.end[jj] < 500000) {
-                    if (idx_s < 0) {
-                        idx_s = im;
-                    }
-                    idx_n++;
-                } else {
-                    if (idx_s >= 0) {
-                        break;
-                    }
+                if (window_start == 0 && g_pos_vec[j] >= pos_f - window_size) {
+                    window_start = j;
+                }
+                if (g_pos_vec[j] > pos_f + window_size) {
+                    window_end = j;
+                    break;
                 }
             }
+        }
+        if (window_start == 0 && window_end == 0) {
 
-            if (idx_s < 0) {
-                continue;
-            } else if (idx_s >= G.cols()) {
-                idx_s = G.cols() - 1;
+            if (params.verbose) {
+                std::cout << "Warning: No variants found in window for feature " << feat_data.feat_id[i] << std::endl;
             }
-            if (idx_s + idx_n > G.cols()) {
-                idx_n = G.cols() - idx_s;
-            }
-            if (n_slice <= 0 ){
-                continue;
-            }
+            continue;
+        }
+        if (window_end == 0) {
+            window_end = geno_data.n_snps - 1;
+        }
+        window_n = window_end - window_start;
 
-            int v_s = idx_s + s_slice;
-            int v_e = v_s + idx_n - 1;
+        std::stringstream block_line;
+        std::vector<double> pvals;
+        const Eigen::MatrixXd& G_slice = G.middleCols(window_start, window_n);
 
-            int pos_s = geno_data.pos[v_s];
-            int pos_e = geno_data.pos[v_e];
+        if (params.verbose) {
+            std::cout << "Processing " << window_n << 
+                " SNPs for " << feat_data.feat_id[i] <<
+                " in region: " << g_chr_vec[window_start] <<
+                ":" << g_pos_vec[window_start] <<
+                "-" <<  g_pos_vec[window_end] << std::endl;
+        }
 
-            const Eigen::MatrixXd& G_slice = G.middleCols(idx_s, idx_n);
+        // Iterate over SNPs in the window.
+        for (int k = window_start; k < window_end; ++k) {
+            // Index into G_slice from 0 to window_n.
+            int slice_ind = k - window_start; 
 
-            std::cout << "Processing " << idx_n << " SNPs from " << pos_s << " to " << pos_e << std::endl;
-            
-            // Iterate over SNPs, calculating significance.
-            for (int ii = v_s, im = idx_s, si = 0; im < idx_s + idx_n; ii++, im++, si++){
+            std::stringstream variant_line;
+            double u, v, gtg, zscore, pval_esnp;
 
-                std::stringstream long_line;
-                double u, v, gtg, zscore, pval_esnp;
+            if (geno_data.var[k] > 0.0) {
 
-                if (geno_data.var[ii] > 0.0) {
+                Eigen::VectorXd g = G_slice.col(slice_ind);
+                Eigen::VectorXd g_tilde = g - P_X * g;
 
-                    Eigen::VectorXd g = G_slice.col(si);
-                    // Project out covariates.
-                    Eigen::VectorXd g_tilde = g - X * (X.transpose() * X).ldlt().solve(X.transpose() * g);
-
-                    u = g_tilde.dot(Y.col(jj));
-                    gtg = g_tilde.squaredNorm();
-                    v = r_vec[jj] * gtg;
-                    if (v > 0) {
-                        zscore = u / std::sqrt(v);
-                        pval_esnp = 2 * pnorm(std::abs(zscore), true);
-                    } else{
-                        zscore = 0;
-                        pval_esnp = -1;
-                    }
-                } else {
+                u = g_tilde.dot(Y.col(i));
+                gtg = g_tilde.squaredNorm();
+                v = r_vec[i] * gtg;
+                if (v > 0) {
+                    zscore = u / std::sqrt(v);
+                    pval_esnp = 2 * pnorm(std::abs(zscore), true);
+                } else{
                     zscore = 0;
                     pval_esnp = -1;
                 }
                 pvals.push_back(pval_esnp);
 
-                long_line << 
-                    geno_data.chrom[ii] << "\t" <<
-                    geno_data.pos[ii] << "\t" <<
-					geno_data.allele1[ii] << "\t" <<
-				    geno_data.allele1[ii] << "\t" <<
-					pheno_data.pheno_ids[jj] << "\t" <<
+                variant_line << 
+                    geno_data.chrom[k] << "\t" <<
+                    geno_data.pos[k] << "\t" <<
+					geno_data.allele1[k] << "\t" <<
+				    geno_data.allele2[k] << "\t" <<
+					pheno_data.pheno_ids[i] << "\t" <<
                     u << "\t" << 
                     v << "\t" <<
                     zscore << "\t" <<
                     pval_esnp << "\n";
-                long_file << long_line.str();
+                variant_file << variant_line.str();
             }
 
             if (pvals.size() > 0) {
 
-                std::stringstream feat_block_line;
+                std::stringstream region_line;
 
-                feat_block_line << 
-                    feat_data.feat_id[jj] << "\t" <<
-                    feat_data.chrom[jj] << "\t" <<
-                    feat_data.start[jj] << "\t" <<
-                    feat_data.end[jj] << "\t" << 
+                region_line << 
+                    feat_data.feat_id[i] << "\t" <<
+                    feat_data.chrom[i] << "\t" <<
+                    feat_data.start[i] << "\t" <<
+                    feat_data.end[i] << "\t" << 
                     ACAT(pvals) << "\t" <<
-                    pheno_data.std_dev[jj] << "\n";
-                feat_block_file << feat_block_line.str();
+                    pheno_data.std_dev[i] << "\n";
+                region_file << region_line.str();
             }
         }
     }
-    feat_block_file.close();
-    long_file.close();
+    region_file.close();
+    variant_file.close();
 }
 
 void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){

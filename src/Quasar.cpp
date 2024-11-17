@@ -51,7 +51,8 @@ int main(int argc, char* argv[]) {
         // Interaction arguments.
         ("i,int-covs", "Interaction covariates", cxxopts::value<std::vector<std::string>>(params.int_covs))
         // Output arguments.
-        ("o,output-prefix", "Output file prefix", cxxopts::value<std::string>(params.output_prefix));
+        ("o,output-prefix", "Output file prefix", cxxopts::value<std::string>(params.output_prefix))
+        ("verbose", "Run with output to terminal", cxxopts::value<bool>(params.verbose));
 
     // Parse the arguments.
     auto result = options.parse(argc, argv);
@@ -69,6 +70,7 @@ int main(int argc, char* argv[]) {
     if (params.output_prefix == "") {
         params.output_prefix = "quasar_output";
     }
+    
 
     // Parse interaction arguments.
     if (result.count("int-covs")) {

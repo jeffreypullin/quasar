@@ -43,6 +43,7 @@ void GenoData::read_bim_file() {
     std::vector<std::string> tokens;
     size_t index = 0;
     while (std::getline(file, line)) {
+        remove_carriage_return(line);
         tokens = string_split(line, " ");
         if (tokens.size() != 6) {
             std::cerr << "Error: Invalid BIM file format." << std::endl;

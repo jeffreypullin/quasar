@@ -55,8 +55,9 @@ struct Params {
     bool run_interaction = false;
     std::vector<std::string> int_covs;
 
-    // Data.
+    // Output parameters.
     std::string output_prefix;
+    bool verbose = false;
 };
 
 #endif
