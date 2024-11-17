@@ -95,7 +95,7 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
     std::cout << "\nCalculating variant significance..." << std::endl;
 
     std::string region_file_path = params.output_prefix + "_cis_region.txt";
-	std::string variant_file_path = params.output_prefix + "_cis_variant.txt";
+    std::string variant_file_path = params.output_prefix + "_cis_variant.txt";
 
     std::ofstream region_file(region_file_path);
     std::ofstream variant_file(variant_file_path);
@@ -127,7 +127,6 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
             }
         }
         if (window_start == 0 && window_end == 0) {
-
             if (params.verbose) {
                 std::cout << "Warning: No variants found in window for feature " << feat_data.feat_id[i] << std::endl;
             }
@@ -178,9 +177,9 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
                 variant_line << 
                     geno_data.chrom[k] << "\t" <<
                     geno_data.pos[k] << "\t" <<
-					geno_data.allele1[k] << "\t" <<
-				    geno_data.allele2[k] << "\t" <<
-					pheno_data.pheno_ids[i] << "\t" <<
+                    geno_data.allele1[k] << "\t" <<
+                    geno_data.allele2[k] << "\t" <<
+                    pheno_data.pheno_ids[i] << "\t" <<
                     u << "\t" << 
                     v << "\t" <<
                     zscore << "\t" <<
