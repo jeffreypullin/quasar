@@ -77,7 +77,7 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
 
         // Residualise phenotype.
         Eigen::VectorXd y_hat = X * lmm.beta;
-        Y.col(i) = Y.col(i) - y_hat;
+        Y.col(i) = (lmm.D_inv * (Y.col(i) - y_hat)) / std::sqrt(lmm.sigma2) ;
 
         delta_vec[i] = lmm.delta;
         sigma2_g_vec[i] = lmm.sigma2;
