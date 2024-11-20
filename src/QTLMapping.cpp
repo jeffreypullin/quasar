@@ -155,7 +155,7 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
             int slice_ind = k - window_start; 
 
             std::stringstream variant_line;
-            double u, v, gtg, zscore, pval_esnp;
+            double beta, se, u, v, gtg, zscore, pval_esnp;
 
             if (geno_data.var[k] > 0.0) {
 
@@ -165,6 +165,8 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
                 u = g_tilde.dot(Y.col(i));
                 gtg = g_tilde.squaredNorm();
                 v = r_vec[i] * gtg;
+                beta = u / v;
+                se = 1 / std::sqrt(v);
                 if (v > 0) {
                     zscore = u / std::sqrt(v);
                     pval_esnp = 2 * pnorm(std::abs(zscore), true);
@@ -175,13 +177,13 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
                 pvals.push_back(pval_esnp);
 
                 variant_line << 
+                    feat_data.feat_id[i] << "\t" <<
                     geno_data.chrom[k] << "\t" <<
                     geno_data.pos[k] << "\t" <<
                     geno_data.allele1[k] << "\t" <<
                     geno_data.allele2[k] << "\t" <<
-                    pheno_data.pheno_ids[i] << "\t" <<
-                    u << "\t" << 
-                    v << "\t" <<
+                    beta << "\t" << 
+                    se << "\t" <<
                     zscore << "\t" <<
                     pval_esnp << "\n";
                 variant_file << variant_line.str();
