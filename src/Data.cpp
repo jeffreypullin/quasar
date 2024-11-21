@@ -28,7 +28,7 @@ void PhenoData::read_pheno_data() {
         n_samples = sample_ids.size();
     }
 
-    int n_pheno = 0;
+    n_pheno = 0;
     while (std::getline(file, line)) {
         if (!line.empty()) {
           n_pheno++;
@@ -80,6 +80,97 @@ void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
 }
+
+void PhenoData::add_feature_info(FeatData& feat_data) {
+
+    for (int i = 0; i < n_pheno; ++i) {
+        for (int j = 0; j < feat_data.n_feat; ++j) {
+            if (pheno_ids[i] == feat_data.feat_id[j]) {
+                chrom.push_back(feat_data.chrom[j]);                
+                start.push_back(feat_data.start[j]);
+                break;
+            } 
+        }
+    }
+
+}
+
+void PhenoData::slice_chromosome(int chrom_id) {
+
+    if (chrom.size() == 0) {
+        std::cout << "Error: chromosome not initialised." << std::endl;
+        exit(1);
+    }
+    // Assume window parameters are not initialised.
+    std::vector<int> new_chrom;
+    std::vector<int> new_start;
+    std::vector<std::string> new_pheno_ids;
+    std::vector<int> row_inds;
+    for (int i = 0; i < n_pheno; ++i) {
+        if (chrom[i] == chrom_id) {
+            new_chrom.push_back(chrom[i]);
+            new_start.push_back(start[i]);
+            new_pheno_ids.push_back(pheno_ids[i]); 
+            row_inds.push_back(i); 
+        }
+    }
+
+    Eigen::VectorXi rows;
+    rows.resize(row_inds.size());
+    for (int i = 0; i < row_inds.size(); ++i) {
+        rows(i) = row_inds[i];
+    }
+    this->data = data(rows, Eigen::all);
+
+    this->chrom = new_chrom;
+    this->start = new_start;
+    this->pheno_ids = new_pheno_ids;
+    this->n_pheno = new_chrom.size();
+}
+
+void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool verbose) {
+
+    for (int i = 0; i < n_pheno; ++i) {
+
+        int window_start = 0;
+        int window_end = 0; 
+        int window_n = 0;
+        
+        int chr_f = chrom[i];
+        int pos_f = start[i];
+
+        std::vector<int> g_chr_vec = geno_data.chrom;
+        std::vector<int> g_pos_vec = geno_data.pos;
+        for (int j = 0; j < geno_data.n_snps - 1; ++j) {
+            if (g_chr_vec[j] == chr_f) {
+
+                if (window_start == 0 && g_pos_vec[j] >= pos_f - window_size) {
+                    window_start = j;
+                }
+                if (g_pos_vec[j] > pos_f + window_size) {
+                    window_end = j;
+                    break;
+                }
+            }
+        }
+        if (window_start == 0 && window_end == 0) {
+            if (verbose) {
+                std::cout << "Warning: No variants found in window for feature " << pheno_ids[i] << std::endl;
+            }
+            continue;
+        }
+        if (window_end == 0) {
+            window_end = geno_data.n_snps - 1;
+        }
+
+        window_n = window_end - window_start;
+
+        this->window_start.push_back(window_start);
+        this->window_end.push_back(window_end);
+        this->window_n.push_back(window_n);
+    }
+}
+
 
 void CovData::read_cov_data() {
     std::ifstream file(cov_file);

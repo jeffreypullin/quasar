@@ -27,6 +27,22 @@
 
 #include "Quasar.hpp"
 
+class FeatData {
+
+  public:
+    std::string feat_file;
+    int n_feat;
+    std::vector<std::string> feat_id;
+    std::vector<int> chrom;
+    std::vector<int> start;
+    std::vector<int> end;
+    std::vector<std::string> gene_name;
+    FeatData(std::string feat_file) {
+      this->feat_file = feat_file;
+    }
+    void read_feat_data();
+};
+
 class PhenoData {
 
     public:
@@ -37,10 +53,22 @@ class PhenoData {
       std::vector<std::string> sample_ids;
       std::vector<double> std_dev;
       Eigen::MatrixXd data;
+
+      std::vector<int> chrom;
+      std::vector<int> start;
+      std::vector<int> window_start;
+      std::vector<int> window_end;
+      std::vector<int> window_n;
+
       PhenoData(std::string pheno_file) {
         this->pheno_file = pheno_file;
       }
       void read_pheno_data();
+
+      void add_feature_info(FeatData& feat_data);
+      void construct_windows(GenoData& geno_data, int window_size, bool verbose); 
+
+      void slice_chromosome(int chrom_id);
       void slice_samples(std::vector<std::string>& sample_ids);
 };
 
@@ -58,22 +86,6 @@ class CovData {
       }
       void read_cov_data();
       void slice_samples(std::vector<std::string>& sample_ids);
-};
-
-class FeatData {
-
-  public:
-    std::string feat_file;
-    int n_feat;
-    std::vector<std::string> feat_id;
-    std::vector<int> chrom;
-    std::vector<int> start;
-    std::vector<int> end;
-    std::vector<std::string> gene_name;
-    FeatData(std::string feat_file) {
-      this->feat_file = feat_file;
-    }
-    void read_feat_data();
 };
 
 class GRM {

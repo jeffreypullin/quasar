@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
         ("i,int-covs", "Interaction covariates", cxxopts::value<std::vector<std::string>>(params.int_covs))
         // Output arguments.
         ("o,output-prefix", "Output file prefix", cxxopts::value<std::string>(params.output_prefix))
-        ("verbose", "Run with output to terminal", cxxopts::value<bool>(params.verbose));
+        ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
 
     // Parse the arguments.
     auto result = options.parse(argc, argv);
@@ -70,7 +70,6 @@ int main(int argc, char* argv[]) {
     if (params.output_prefix == "") {
         params.output_prefix = "quasar_output";
     }
-    
 
     // Parse interaction arguments.
     if (result.count("int-covs")) {
@@ -129,13 +128,29 @@ int main(int argc, char* argv[]) {
     cov_data.slice_samples(int_sample_ids);
     grm.slice_samples(int_sample_ids);
     geno_data.slice_samples(int_sample_ids);
-     
+
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs" << std::endl;
+
+    std::cout << "\nProcessing and slicing phenotype data..." << std::endl;
+    pheno_data.add_feature_info(feat_data);
+
+    std::vector<int> g_chrom = geno_data.chrom;
+    bool one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());
+    if (one_chrom) {
+        std::cout << "Only one chromsome detected." << std::endl;
+        std::cout << "Filtering phenotype data to chromosome: " << g_chrom.front() << std::endl;
+        pheno_data.slice_chromosome(g_chrom.front());
+    }
+    std::cout << "Running analysis for " << pheno_data.n_pheno << " phenotypes." << std::endl;
+
+    std::cout << "\nConstructing cis-windows..." << std::endl;
+    pheno_data.construct_windows(geno_data, params.window_size, params.verbose);
+    std::cout << "Cis-windows constructed." << std::endl;
 
     std::cout << "\nConstructing regions..." << std::endl;
     Regions regions(feat_data, geno_data, params.window_size);
     std::cout << "Regions constructed." << std::endl;
-    
+
     std::cout << "\nRunning QTL mapping..." << std::endl;
 
     if (params.run_interaction) {
@@ -149,7 +164,7 @@ int main(int argc, char* argv[]) {
     } else {
         // Run non-interaction mapping.
         if (params.model == "lmm") {
-            run_qtl_mapping_lmm(params, geno_data, feat_data, cov_data, pheno_data, grm, regions);
+            run_qtl_mapping_lmm(params, geno_data, cov_data, pheno_data, grm, regions);
         } else if (params.model == "glmm") {
             run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
         }

@@ -35,7 +35,7 @@ SOFTWARE.
 #include <string>
 #include <numeric>
 
-void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){
+void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions){
 
     Eigen::MatrixXd& Y = pheno_data.data;
     Eigen::MatrixXd& X = cov_data.data;
@@ -112,42 +112,13 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
         "pvalue" << "\n";
      variant_file << variant_header_line.str();
 
-    Eigen::MatrixXd P_X = X * (X.transpose() * X).ldlt().solve(X.transpose());
     // Iterate over features.
-    for (int i = 0; i < feat_data.n_feat; ++i) {
+    for (int i = 0; i < pheno_data.n_pheno; ++i) {
 
-        int chr_f = feat_data.chrom[i];
-        int pos_f = feat_data.start[i];
-
-        int window_start = 0;
-        int window_end = 0; 
-        int window_n = 0;
-        int window_size = params.window_size;
-
-        std::vector<int> g_chr_vec = geno_data.chrom;
-        std::vector<int> g_pos_vec = geno_data.pos;
-        for (int j = 0; j < geno_data.n_snps - 1; ++j) {
-            if (g_chr_vec[j] == chr_f) {
-
-                if (window_start == 0 && g_pos_vec[j] >= pos_f - window_size) {
-                    window_start = j;
-                }
-                if (g_pos_vec[j] > pos_f + window_size) {
-                    window_end = j;
-                    break;
-                }
-            }
-        }
-        if (window_start == 0 && window_end == 0) {
-            if (params.verbose) {
-                std::cout << "Warning: No variants found in window for feature " << feat_data.feat_id[i] << std::endl;
-            }
-            continue;
-        }
-        if (window_end == 0) {
-            window_end = geno_data.n_snps - 1;
-        }
-        window_n = window_end - window_start;
+        // Get the window parameters for the feature.
+        int window_start = pheno_data.window_start[i];
+        int window_end = pheno_data.window_end[i]; 
+        int window_n = pheno_data.window_n[i];
 
         std::stringstream block_line;
         std::vector<double> pvals;
@@ -155,14 +126,15 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
 
         if (params.verbose) {
             std::cout << "Processing " << window_n << 
-                " SNPs for " << feat_data.feat_id[i] <<
-                " in region: " << g_chr_vec[window_start] <<
-                ":" << g_pos_vec[window_start] <<
-                "-" <<  g_pos_vec[window_end] << std::endl;
+                " SNPs for " << pheno_data.pheno_ids[i] <<
+                " in region: " << geno_data.chrom[window_start] <<
+                ":" << geno_data.pos[window_start] <<
+                "-" <<  geno_data.pos[window_end] << std::endl;
         }
 
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
+            
             // Index into G_slice from 0 to window_n.
             int slice_ind = k - window_start; 
 
@@ -170,10 +142,10 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
             double beta, se, u, v, gtg, zscore, pval_esnp;
 
             if (geno_data.var[k] > 0.0) {
-
+                
+                // Calculate the score statistic.
                 Eigen::VectorXd g = G_slice.col(slice_ind);
-                Eigen::VectorXd g_tilde = g - P_X * g;
-
+                Eigen::VectorXd g_tilde = g - X * (X.transpose() * X).ldlt().solve(X.transpose() * g);
                 u = g_tilde.dot(Y.col(i));
                 gtg = g_tilde.squaredNorm();
                 v = r_vec[i] * gtg;
@@ -189,7 +161,7 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
                 pvals.push_back(pval_esnp);
 
                 variant_line << 
-                    feat_data.feat_id[i] << "\t" <<
+                    pheno_data.pheno_ids[i] << "\t" <<
                     geno_data.chrom[k] << "\t" <<
                     geno_data.pos[k] << "\t" <<
                     geno_data.allele1[k] << "\t" <<
@@ -204,10 +176,9 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
             std::stringstream region_line;
 
             region_line << 
-                feat_data.feat_id[i] << "\t" <<
-                feat_data.chrom[i] << "\t" <<
-                feat_data.start[i] << "\t" <<
-                feat_data.end[i] << "\t" << 
+                pheno_data.pheno_ids[i] << "\t" <<
+                pheno_data.chrom[i] << "\t" <<
+                pheno_data.start[i] << "\t" <<
                 ACAT(pvals) << "\t" <<
                 pheno_data.std_dev[i] << "\n";
             region_file << region_line.str();

@@ -48,7 +48,8 @@ struct Params {
     std::string pheno_file;
     
     // QTL mapping parameters.
-    int window_size = 500000;
+    // By default we use a +/- 1Mb window.
+    int window_size = 1000000;
     std::string model;
     
     // Interaction parameters.
