@@ -44,7 +44,7 @@ void GenoData::read_bim_file() {
     size_t index = 0;
     while (std::getline(file, line)) {
         remove_carriage_return(line);
-        tokens = string_split(line, " ");
+        tokens = string_split(line, "\t ");
         if (tokens.size() != 6) {
             std::cerr << "Error: Invalid BIM file format." << std::endl;
             return;
@@ -76,7 +76,7 @@ void GenoData::read_fam_file() {
     std::string line;
     std::vector<std::string> tokens;
     while (std::getline(file, line)) {
-        tokens = string_split(line, " ");
+        tokens = string_split(line, "\t ");
         if (tokens.size() < 6) {
             std::cerr << "Error: Invalid FAM file format." << std::endl;
             return;

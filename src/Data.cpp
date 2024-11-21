@@ -19,7 +19,7 @@ void PhenoData::read_pheno_data() {
 
     if (std::getline(file, line)) {
         remove_carriage_return(line);
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens[0] != "feature_id") {
             std::cerr << "Error: Invalid header in phenotype file. Expected 'feature_id' as the first column." << std::endl;
             return;
@@ -46,7 +46,7 @@ void PhenoData::read_pheno_data() {
     int row = 0;
     while (std::getline(file, line) && row < n_pheno) {
         remove_carriage_return(line);
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens.size() != n_samples + 1) {
             std::cerr << "Error: Inconsistent number of columns in phenotype file." << std::endl;
             return;
@@ -92,7 +92,7 @@ void CovData::read_cov_data() {
     std::vector<std::string> tokens;
 
     if (std::getline(file, line)) {
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens.size() < 2 || tokens[0] != "sample_id") {
             std::cerr << "Error: Invalid header in covariate file. Expected 'sample_id' as the first column." << std::endl;
             return;
@@ -118,7 +118,7 @@ void CovData::read_cov_data() {
 
     int row = 0;
     while (std::getline(file, line) && row < n_samples) {
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens.size() != n_cov + 1) {
             std::cerr << "Error: Inconsistent number of columns in covariate file at line " << row + 2 << std::endl;
             return;
@@ -166,7 +166,7 @@ void FeatData::read_feat_data() {
 
     if (std::getline(file, line)) {
         remove_carriage_return(line);
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens.size() < 4 || tokens[0] != "feature_id" || tokens[1] != "chrom" || tokens[2] != "start" || tokens[3] != "end") {
             std::cerr << "Error: Invalid header in feature annotation file. Expected 'feature_id', 'chrom', 'start', 'end' as the first four columns." << std::endl;
             return;
@@ -176,7 +176,7 @@ void FeatData::read_feat_data() {
     n_feat = 0;
     while (std::getline(file, line)) {
         remove_carriage_return(line);
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens.size() < 4) {
             std::cerr << "Error: Inconsistent number of columns in feature annotation file at line " << n_feat + 2 << std::endl;
             return;
@@ -213,7 +213,7 @@ void GRM::read_grm() {
     std::vector<std::string> tokens;
 
     if (std::getline(file, line)) {
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens.size() < 2 || tokens[0] != "sample_id") {
             std::cerr << "Error: Invalid header in GRM file. Expected 'sample_id' as the first column." << std::endl;
             return;
@@ -226,7 +226,7 @@ void GRM::read_grm() {
 
     int row = 0;
     while (std::getline(file, line)) {
-        tokens = string_split(line, "\t ");
+        tokens = string_split(line, ",\t ");
         if (tokens.size() != n_samps + 1) {
             std::cerr << "Error: Inconsistent number of columns in GRM file at line " << row + 2 << std::endl;
             return;

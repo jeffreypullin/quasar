@@ -100,6 +100,18 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
     std::ofstream region_file(region_file_path);
     std::ofstream variant_file(variant_file_path);
 
+    std::stringstream variant_header_line;
+    variant_header_line << 
+        "feature_id" << "\t" <<
+        "chrom" << "\t" <<
+        "pos" << "\t" <<
+        "ref" << "\t" <<
+        "alt" << "\t" <<
+        "beta" << "\t" << 
+        "se" << "\t" <<
+        "pvalue" << "\n";
+     variant_file << variant_header_line.str();
+
     Eigen::MatrixXd P_X = X * (X.transpose() * X).ldlt().solve(X.transpose());
     // Iterate over features.
     for (int i = 0; i < feat_data.n_feat; ++i) {
@@ -184,25 +196,22 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, FeatData& feat_dat
                     geno_data.allele2[k] << "\t" <<
                     beta << "\t" << 
                     se << "\t" <<
-                    zscore << "\t" <<
                     pval_esnp << "\n";
                 variant_file << variant_line.str();
             }
-
-            if (pvals.size() > 0) {
-
-                std::stringstream region_line;
-
-                region_line << 
-                    feat_data.feat_id[i] << "\t" <<
-                    feat_data.chrom[i] << "\t" <<
-                    feat_data.start[i] << "\t" <<
-                    feat_data.end[i] << "\t" << 
-                    ACAT(pvals) << "\t" <<
-                    pheno_data.std_dev[i] << "\n";
-                region_file << region_line.str();
-            }
         }
+        if (pvals.size() > 0) {
+            std::stringstream region_line;
+
+            region_line << 
+                feat_data.feat_id[i] << "\t" <<
+                feat_data.chrom[i] << "\t" <<
+                feat_data.start[i] << "\t" <<
+                feat_data.end[i] << "\t" << 
+                ACAT(pvals) << "\t" <<
+                pheno_data.std_dev[i] << "\n";
+            region_file << region_line.str();
+            }
     }
     region_file.close();
     variant_file.close();

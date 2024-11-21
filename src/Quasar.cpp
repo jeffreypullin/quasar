@@ -120,6 +120,10 @@ int main(int argc, char* argv[]) {
         geno_data.sample_ids
     };
     std::vector<std::string> int_sample_ids = intersection(sample_ids_vecs);
+    if (int_sample_ids.size() == 0) {
+        std::cerr << "Error: no common sample ids found." << std::endl;
+        exit(1);
+    }
 
     pheno_data.slice_samples(int_sample_ids);
     cov_data.slice_samples(int_sample_ids);
