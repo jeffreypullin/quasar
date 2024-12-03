@@ -29,7 +29,7 @@
 #include <limits>
 #include <iostream>
 
-double var(const Eigen::VectorXd& x) {
+inline double var(const Eigen::VectorXd& x) {
     double mean = x.mean();
     return (x.array() - mean).square().sum() / (x.size() - 1);
 }

@@ -22,7 +22,6 @@
  * SOFTWARE.
  */
 
-
 #include "QTLMappingUtils.hpp"
 
 #include <boost/math/distributions/normal.hpp>

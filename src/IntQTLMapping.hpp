@@ -22,15 +22,16 @@
  * SOFTWARE.
  */
 
-#ifndef VAR_RATIO_APPROX_HPP
-#define VAR_RATIO_APPROX_HPP
+#ifndef INTQTLMAPPING_HPP
+#define INTQTLMAPPING_HPP
 
-#include <Eigen/Dense>
+#include "Geno.hpp"
 #include "Data.hpp"
-#include <string>
-#include <vector>
+#include "Regions.hpp"
+#include "QTLMappingUtils.hpp"
 
-double estimate_r(Params& params, const Eigen::MatrixXd& X, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, double sigma2_g, double delta);
-double estimate_r_glmm(const Eigen::MatrixXd& X, const Eigen::MatrixXd& GRM, const Eigen::MatrixXd& G, Eigen::MatrixXd& P, Eigen::VectorXd& d);
+typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalXd;
+
+void run_qtl_mapping_lmm_int(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions);
 
 #endif

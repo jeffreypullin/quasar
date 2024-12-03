@@ -46,15 +46,24 @@ struct Params {
     std::string feat_file;
     std::string cov_file;
     std::string pheno_file;
-    
+
+    // Statistical model, can be either
+    // "lmm": linear mixed model or
+    // "glmm": generalised linear mixed model. 
+    std::string model;
     // QTL mapping parameters.
     // By default we use a +/- 1Mb window.
     int window_size = 1000000;
-    std::string model;
-    
+    // The number of genotypes to sample
+    // when estimating the r for
+    // main effect QTL mapping.
+    int main_n_rand_samples = 100;
+
     // Interaction parameters.
     bool run_interaction = false;
-    std::vector<std::string> int_covs;
+    std::string int_cov;
+    double int_n_cis_window_prop = 1;
+    int int_n_rand_samples = 30;
 
     // Output parameters.
     std::string output_prefix;

@@ -51,7 +51,6 @@ class PhenoData {
       int n_samples;
       std::vector<std::string> pheno_ids;
       std::vector<std::string> sample_ids;
-      std::vector<double> std_dev;
       Eigen::MatrixXd data;
 
       std::vector<int> chrom;

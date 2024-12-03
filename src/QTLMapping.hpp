@@ -34,7 +34,6 @@ typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalXd;
 
 void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions);
 void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions);
-// Interaction QTL mapping.
-void run_qtl_mapping_lmm_int(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm, Regions& regions, std::vector<std::string> int_cov_ids);
+void run_qtl_mapping_lm(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data);
 
 #endif

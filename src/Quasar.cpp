@@ -27,6 +27,7 @@
 #include "Geno.hpp"
 #include "Regions.hpp"
 #include "QTLMapping.hpp"
+#include "IntQTLMapping.hpp"
 #include "Utils.hpp"
 #include <iostream>
 #include <utility>
@@ -49,7 +50,7 @@ int main(int argc, char* argv[]) {
         ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
         // Interaction arguments.
-        ("i,int-covs", "Interaction covariates", cxxopts::value<std::vector<std::string>>(params.int_covs))
+        ("i,int-cov", "Interaction covariate", cxxopts::value<std::string>(params.int_cov))
         // Output arguments.
         ("o,output-prefix", "Output file prefix", cxxopts::value<std::string>(params.output_prefix))
         ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
@@ -71,8 +72,7 @@ int main(int argc, char* argv[]) {
         params.output_prefix = "quasar_output";
     }
 
-    // Parse interaction arguments.
-    if (result.count("int-covs")) {
+    if (params.int_cov != "") {
         params.run_interaction = true;
     }
 
@@ -103,10 +103,10 @@ int main(int argc, char* argv[]) {
     grm.read_grm();
 
     // Check interaction covariates are in the covariate matrix.
-    std::vector<std::string> cov_ids = cov_data.cov_ids;
-    for (const auto& cov : params.int_covs) {
-        if (std::find(cov_ids.begin(), cov_ids.end(), cov) == cov_ids.end()) {
-            std::cerr << "Interaction covariate " << cov << " not found in covariate data." << std::endl;
+    if (params.run_interaction) {
+        std::vector<std::string> cov_ids = cov_data.cov_ids;
+        if (std::find(cov_ids.begin(), cov_ids.end(), params.int_cov) == cov_ids.end()) {
+            std::cerr << "Interaction covariate " << params.int_cov << " not found in covariate data." << std::endl;
             exit(1);
         }
     }
@@ -156,11 +156,12 @@ int main(int argc, char* argv[]) {
     if (params.run_interaction) {
         // Run interaction mapping.
         std::cout << "\nRunning interaction mapping..." << std::endl;
+        std::cout << "Interaction covariate: " << params.int_cov << std::endl;
         if (params.model == "glmm") {
             std::cerr << "Error: interaction mapping is not currently supported for GLMMs." << std::endl;
             exit(1);
         }
-        run_qtl_mapping_lmm_int(geno_data, feat_data, cov_data, pheno_data, grm, regions, params.int_covs);
+        run_qtl_mapping_lmm_int(params, geno_data, cov_data, pheno_data, grm, regions);
     } else {
         // Run non-interaction mapping.
         if (params.model == "lmm") {

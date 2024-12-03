@@ -30,7 +30,7 @@
 #include <functional>
 #include <float.h> /* DBL_EPSILON */
 
-double Brent_fmin(double ax, double bx, std::function<double(double)>& f, double tol)
+inline double Brent_fmin(double ax, double bx, std::function<double(double)>& f, double tol)
 {
     /*  c is the squared inverse of the golden ratio */
     const double c = (3. - sqrt(5.)) * .5;

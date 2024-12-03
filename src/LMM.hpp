@@ -52,7 +52,7 @@ class LMM {
         };
 
         double neg_ll_reml(double delta_arg) {
-            Eigen::VectorXd d_vals = lambda.array() + 1.00 * delta_arg;
+            Eigen::VectorXd d_vals = delta_arg * lambda.array() + 1;
             Eigen::DiagonalMatrix<double, Eigen::Dynamic> D_inv = d_vals.asDiagonal().inverse();
 
             Eigen::MatrixXd XtDX = X_tilde.transpose() * D_inv * X_tilde;
@@ -75,7 +75,7 @@ class LMM {
                 return neg_ll_reml(x);
             };
             delta = Brent_fmin(0.00, 10000, f, 2e-5);
-            Eigen::VectorXd d_vals = lambda.array() + 1.00 * delta;
+            Eigen::VectorXd d_vals = delta * lambda.array() + 1.00;
             
             D_inv = d_vals.asDiagonal().inverse();
             

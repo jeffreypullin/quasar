@@ -134,38 +134,22 @@ void GenoData::read_bed_file() {
 
     // Skip the magic number and mode.
     file.seekg(3, std::ios::beg);
-
     genotype_matrix.resize(n_snps, n_samples);
 
     for (size_t i = 0; i < n_snps; ++i) {
-        size_t snp_index = index[i];
-
-        file.seekg(3 + snp_index * ((n_samples + 3) / 4), std::ios::beg);
 
         for (size_t j = 0; j < n_samples; j += 4) {
-            char byte;
-            file.read(&byte, 1);
-
+            unsigned char byte;
+            file.read(reinterpret_cast<char*>(&byte), 1); 
+            
             for (size_t k = 0; k < 4 && j + k < n_samples; ++k) {
-                char genotype = (byte >> (2 * k)) & 0x03;
-                switch (genotype) {
-                    // Homozygous for allele1.
-                    case 0x00:
-                        genotype_matrix(i, j + k) = 0;
-                        break;
-                    // Heterozygous.
-                    case 0x01:
-                        genotype_matrix(i, j + k) = 1;
-                        break;
-                    // Homozygous for allele2.
-                    case 0x02:
-                        genotype_matrix(i, j + k) = 2;
-                        break;
-                    // Missing genotype.
-                    case 0x03:
-                        genotype_matrix(i, j + k) = -1;
-                        break;
-                }
+                int genotype = (byte >> (k << 1)) & 0x3;
+                 switch(genotype) {
+                    case 0: genotype_matrix(i, j + k) = 2; break;
+                    case 1: genotype_matrix(i, j + k) = -1; break;
+                    case 2: genotype_matrix(i, j + k) = 1; break;
+                    case 3: genotype_matrix(i, j + k) = 0; break;
+                } 
             }
         }
     }

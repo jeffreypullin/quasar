@@ -5,6 +5,8 @@
 #include "Geno.hpp"
 #include "Data.hpp"
 #include "Regions.hpp"
+#include "LMM.hpp"
+#include "GLMM.hpp"
 
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/cauchy.hpp>
