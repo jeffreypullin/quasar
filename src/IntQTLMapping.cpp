@@ -52,6 +52,14 @@ void run_qtl_mapping_lmm_int(
     int n_pheno = Y.cols();
     int n_cov = X.cols();
 
+    int int_cov_ind = -1;
+    for (int i = 0; i < n_cov; ++i) {
+        if (cov_data.cov_ids[i] == params.int_cov) {
+            int_cov_ind = i;
+            break;
+        }
+    }
+    Eigen::VectorXd x = X.col(int_cov_ind);
     Eigen::MatrixXd QtY, QtX;
 
     std::cout << "\nPerforming rank normalization..." << std::endl;
@@ -63,6 +71,11 @@ void run_qtl_mapping_lmm_int(
     Eigen::MatrixXd Q = eig.eigenvectors();
     Eigen::VectorXd lambda = eig.eigenvalues();
     std::cout << "Eigen decomposition of GRM finished." << std::endl;
+
+    if ((lambda.array() < 0).any()) {
+        std::cerr << "\nError: GRM has negative eigenvalues. Please check that the GRM is positive semi-definite." << std::endl;
+        exit(1);
+    }
 
     std::cout << "\nComputing rotated matrices..." << std::endl;
     QtY = (Q.transpose() * Y).eval();
@@ -148,6 +161,7 @@ void run_qtl_mapping_lmm_int(
             Z.leftCols(X.cols()) = X;
             Z.rightCols(1) = g_rand; 
             Eigen::MatrixXd QtZ = (Q.transpose() * Z).eval();
+            Eigen::VectorXd z = (g_rand.array() * x.array()).matrix();
 
             LMM lmm(QtZ, QtY.col(i), lambda);
             lmm.fit();
@@ -156,15 +170,15 @@ void run_qtl_mapping_lmm_int(
             double sigma2_e = lmm.sigma2;
             double sigma2_g = delta * sigma2_e;
             
-
             Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_samples, n_samples);
-            Eigen::MatrixXd Omega1 = sigma2_g * grm.mat + sigma2_e * I;
-            Eigen::MatrixXd Omega1_inv = Omega1.inverse();
-            Eigen::MatrixXd Omega1_inv_X = Omega1_inv * X; 
-            Eigen::MatrixXd Xt_Omega1_inv_X = X.transpose() * Omega1_inv_X;
-            Eigen::MatrixXd Xt_Omega1_inv_X_inv = Xt_Omega1_inv_X.inverse();
+            Eigen::VectorXd d_vals = delta * lambda.array() + 1;
+            DiagonalXd D_inv = d_vals.asDiagonal().inverse();
+            Eigen::MatrixXd Omega1_inv = (1 / sigma2_e) * Q * D_inv * Q.transpose();
+            Eigen::MatrixXd Omega1_inv_Z = Omega1_inv * Z; 
+            Eigen::MatrixXd Zt_Omega1_inv_Z = Z.transpose() * Omega1_inv_Z;
+            Eigen::MatrixXd Zt_Omega1_inv_Z_inv = Zt_Omega1_inv_Z.inverse();
             
-            double var_num1, var_num0, var_denom;
+            double var_num1, var_num0, var_denom0, var_denom1;
 
             //Eigen::VectorXd g_rand_tilde = g_rand - X * (X.transpose() * X).ldlt().solve(X.transpose() * g_rand);
             if (g_rand.cwiseAbs().sum() <= 20) {
@@ -178,29 +192,28 @@ void run_qtl_mapping_lmm_int(
             Eigen::VectorXd temp0 = Xt_Omega0_inv_X_inv * Xt_Omega0_inv_g;
             double b0 = g_rand.dot(Omega0_inv_X * temp0);
             
-            Eigen::VectorXd Omega1_inv_g = Omega1_inv * g_rand;
-            double a1 = g_rand.dot(Omega1_inv_g);
+            Eigen::VectorXd Omega1_inv_z = Omega1_inv * z;
+            double a1 = z.dot(Omega1_inv_z);
 
-            Eigen::VectorXd Xt_Omega1_inv_g = X.transpose() * Omega1_inv_g;
-            Eigen::VectorXd temp1 = Xt_Omega1_inv_X_inv * Xt_Omega1_inv_g;
-            double b1 = g_rand.dot(Omega1_inv_X * temp1);
+            Eigen::VectorXd Zt_Omega1_inv_z = Z.transpose() * Omega1_inv_z;
+            Eigen::VectorXd temp1 = Zt_Omega1_inv_Z_inv * Zt_Omega1_inv_z;
+            double b1 = z.dot(Omega1_inv_Z * temp1);
 
-            var_num0= a0 + b0;
-            var_num1= a1 + b1;
+            var_num0 = a0 + b0;
+            var_num1 = a1 + b1;
 
-            var_denom = g_rand.squaredNorm();
+            var_denom1 = z.squaredNorm();
+            var_denom0 = g_rand.squaredNorm();
 
-            pheno_r1_vec(j) = var_num1 / var_denom;
-            pheno_r0_vec(j) = var_num0 / var_denom;
+            pheno_r1_vec(j) = var_num1 / var_denom1;
+            pheno_r0_vec(j) = var_num0 / var_denom0;
         }
         r1_vec[i] = pheno_r1_vec.mean();
         r0_vec[i] = pheno_r0_vec.mean();
-        std::cout << "r0_hat: " << r0_vec[i] << std::endl;
-        std::cout << "r1_hat: " << r1_vec[i] << std::endl;
     }
     std::cout << "Correction factor estimation finished." << std::endl;
 
-    std::cout << "\nResidualing and calculating variant significance..." << std::endl;
+    std::cout << "\nCalculating variant significance..." << std::endl;
 
     std::string region_file_path = params.output_prefix + "_cis_region.txt";
     std::string variant_file_path = params.output_prefix + "_cis_variant.txt";
@@ -241,6 +254,10 @@ void run_qtl_mapping_lmm_int(
                 "-" <<  geno_data.pos[window_end] << std::endl;
         }
 
+        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_samples, n_samples);
+        Eigen::MatrixXd Omega = delta_vec[i] * sigma2_e_vec[i] * grm.mat + sigma2_e_vec[i] * I;
+        Eigen::MatrixXd Omega_inv = Omega.inverse();
+
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
             
@@ -249,20 +266,21 @@ void run_qtl_mapping_lmm_int(
 
             std::stringstream variant_line;
             double beta, se, u, v, gtg, zscore, pval_esnp;
-            double main_effect_u, main_effect_v, main_effect_beta;
+            double main_effect_u, main_effect_v, main_effect_beta, ztz;
 
             if (geno_data.var[k] > 0.0) {
                 
-                // Calculate the score statistic.
                 Eigen::VectorXd g = G_slice.col(slice_ind);
+                Eigen::VectorXd z = (g.array() * x.array()).matrix();
                 //Eigen::VectorXd g_tilde = g - X * (X.transpose() * X).ldlt().solve(X.transpose() * g);
                 gtg = g.squaredNorm();
+                ztz = z.squaredNorm();
                 main_effect_u = g.dot(Y.col(i));
                 main_effect_v = r0_vec[i] * gtg;
                 main_effect_beta = main_effect_u / main_effect_v;
-                Eigen::VectorXd y = Y.col(i) - main_effect_beta * g;
-                u = g.dot(y);
-                v = r1_vec[i] * gtg;
+                Eigen::VectorXd y = Omega_inv * (Y.col(i) - main_effect_beta * g);
+                u = z.dot(y);
+                v = r1_vec[i] * ztz;
                 beta = u / v;
                 se = 1 / std::sqrt(v);
                 if (v > 0) {
