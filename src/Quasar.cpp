@@ -27,7 +27,6 @@
 #include "Geno.hpp"
 #include "Regions.hpp"
 #include "QTLMapping.hpp"
-#include "IntQTLMapping.hpp"
 #include "Utils.hpp"
 #include <iostream>
 #include <utility>
@@ -102,15 +101,6 @@ int main(int argc, char* argv[]) {
     GRM grm(params.grm_file);
     grm.read_grm();
 
-    // Check interaction covariates are in the covariate matrix.
-    if (params.run_interaction) {
-        std::vector<std::string> cov_ids = cov_data.cov_ids;
-        if (std::find(cov_ids.begin(), cov_ids.end(), params.int_cov) == cov_ids.end()) {
-            std::cerr << "Interaction covariate " << params.int_cov << " not found in covariate data." << std::endl;
-            exit(1);
-        }
-    }
-
     std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
     std::vector<std::vector<std::string>> sample_ids_vecs = {
         grm.sample_ids, 
@@ -153,22 +143,10 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\nRunning QTL mapping..." << std::endl;
 
-    if (params.run_interaction) {
-        // Run interaction mapping.
-        std::cout << "\nRunning interaction mapping..." << std::endl;
-        std::cout << "Interaction covariate: " << params.int_cov << std::endl;
-        if (params.model == "glmm") {
-            std::cerr << "Error: interaction mapping is not currently supported for GLMMs." << std::endl;
-            exit(1);
-        }
-        run_qtl_mapping_lmm_int(params, geno_data, cov_data, pheno_data, grm, regions);
-    } else {
-        // Run non-interaction mapping.
-        if (params.model == "lmm") {
-            run_qtl_mapping_lmm(params, geno_data, cov_data, pheno_data, grm, regions);
-        } else if (params.model == "glmm") {
-            run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
-        }
+    if (params.model == "lmm") {
+        run_qtl_mapping_lmm(params, geno_data, cov_data, pheno_data, grm, regions);
+    } else if (params.model == "glmm") {
+        run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
     }
 
     std::cout << "\nQTL mapping finished." << std::endl;
