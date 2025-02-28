@@ -64,7 +64,6 @@ void PhenoData::read_pheno_data() {
 }
 
 void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
-    
     Eigen::VectorXi columns;
     columns.resize(sample_ids.size());
     for (int i = 0; i < sample_ids.size(); ++i) {
@@ -120,7 +119,15 @@ void PhenoData::slice_chromosome(int chrom_id) {
     for (int i = 0; i < row_inds.size(); ++i) {
         rows(i) = row_inds[i];
     }
-    this->data = data(rows, Eigen::all);
+    Eigen::MatrixXd new_data(row_inds.size(), data.cols());
+    for (int i = 0; i < row_inds.size(); ++i) {
+        if (row_inds[i] >= data.rows()) {
+            std::cerr << "Error: Invalid row index " << row_inds[i] << std::endl;
+            return;
+        }
+        new_data.row(i) = data.row(row_inds[i]);
+    }
+    this->data = new_data;
 
     this->chrom = new_chrom;
     this->start = new_start;
