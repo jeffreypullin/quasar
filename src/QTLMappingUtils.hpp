@@ -4,7 +4,6 @@
 
 #include "Geno.hpp"
 #include "Data.hpp"
-#include "Regions.hpp"
 #include "LMM.hpp"
 #include "GLMM.hpp"
 

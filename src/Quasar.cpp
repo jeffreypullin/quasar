@@ -25,7 +25,6 @@
 #include "Quasar.hpp"
 #include "Data.hpp"
 #include "Geno.hpp"
-#include "Regions.hpp"
 #include "QTLMapping.hpp"
 #include "Utils.hpp"
 #include <iostream>
@@ -131,17 +130,9 @@ int main(int argc, char* argv[]) {
     pheno_data.construct_windows(geno_data, params.window_size, params.verbose);
     std::cout << "Cis-windows constructed." << std::endl;
 
-    std::cout << "\nConstructing regions..." << std::endl;
-    Regions regions(feat_data, geno_data, params.window_size);
-    std::cout << "Regions constructed." << std::endl;
-
     std::cout << "\nRunning QTL mapping..." << std::endl;
 
-    if (params.model == "lmm") {
-        run_qtl_mapping_lmm(params, geno_data, cov_data, pheno_data, grm, regions);
-    } else if (params.model == "glmm") {
-        run_qtl_mapping_glmm(geno_data, feat_data, cov_data, pheno_data, grm, regions);
-    }
+    run_qtl_mapping_lmm(params, geno_data, cov_data, pheno_data, grm);
 
     std::cout << "\nQTL mapping finished." << std::endl;
 
