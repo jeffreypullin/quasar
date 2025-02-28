@@ -48,8 +48,6 @@ int main(int argc, char* argv[]) {
         // Model arguments.
         ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
-        // Interaction arguments.
-        ("i,int-cov", "Interaction covariate", cxxopts::value<std::string>(params.int_cov))
         // Output arguments.
         ("o,output-prefix", "Output file prefix", cxxopts::value<std::string>(params.output_prefix))
         ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
@@ -69,10 +67,6 @@ int main(int argc, char* argv[]) {
 
     if (params.output_prefix == "") {
         params.output_prefix = "quasar_output";
-    }
-
-    if (params.int_cov != "") {
-        params.run_interaction = true;
     }
 
     // Check model.

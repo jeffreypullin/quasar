@@ -79,32 +79,30 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data,
         // Calculate Py.
         double sigma2_e = lmm.sigma2;
         double sigma2_g = lmm.delta * sigma2_e;
-        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_samples, n_samples);
-        Eigen::MatrixXd Omega = sigma2_g * grm.mat + sigma2_e * I;
-        Eigen::MatrixXd Omega_inv = Omega.inverse();
-
-        Eigen::MatrixXd Omega_inv_X = Omega_inv * X;
-        Eigen::MatrixXd Xt_Omega_inv_X = X.transpose() * Omega_inv_X;
-        Eigen::MatrixXd Xt_Omega_inv_X_inv = Xt_Omega_inv_X.inverse();
-
-        Y.col(i) = Omega_inv * Y.col(i) - Omega_inv_X * Xt_Omega_inv_X_inv * Omega_inv_X.transpose() * Y.col(i);
+        
+        Y.col(i) = QtX * lmm.beta;
         
         delta_vec[i] = lmm.delta;
         sigma2_e_vec[i] = lmm.sigma2;
     }
     std::cout << "Null LMMs fitted." << std::endl;
 
+    /*
     std::cout << "\nEstimating variance ratio correction factors..." << std::endl;
     std::vector<double> r_vec(n_pheno);
-    for (int i = 0; i < n_pheno; ++i){
+    for (int i = 0; i < n_pheno; ++i) {
+        if (params.verbose) {
+            std::cout << "Estimating correction factor for feature " << i + 1 << " of " << n_pheno << std::endl;
+        }
         r_vec[i] = estimate_r(params, X, grm.mat, G, sigma2_e_vec[i], delta_vec[i]);
     }
     std::cout << "Correction factor estimation finished." << std::endl;
+    */
 
     std::cout << "\nCalculating variant significance..." << std::endl;
 
-    std::string region_file_path = params.output_prefix + "_cis_region.txt";
-    std::string variant_file_path = params.output_prefix + "_cis_variant.txt";
+    std::string region_file_path = params.output_prefix + "-cis-region.txt";
+    std::string variant_file_path = params.output_prefix + "-cis-variant.txt";
 
     std::ofstream region_file(region_file_path);
     std::ofstream variant_file(variant_file_path);
@@ -124,6 +122,7 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data,
     // Iterate over features.
     for (int i = 0; i < pheno_data.n_pheno; ++i) {
 
+        double sigma2 = Y.col(i).squaredNorm() / (n_samples - n_cov);
         // Get the window parameters for the feature.
         int window_start = pheno_data.window_start[i];
         int window_end = pheno_data.window_end[i]; 
@@ -158,7 +157,7 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data,
                 Eigen::VectorXd g_tilde = g;
                 u = g_tilde.dot(Y.col(i));
                 gtg = g_tilde.squaredNorm();
-                v = r_vec[i] * gtg;
+                v = sigma2 * gtg;
                 beta = u / v;
                 se = 1 / std::sqrt(v);
                 if (v > 0) {
