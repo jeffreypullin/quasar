@@ -50,7 +50,6 @@ class GenoData {
     std::vector<std::string> allele1;
     std::vector<std::string> allele2;
     std::vector<size_t> index;
-    std::vector<double> var;
 
     GenoData(std::string bed_prefix) {
       this->bed_prefix = bed_prefix;
@@ -61,7 +60,7 @@ class GenoData {
     void prepare_bed_file();
     void read_bed_file();
     void slice_samples(std::vector<std::string>& sample_ids);
-    void compute_variant_var();
+    void standardise(Eigen::MatrixXd& X);
 };
 
 #endif

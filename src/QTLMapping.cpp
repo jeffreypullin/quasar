@@ -39,8 +39,8 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     Eigen::MatrixXd& X = cov_data.data;
 
     Y = Y.transpose().eval();
-    Eigen::MatrixXd G = geno_data.genotype_matrix.transpose().eval();
-    
+    Eigen::MatrixXd G = geno_data.genotype_matrix;
+
     int n_samples = X.rows();
     int n_pheno = Y.cols();
     int n_cov = X.cols();
@@ -116,49 +116,43 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             std::stringstream variant_line;
             double beta, se, u, v, gtg, zscore, pval_esnp;
 
-            if (geno_data.var[k] > 0.0) {
-                
-                // Calculate the score statistic.
-                Eigen::VectorXd g = G_slice.col(slice_ind);
-                //Eigen::VectorXd g_tilde = g - X * (X.transpose() * X).ldlt().solve(X.transpose() * g);
-                Eigen::VectorXd g_tilde = g;
-                u = g_tilde.dot(Y.col(i));
-                gtg = g_tilde.squaredNorm();
-                v = sigma2 * gtg;
-                beta = u / v;
-                se = 1 / std::sqrt(v);
-                if (v > 0) {
-                    zscore = u / std::sqrt(v);
-                    pval_esnp = 2 * pnorm(std::abs(zscore), true);
-                } else{
-                    zscore = 0;
-                    pval_esnp = -1;
-                }
-                pvals.push_back(pval_esnp);
-
-                variant_line << 
-                    pheno_data.pheno_ids[i] << "\t" <<
-                    geno_data.chrom[k] << "\t" <<
-                    geno_data.pos[k] << "\t" <<
-                    geno_data.allele1[k] << "\t" <<
-                    geno_data.allele2[k] << "\t" <<
-                    beta << "\t" << 
-                    se << "\t" <<
-                    pval_esnp << "\n";
-                variant_file << variant_line.str();
+            // Calculate the score statistic.
+            Eigen::VectorXd g_tilde = G_slice.col(slice_ind);
+            u = g_tilde.dot(Y.col(i));
+            gtg = g_tilde.squaredNorm();
+            v = sigma2 * gtg;
+            beta = u / v;
+            se = 1 / std::sqrt(v);
+            if (v > 0) {
+                zscore = u / std::sqrt(v);
+                pval_esnp = 2 * pnorm(std::abs(zscore), true);
+            } else{
+                zscore = 0;
+                pval_esnp = -1;
             }
-        }
-        if (pvals.size() > 0) {
-            std::stringstream region_line;
+            pvals.push_back(pval_esnp);
 
-            region_line << 
+            variant_line << 
                 pheno_data.pheno_ids[i] << "\t" <<
-                pheno_data.chrom[i] << "\t" <<
-                pheno_data.start[i] << "\t" <<
-                ACAT(pvals) << "\n";
-            region_file << region_line.str();
+                geno_data.chrom[k] << "\t" <<
+                geno_data.pos[k] << "\t" <<
+                geno_data.allele1[k] << "\t" <<
+                geno_data.allele2[k] << "\t" <<
+                beta << "\t" << 
+                se << "\t" <<
+                pval_esnp << "\n";
+            variant_file << variant_line.str();
         }
+        std::stringstream region_line;
+
+        region_line << 
+            pheno_data.pheno_ids[i] << "\t" <<
+            pheno_data.chrom[i] << "\t" <<
+            pheno_data.start[i] << "\t" <<
+            ACAT(pvals) << "\n";
+        region_file << region_line.str();
     }
+
     region_file.close();
     variant_file.close();
 }

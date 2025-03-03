@@ -85,7 +85,6 @@ int main(int argc, char* argv[]) {
     geno_data.read_fam_file();
     geno_data.prepare_bed_file();
     geno_data.read_bed_file();
-    geno_data.compute_variant_var();
 
     std::cout << "\nReading non-genotype data..." << std::endl;
     PhenoData pheno_data(params.pheno_file);
@@ -127,7 +126,10 @@ int main(int argc, char* argv[]) {
         std::cout << "Filtering phenotype data to chromosome: " << g_chrom.front() << std::endl;
         pheno_data.slice_chromosome(g_chrom.front());
     }
-    std::cout << "Running analysis for " << pheno_data.n_pheno << " phenotypes." << std::endl;
+    std::cout << "\nRunning analysis for " << pheno_data.n_pheno << " phenotypes." << std::endl;
+
+    std::cout << "\nStandardising genotype data..." << std::endl;
+    geno_data.standardise(cov_data.data);
 
     std::cout << "\nConstructing cis-windows..." << std::endl;
     pheno_data.construct_windows(geno_data, params.window_size, params.verbose);

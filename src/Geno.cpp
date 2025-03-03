@@ -154,6 +154,9 @@ void GenoData::read_bed_file() {
         }
     }
 
+    // Transpose to samples x snps.
+    genotype_matrix.transposeInPlace();
+
     std::cout << "Genotype matrix read successfully." << std::endl;
 
     file.close();
@@ -161,22 +164,21 @@ void GenoData::read_bed_file() {
 
 void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     
-    // Create a vector to store the indices of the samples we want to keep
-    Eigen::VectorXi cols;
-    cols.resize(sample_ids.size());
+    Eigen::VectorXi rows;
+    rows.resize(sample_ids.size());
     for (int i = 0; i < sample_ids.size(); ++i) {
         auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
         if (it != this->sample_ids.end()) {
-            cols(i) = std::distance(this->sample_ids.begin(), it);
+            rows(i) = std::distance(this->sample_ids.begin(), it);
         } else {
             std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
             return;
         }
     }
     // Create a new matrix with the selected columns
-    Eigen::MatrixXd sliced_genotype_matrix(genotype_matrix.rows(), cols.size());
-    for (size_t i = 0; i < cols.size(); ++i) {
-        sliced_genotype_matrix.col(i) = genotype_matrix.col(cols[i]);
+    Eigen::MatrixXd sliced_genotype_matrix(rows.size(), genotype_matrix.cols());
+    for (size_t i = 0; i < rows.size(); ++i) {
+        sliced_genotype_matrix.row(i) = genotype_matrix.row(rows[i]);
     }
     
     this->genotype_matrix = sliced_genotype_matrix;
@@ -184,10 +186,24 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     n_samples = sample_ids.size();
 }   
 
-void GenoData::compute_variant_var() {
-    var.resize(n_snps);
-    for (size_t i = 0; i < n_snps; ++i) {
-        double mean = genotype_matrix.row(i).mean();
-        var[i] = (genotype_matrix.row(i).array().pow(2).sum() - (mean * mean) * n_samples) / (n_samples - 1);
+void GenoData::standardise(Eigen::MatrixXd& X) {
+
+    std::cout << "Projecting out covariates..." << std::endl;
+    Eigen::HouseholderQR<Eigen::MatrixXd> qr(X);
+    Eigen::MatrixXd Q = qr.householderQ() * Eigen::MatrixXd::Identity(X.rows(), X.cols());
+
+    Eigen::MatrixXd QTG = Q.transpose() * genotype_matrix;
+    genotype_matrix.noalias() -= Q * QTG;
+
+    std::cout << "Standardising..." << std::endl;
+    for (int i = 0; i < genotype_matrix.cols(); ++i) {
+        double mean = genotype_matrix.col(i).mean();
+        genotype_matrix.col(i).array() -= mean;
+
+        double stddev = std::sqrt(genotype_matrix.col(i).array().square().sum() / (n_samples - 1));
+        if (stddev == 0) { 
+            stddev = 1;
+        }
+        genotype_matrix.col(i) /= stddev;
     }
 }
