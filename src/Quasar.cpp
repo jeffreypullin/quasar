@@ -69,8 +69,11 @@ int main(int argc, char* argv[]) {
     }
 
     // Check model.
-    if (params.model != "lmm" && params.model != "glmm") {
-        std::cerr << "Invalid model specified. Please use 'lmm' or 'glmm'." << std::endl;
+    if (params.model != "lmm" && 
+        params.model != "glmm" && 
+        params.model != "lm" && 
+        params.model != "glm") {
+        std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'glm' or 'glmm'." << std::endl;
         exit(1);
     }
 

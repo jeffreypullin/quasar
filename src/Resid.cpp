@@ -89,8 +89,18 @@ void residualise_glmm(Eigen::MatrixXd& Y, Eigen::MatrixXd& X, GRM& grm) {
 }
 
 void residualise_lm(Eigen::MatrixXd& Y, Eigen::MatrixXd& X) {
-    std::cerr << "\nError: Not yet implemented." << std::endl;
-    exit(1);
+    std::cout << "\nFitting null LMs..." << std::endl;
+    for (int i = 0; i < Y.cols(); ++i) {
+
+        // Fit the LM.
+        LM lm(X, Y.col(i));
+        lm.fit();
+
+        // Calculate Py.
+        Y.col(i) = Y.col(i) - X * lm.beta;
+
+    }
+    std::cout << "Null LMs fitted." << std::endl;
 }
 
 void residualise_glm(Eigen::MatrixXd& Y, Eigen::MatrixXd& X) {
