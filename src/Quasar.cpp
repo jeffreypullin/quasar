@@ -131,9 +131,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Cis-windows constructed." << std::endl;
 
     std::cout << "\nRunning QTL mapping..." << std::endl;
-
-    run_qtl_mapping_lmm(params, geno_data, cov_data, pheno_data, grm);
-
+    run_qtl_mapping(params, geno_data, cov_data, pheno_data, grm);
     std::cout << "\nQTL mapping finished." << std::endl;
 
     std::cout << "\nquasar execution finished." << std::endl;

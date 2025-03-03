@@ -27,12 +27,11 @@
 
 #include "Geno.hpp"
 #include "Data.hpp"
+#include "Resid.hpp"
 #include "QTLMappingUtils.hpp"
 
 typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalXd;
 
-void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm);
-void run_qtl_mapping_glmm(GenoData& geno_data, FeatData& feat_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm);
-void run_qtl_mapping_lm(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data);
+void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm);
 
 #endif

@@ -25,6 +25,7 @@ SOFTWARE.
 #include "QTLMapping.hpp"
 #include "GLM.hpp"
 #include "VarRatioApprox.hpp"
+#include "Resid.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -32,7 +33,7 @@ SOFTWARE.
 #include <string>
 #include <numeric>
 
-void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm){
+void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, PhenoData& pheno_data, GRM& grm){
 
     Eigen::MatrixXd& Y = pheno_data.data;
     Eigen::MatrixXd& X = cov_data.data;
@@ -44,48 +45,14 @@ void run_qtl_mapping_lmm(Params& params, GenoData& geno_data, CovData& cov_data,
     int n_pheno = Y.cols();
     int n_cov = X.cols();
 
-    Eigen::MatrixXd QtY, QtX;
-
-    std::cout << "\nPerforming rank normalization..." << std::endl;
-    rank_normalize(Y); 
-    std::cout << "Rank normalization finished." << std::endl;
-
-    std::cout << "\nPerforming eigen decomposition of GRM..." << std::endl;
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(grm.mat);
-    Eigen::MatrixXd Q = eig.eigenvectors();
-    Eigen::VectorXd lambda = eig.eigenvalues();
-    std::cout << "Eigen decomposition of GRM finished." << std::endl;
-
-    if ((lambda.array() < 0).any()) {
-        std::cerr << "\nError: GRM has negative eigenvalues. Please check that the GRM is positive semi-definite." << std::endl;
-        exit(1);
+    if (params.model == "lmm" || params.model == "lm") {
+        std::cout << "\nPerforming rank normalization..." << std::endl;
+        rank_normalize(Y); 
+        std::cout << "Rank normalization finished." << std::endl;
     }
 
-    std::cout << "\nComputing rotated matrices..." << std::endl;
-    QtY = (Q.transpose() * Y).eval();
-    QtX = (Q.transpose() * X).eval();
-    std::cout << "Rotated matrices computed." << std::endl;
-    
-    std::vector<double> delta_vec(Y.cols());
-    std::vector<double> sigma2_e_vec(Y.cols());
-
-    std::cout << "\nFitting null LMMs..." << std::endl;
-    for (int i = 0; i < n_pheno; ++i) {
-
-        // Fit the LMM.
-        LMM lmm(QtX, QtY.col(i), lambda);
-        lmm.fit();
-
-        // Calculate Py.
-        double sigma2_e = lmm.sigma2;
-        double sigma2_g = lmm.delta * sigma2_e;
-        
-        Y.col(i) = QtX * lmm.beta;
-        
-        delta_vec[i] = lmm.delta;
-        sigma2_e_vec[i] = lmm.sigma2;
-    }
-    std::cout << "Null LMMs fitted." << std::endl;
+    // Residualise phenotype.
+    residualise(params, Y, X, grm);
 
     /*
     std::cout << "\nEstimating variance ratio correction factors..." << std::endl;
