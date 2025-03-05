@@ -22,21 +22,23 @@
  * SOFTWARE.
  */
 
-#ifndef GLM_H
-#define GLM_H
+#ifndef NBGLM_H
+#define NBGLM_H
 
 #include <Eigen/Dense>
 #include <iostream>
 #include <memory>
 #include "Family.hpp"
+#include "Phi.hpp"
+#include "GLM.hpp"
 
-class GLM {
+class NBGLM {
 
     private:
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
-        std::unique_ptr<Family> family;
         double tol = 1e-5;
+        int max_iter = 10;
 
     public:
 
@@ -45,55 +47,67 @@ class GLM {
         Eigen::VectorXd y_tilde;
         Eigen::VectorXd mu;
         Eigen::MatrixXd eta;
+        double phi
 
-        GLM(const Eigen::Ref<Eigen::MatrixXd> X_, 
-            const Eigen::Ref<Eigen::VectorXd> y_,
-            std::unique_ptr<Family> family_) : 
-            X(X_),
-            y(y_),
-            family(std::move(family_))
+        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, 
+              const Eigen::Ref<Eigen::VectorXd> y_,
+              X(X_),
+              y(y_),
         {
             beta = Eigen::VectorXd::Zero(X.cols());
-            mu = family->init(y);
-            w = compute_w(mu);
+            mu = y + 0.1
         };
 
-        Eigen::VectorXd compute_w(Eigen::VectorXd mu) {
-            Eigen::VectorXd v_vec = family->var(mu);
-            Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
+        double ll() {
+            double theta = 1 / phi;
+            double ll = 0;
 
-            return (v_vec.array() * mu_eta_vec.array().square()).inverse().matrix();
-        }
-
-        Eigen::VectorXd weighted_least_squares() {
-            Eigen::MatrixXd XtWX = X.transpose() * w.asDiagonal() * X;
-            Eigen::MatrixXd XtWX_inv = XtWX.colPivHouseholderQr().inverse();
-            Eigen::VectorXd XtWy = X.transpose() * w.asDiagonal() * y_tilde;
-            return XtWX_inv * XtWy;
+            for (int i = 0; i < y.size(); i++) {
+                ll += std::lgamma(y(i) + theta) 
+                    - std::lgamma(theta)
+                    - std::lgamma(y(i) + 1.0)
+                    + theta * std::log(theta)
+                    + y(i) * std::log(mu(i))
+                    - (theta + y(i)) * std::log(theta + mu(i));
+            }
+            return ll;
         }
 
         void fit() {
 
-            double delta = 1;
-            int iter = 1;
-            double ll = 0;
+            GLM poisson_glm(X, y, std::make_unique<Poisson>());
+            poisson_glm.fit();
+            mu = poisson_glm.mu;
             
-            while (std::abs(delta) > tol) {
-                
-                eta = family->link(mu);
-                Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
-                y_tilde = (eta.array() + mu_eta_vec.array() * (y - mu).array()).matrix();
-                w = compute_w(mu);
-    
-                beta = weighted_least_squares();
-                eta = X * beta;
-                mu = family->invlink(eta);
-    
-                double ll_old = ll;
-                ll = family->ll(y, mu);
-                delta = std::abs(ll - ll_old);
+            phi = estimate_phi_ml(y, mu);
+
+            double theta_0;
+            // FIXME: Use residuals to calculate d1.
+            double d1 = std::sqrt(2);
+            double theta_delta = 1;
+
+            double ll_m = ll();
+            double ll_0 = ll_m + 2 * d1;
+
+            int iter = 0
+            while ((std::abs(ll_0 - ll_m) / d1 + std::abs(theta_del)) > tol) {
+
+                GLM nb_glm(X, y, std::make_unique<NegativeBinomial>(), phi);
+                nb_glm.fit();
+                mu = poisson_glm.mu;
+
+                theta_0 = 1 / phi;
+                phi = estimate_phi_ml(y, mu);
+                theta_del = theta_0 - 1 / phi;
+
+                ll_0 = ll_m;
+                ll_m = ll();
 
                 iter++;
+
+                if (iter > max_iter) {
+                    break;
+                }
             }
         }
 };
