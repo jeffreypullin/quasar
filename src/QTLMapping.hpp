@@ -27,7 +27,6 @@
 
 #include "Geno.hpp"
 #include "Data.hpp"
-#include "Resid.hpp"
 #include "QTLMappingUtils.hpp"
 
 typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalXd;

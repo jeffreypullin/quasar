@@ -47,15 +47,14 @@ class NBGLM {
         Eigen::VectorXd y_tilde;
         Eigen::VectorXd mu;
         Eigen::MatrixXd eta;
-        double phi
+        double phi;
 
-        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, 
-              const Eigen::Ref<Eigen::VectorXd> y_,
+        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_) : 
               X(X_),
-              y(y_),
+              y(y_)
         {
             beta = Eigen::VectorXd::Zero(X.cols());
-            mu = y + 0.1
+            mu = y.array() + 0.1;
         };
 
         double ll() {
@@ -74,8 +73,9 @@ class NBGLM {
         }
 
         void fit() {
-
-            GLM poisson_glm(X, y, std::make_unique<Poisson>());
+            
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLM poisson_glm(X, y, std::move(poisson));
             poisson_glm.fit();
             mu = poisson_glm.mu;
             
@@ -89,16 +89,17 @@ class NBGLM {
             double ll_m = ll();
             double ll_0 = ll_m + 2 * d1;
 
-            int iter = 0
-            while ((std::abs(ll_0 - ll_m) / d1 + std::abs(theta_del)) > tol) {
-
-                GLM nb_glm(X, y, std::make_unique<NegativeBinomial>(), phi);
+            int iter = 0;
+            while ((std::abs(ll_0 - ll_m) / d1 + std::abs(theta_delta)) > tol) {
+                
+                auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
+                GLM nb_glm(X, y, std::move(nb));
                 nb_glm.fit();
                 mu = poisson_glm.mu;
 
                 theta_0 = 1 / phi;
                 phi = estimate_phi_ml(y, mu);
-                theta_del = theta_0 - 1 / phi;
+                theta_delta = theta_0 - 1 / phi;
 
                 ll_0 = ll_m;
                 ll_m = ll();

@@ -27,8 +27,8 @@
 
 #include <Eigen/Dense>
 
-double estimate_phi_ml(Eigen::VectorXd& y, Eigen::VectorXd& mu);
-double theta_score(Eigen::VectorXd& y, Eigen::VectorXd& mu, double theta);
-double theta_info(Eigen::VectorXd& y, Eigen::VectorXd& mu, double theta);
+double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu);
+double theta_score(Eigen::VectorXd y, Eigen::VectorXd mu, double theta);
+double theta_info(Eigen::VectorXd y, Eigen::VectorXd mu, double theta);
 
 #endif

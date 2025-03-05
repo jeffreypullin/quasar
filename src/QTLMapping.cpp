@@ -24,8 +24,10 @@ SOFTWARE.
 
 #include "QTLMapping.hpp"
 #include "GLM.hpp"
+#include "LM.hpp"
+#include "LMM.hpp"
+#include "NBGLM.hpp"
 #include "VarRatioApprox.hpp"
-#include "Resid.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -37,9 +39,9 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
     Eigen::MatrixXd& Y = pheno_data.data;
     Eigen::MatrixXd& X = cov_data.data;
+    Eigen::MatrixXd& G = geno_data.genotype_matrix;
 
     Y = Y.transpose().eval();
-    Eigen::MatrixXd G = geno_data.genotype_matrix;
 
     int n_samples = X.rows();
     int n_pheno = Y.cols();
@@ -51,21 +53,72 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         std::cout << "Rank normalization finished." << std::endl;
     }
 
-    // Residualise phenotype.
-    residualise(params, Y, X, grm);
+    // Step 1.
+    Eigen::MatrixXd W_mat(n_pheno, n_samples);
+    if (params.model == "lmm") {
 
-    /*
-    std::cout << "\nEstimating variance ratio correction factors..." << std::endl;
-    std::vector<double> r_vec(n_pheno);
-    for (int i = 0; i < n_pheno; ++i) {
-        if (params.verbose) {
-            std::cout << "Estimating correction factor for feature " << i + 1 << " of " << n_pheno << std::endl;
+        std::cout << "\nPerforming eigen decomposition of GRM..." << std::endl;
+        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(grm.mat);
+        Eigen::MatrixXd Q = eig.eigenvectors();
+        Eigen::VectorXd lambda = eig.eigenvalues();
+        std::cout << "Eigen decomposition of GRM finished." << std::endl;
+
+        if ((lambda.array() < 0).any()) {
+            std::cerr << "\nError: GRM has negative eigenvalues. Please check that the GRM is positive semi-definite." << std::endl;
+            exit(1);
         }
-        r_vec[i] = estimate_r(params, X, grm.mat, G, sigma2_e_vec[i], delta_vec[i]);
-    }
-    std::cout << "Correction factor estimation finished." << std::endl;
-    */
 
+        Eigen::MatrixXd QtY, QtX;
+        std::cout << "\nComputing rotated matrices..." << std::endl;
+        QtY = (Q.transpose() * Y).eval();
+        QtX = (Q.transpose() * X).eval();
+        std::cout << "Rotated matrices computed." << std::endl;
+
+        std::cout << "\nFitting null LMMs..." << std::endl;
+        for (int i = 0; i < Y.cols(); ++i) {
+
+            LMM lmm(QtX, QtY.col(i), lambda);
+            lmm.fit();
+
+            double sigma2 = lmm.sigma2;
+            Eigen::DiagonalMatrix<double,Eigen::Dynamic> D_inv = lmm.D_inv;
+            Y.col(i) = (Q.transpose() * D_inv * (QtY.col(i) - QtX * lmm.beta)) / std::sqrt(sigma2);
+        
+        }
+        std::cout << "Null LMMs fitted." << std::endl;
+
+    } else if (params.model == "lm") {
+
+        std::cout << "\nFitting null LMs..." << std::endl;
+        for (int i = 0; i < Y.cols(); ++i) {
+
+            LM lm(X, Y.col(i));
+            lm.fit();
+
+            Y.col(i) = Y.col(i) - X * lm.beta;
+        }
+        std::cout << "Null LMs fitted." << std::endl;
+
+    } else if (params.model == "glmm") {
+
+        std::cerr << "\nError: Not yet implemented." << std::endl;
+        exit(1);
+
+    } else if (params.model == "glm") {
+
+        std::cout << "\nFitting null NB-GLMs..." << std::endl;
+        for (int i = 0; i < Y.cols(); ++i) {
+
+            NBGLM nb_glm(X, Y.col(i));
+            nb_glm.fit();
+
+            Y.col(i) = Y.col(i).array() - (X * nb_glm.beta).array().exp();
+            W_mat.row(i) = nb_glm.w;
+        }
+        std::cout << "Null NB-GLMs fitted." << std::endl;
+    }
+
+    // Step 2. 
     std::cout << "\nCalculating variant significance..." << std::endl;
 
     std::string region_file_path = params.output_prefix + "-cis-region.txt";

@@ -22,10 +22,38 @@
  * SOFTWARE.
  */
 
+#include <Eigen/Dense>
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/trigamma.hpp>
 
-double estimate_phi_ml(Eigen::VectorXd& y, Eigen::VectorXd& mu) {
+double theta_score(Eigen::VectorXd y, Eigen::VectorXd mu, double theta) {
+    
+    double score = 0.0;
+    for (int i = 0; i < y.size(); ++i) {
+        score += boost::math::digamma(theta + y(i)) 
+                 - boost::math::digamma(theta) 
+                 + std::log(theta) 
+                 + 1.0 
+                 - std::log(theta + mu(i)) 
+                 - (y(i) + theta) / (mu(i) + theta);
+    }
+    return score;
+}
+
+double theta_info(Eigen::VectorXd y, Eigen::VectorXd mu, double theta) {
+    
+    double info = 0.0;
+    for (int i = 0; i < y.size(); ++i) {
+        info -= boost::math::trigamma(theta + y(i)) 
+                + boost::math::trigamma(theta) 
+                - 1.0 / theta 
+                + 2.0 / (mu(i) + theta) 
+                - (y(i) + theta) / std::pow(mu(i) + theta, 2);
+    }
+    return info;
+}
+
+double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu) {
 
     // TODO: Make these parameters.
     int max_iter = 10;
@@ -54,29 +82,3 @@ double estimate_phi_ml(Eigen::VectorXd& y, Eigen::VectorXd& mu) {
     return phi;
 }
 
-double theta_score(Eigen::VectorXd& y, Eigen::VectorXd& mu, double* theta) {
-    
-    double score = 0.0;
-    for (int i = 0; i < y.size(); ++i) {
-        score += boost::math::digamma(theta + y(i)) 
-                 - boost::math::digamma(theta) 
-                 + std::log(theta) 
-                 + 1.0 
-                 - std::log(theta + mu(i)) 
-                 - (y(i) + theta) / (mu(i) + theta));
-    }
-    return score;
-}
-
-double theta_info(Eigen::VectorXd& y, Eigen::VectorXd& mu, double* theta) {
-    
-    double info = 0.0;
-    for (int i = 0; i < y.size(); ++i) {
-        info -= boost::math::trigamma(theta + y(i)) 
-                + boost::math::trigamma(theta) 
-                - 1.0 / theta 
-                + 2.0 / (mu(i) + theta) 
-                - (y(i) + theta) / std::pow(mu(i) + theta, 2);
-    }
-    return info;
-}
