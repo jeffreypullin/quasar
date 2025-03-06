@@ -116,6 +116,18 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs" << std::endl;
 
+    // Check model and data align.
+    if (params.model == "glm" || params.model == "glmm") {
+        Eigen::VectorXd first_gene = pheno_data.data.col(0).head(10);
+        bool has_negative = (first_gene.array() < 0).any();
+        bool has_noninteger = ((first_gene.array() - first_gene.array().floor()) > 0).any();
+        
+        if (has_negative || has_noninteger) {
+            std::cerr << "Error: GLM/GLMM models require count data. The first gene appears to contain non-count values." << std::endl;
+            exit(1);
+        }
+    }
+
     std::cout << "\nProcessing and slicing phenotype data..." << std::endl;
     pheno_data.add_feature_info(feat_data);
 
