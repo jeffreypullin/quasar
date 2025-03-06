@@ -42,8 +42,6 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     Eigen::MatrixXd& X = cov_data.data;
     Eigen::MatrixXd& G = geno_data.genotype_matrix;
 
-    Y = Y.transpose().eval();
-
     int n_samples = X.rows();
     int n_pheno = Y.cols();
     int n_cov = X.cols();

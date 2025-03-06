@@ -58,6 +58,8 @@ void PhenoData::read_pheno_data() {
         row++;
     }
 
+    data.transposeInPlace();
+
     file.close();
 
     std::cout << "Read " << n_pheno << " features for " << n_samples << " samples from phenotype file." << std::endl;
