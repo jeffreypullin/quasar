@@ -184,26 +184,4 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     this->genotype_matrix = sliced_genotype_matrix;
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
-}   
-
-void GenoData::standardise(Eigen::MatrixXd& X) {
-
-    std::cout << "Projecting out covariates..." << std::endl;
-    Eigen::HouseholderQR<Eigen::MatrixXd> qr(X);
-    Eigen::MatrixXd Q = qr.householderQ() * Eigen::MatrixXd::Identity(X.rows(), X.cols());
-
-    Eigen::MatrixXd QTG = Q.transpose() * genotype_matrix;
-    genotype_matrix.noalias() -= Q * QTG;
-
-    std::cout << "Standardising..." << std::endl;
-    for (int i = 0; i < genotype_matrix.cols(); ++i) {
-        double mean = genotype_matrix.col(i).mean();
-        genotype_matrix.col(i).array() -= mean;
-
-        double stddev = std::sqrt(genotype_matrix.col(i).array().square().sum() / (n_samples - 1));
-        if (stddev == 0) { 
-            stddev = 1;
-        }
-        genotype_matrix.col(i) /= stddev;
-    }
 }

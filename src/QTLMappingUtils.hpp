@@ -15,6 +15,7 @@
 
 std::vector<int> rank_vector(const std::vector<double>& v);
 void rank_normalize(Eigen::MatrixXd& Y);
+Eigen::VectorXd standardise_vec(const Eigen::VectorXd& x);
 
 double ACAT(const std::vector<double>& pvals);
 

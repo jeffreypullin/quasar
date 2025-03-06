@@ -127,10 +127,7 @@ int main(int argc, char* argv[]) {
         pheno_data.slice_chromosome(g_chrom.front());
     }
     std::cout << "\nRunning analysis for " << pheno_data.n_pheno << " phenotypes." << std::endl;
-
-    std::cout << "\nStandardising genotype data..." << std::endl;
-    geno_data.standardise(cov_data.data);
-
+    
     std::cout << "\nConstructing cis-windows..." << std::endl;
     pheno_data.construct_windows(geno_data, params.window_size, params.verbose);
     std::cout << "Cis-windows constructed." << std::endl;

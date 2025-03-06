@@ -54,7 +54,8 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         std::cout << "Rank normalization finished." << std::endl;
     }
 
-    // Step 1.
+    // Step 1 ------------------------------------------------------------
+    std::cout << "\nResidualising features...." << std::endl;
     Eigen::MatrixXd W_mat(n_pheno, n_samples);
     if (params.model == "lmm") {
 
@@ -127,7 +128,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         std::cout << "Null NB-GLMs fitted." << std::endl;
     }
 
-    // Step 2. 
+    // Step 2 ------------------------------------------------------------
     std::cout << "\nCalculating variant significance..." << std::endl;
 
     std::string region_file_path = params.output_prefix + "-cis-region.txt";
@@ -137,21 +138,12 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     std::ofstream variant_file(variant_file_path);
 
     std::stringstream variant_header_line;
-    variant_header_line << 
-        "feature_id" << "\t" <<
-        "chrom" << "\t" <<
-        "pos" << "\t" <<
-        "ref" << "\t" <<
-        "alt" << "\t" <<
-        "beta" << "\t" << 
-        "se" << "\t" <<
-        "pvalue" << "\n";
-     variant_file << variant_header_line.str();
+    variant_header_line << "feature_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue\n";
+    variant_file << variant_header_line.str();
 
     // Iterate over features.
     for (int i = 0; i < pheno_data.n_pheno; ++i) {
 
-        double sigma2 = Y.col(i).squaredNorm() / (n_samples - n_cov);
         // Get the window parameters for the feature.
         int window_start = pheno_data.window_start[i];
         int window_end = pheno_data.window_end[i]; 
@@ -169,6 +161,18 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
                 "-" <<  geno_data.pos[window_end] << std::endl;
         }
 
+        double sigma2 = Y.col(i).squaredNorm() / (n_samples - n_cov);
+        Eigen::VectorXd w;
+        if (params.model == "glm" || params.model == "glmm") {
+            w = W_mat.row(i);
+        } else {
+            w = Eigen::VectorXd::Ones(n_samples);
+        }
+        // Pre-calculate matrices used in covariate adijustment.
+        Eigen::MatrixXd XtW, XtWX_inv;
+        XtW = X.transpose() * w.asDiagonal();
+        XtWX_inv = (XtW * X).inverse();
+
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
             
@@ -177,12 +181,20 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
             std::stringstream variant_line;
             double beta, se, u, v, gtg, zscore, pval_esnp;
+            Eigen::VectorXd g, g_cov_adj, g_s;
+
+            // Covariate-adjust and standardise g.
+            g = G_slice.col(slice_ind);
+            g_cov_adj = X * (XtWX_inv * (XtW * g));
+            g_s = standardise_vec(g);
 
             // Calculate the score statistic.
-            Eigen::VectorXd g_tilde = G_slice.col(slice_ind);
-            u = g_tilde.dot(Y.col(i));
-            gtg = g_tilde.squaredNorm();
-            v = sigma2 * gtg;
+            u = g_s.dot(Y.col(i));
+            gtg = g_s.dot(w.asDiagonal() * g_s);
+            v = gtg;
+            if (params.model == "lmm" || params.model == "glmm") {
+                v *= sigma2;
+            }
             beta = u / v;
             se = 1 / std::sqrt(v);
             if (v > 0) {

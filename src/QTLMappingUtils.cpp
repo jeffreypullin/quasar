@@ -154,3 +154,12 @@ double ACAT(const std::vector<double>& pvals) {
     }
     return pcauchy(sum, true);
 }
+
+Eigen::VectorXd standardise_vec(const Eigen::VectorXd& x) {
+    double mean = x.mean();
+    double sd = std::sqrt((x.array() - mean).square().sum() / (x.size() - 1));
+    if (sd == 0) {
+        return Eigen::VectorXd::Zero(x.size());
+    }
+    return (x.array() - mean) / sd;
+}

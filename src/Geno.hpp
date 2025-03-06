@@ -60,7 +60,6 @@ class GenoData {
     void prepare_bed_file();
     void read_bed_file();
     void slice_samples(std::vector<std::string>& sample_ids);
-    void standardise(Eigen::MatrixXd& X);
 };
 
 #endif
