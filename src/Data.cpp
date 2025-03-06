@@ -66,18 +66,18 @@ void PhenoData::read_pheno_data() {
 }
 
 void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
-    Eigen::VectorXi columns;
-    columns.resize(sample_ids.size());
+    Eigen::VectorXi rows;
+    rows.resize(sample_ids.size());
     for (int i = 0; i < sample_ids.size(); ++i) {
         auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
         if (it != this->sample_ids.end()) {
-            columns(i) = std::distance(this->sample_ids.begin(), it);
+            rows(i) = std::distance(this->sample_ids.begin(), it);
         } else {
             std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
             exit(1);
         }
     }
-    this->data = data(Eigen::all, columns);
+    this->data = data(rows, Eigen::all);
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
 }
@@ -106,28 +106,28 @@ void PhenoData::slice_chromosome(int chrom_id) {
     std::vector<int> new_chrom;
     std::vector<int> new_start;
     std::vector<std::string> new_pheno_ids;
-    std::vector<int> row_inds;
+    std::vector<int> col_inds;
     for (int i = 0; i < n_pheno; ++i) {
         if (chrom[i] == chrom_id) {
             new_chrom.push_back(chrom[i]);
             new_start.push_back(start[i]);
             new_pheno_ids.push_back(pheno_ids[i]); 
-            row_inds.push_back(i); 
+            col_inds.push_back(i); 
         }
     }
 
-    Eigen::VectorXi rows;
-    rows.resize(row_inds.size());
-    for (int i = 0; i < row_inds.size(); ++i) {
-        rows(i) = row_inds[i];
+    Eigen::VectorXi cols;
+    cols.resize(col_inds.size());
+    for (int i = 0; i < col_inds.size(); ++i) {
+        cols(i) = col_inds[i];
     }
-    Eigen::MatrixXd new_data(row_inds.size(), data.cols());
-    for (int i = 0; i < row_inds.size(); ++i) {
-        if (row_inds[i] >= data.rows()) {
-            std::cerr << "Error: Invalid row index " << row_inds[i] << std::endl;
+    Eigen::MatrixXd new_data(data.rows(), col_inds.size());
+    for (int i = 0; i < col_inds.size(); ++i) {
+        if (col_inds[i] >= data.cols()) {
+            std::cerr << "Error: Invalid row index " << col_inds[i] << std::endl;
             exit(1);
         }
-        new_data.row(i) = data.row(row_inds[i]);
+        new_data.col(i) = data.col(col_inds[i]);
     }
     this->data = new_data;
 
