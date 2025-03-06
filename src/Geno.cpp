@@ -36,7 +36,7 @@ void GenoData::read_bim_file() {
     std::ifstream file(bim_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BIM file " << bim_file << std::endl;
-        return;
+        exit(1);
     }
 
     std::string line;
@@ -47,7 +47,7 @@ void GenoData::read_bim_file() {
         tokens = string_split(line, "\t ");
         if (tokens.size() != 6) {
             std::cerr << "Error: Invalid BIM file format." << std::endl;
-            return;
+            exit(1);
         }
         chrom.push_back(std::stoi(tokens[0]));
         id.push_back(tokens[1]);
@@ -81,7 +81,7 @@ void GenoData::read_fam_file() {
     std::ifstream file(fam_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open FAM file " << fam_file << std::endl;
-        return;
+        exit(1);
     }
 
     std::string line;
@@ -90,7 +90,7 @@ void GenoData::read_fam_file() {
         tokens = string_split(line, "\t ");
         if (tokens.size() < 6) {
             std::cerr << "Error: Invalid FAM file format." << std::endl;
-            return;
+            exit(1);
         }
 
         sample_ids.push_back(tokens[1]);
@@ -107,18 +107,18 @@ void GenoData::prepare_bed_file() {
     std::ifstream file(bed_file, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BED file " << bed_file << std::endl;
-        return;
+        exit(1);
     }
 
     char magic[3];
     file.read(magic, 3);
     if (magic[0] != 0x6C || magic[1] != 0x1B) {
         std::cerr << "Error: Invalid BED file magic number." << std::endl;
-        return;
+        exit(1);
     }
     if (magic[2] != 0x01) {
         std::cerr << "Error: BED file is not in SNP-major mode." << std::endl;
-        return;
+        exit(1);
     }
 
     file.close();
@@ -129,7 +129,7 @@ void GenoData::read_bed_file() {
     std::ifstream file(bed_file, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BED file " << bed_file << std::endl;
-        return;
+        exit(1);
     }
 
     // Skip the magic number and mode.
@@ -172,7 +172,7 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
             rows(i) = std::distance(this->sample_ids.begin(), it);
         } else {
             std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
-            return;
+            exit(1);
         }
     }
     // Create a new matrix with the selected columns

@@ -12,7 +12,7 @@ void PhenoData::read_pheno_data() {
     std::ifstream file(pheno_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open phenotype file " << pheno_file << std::endl;
-        return;
+        exit(1);
     }
     std::string line;
     std::vector<std::string> tokens;
@@ -22,7 +22,7 @@ void PhenoData::read_pheno_data() {
         tokens = string_split(line, ",\t ");
         if (tokens[0] != "feature_id") {
             std::cerr << "Error: Invalid header in phenotype file. Expected 'feature_id' as the first column." << std::endl;
-            return;
+            exit(1);
         }
         sample_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
         n_samples = sample_ids.size();
@@ -49,7 +49,7 @@ void PhenoData::read_pheno_data() {
         tokens = string_split(line, ",\t ");
         if (tokens.size() != n_samples + 1) {
             std::cerr << "Error: Inconsistent number of columns in phenotype file." << std::endl;
-            return;
+            exit(1);
         }
         pheno_ids.push_back(tokens[0]);
         for (int col = 0; col < n_samples; ++col) {
@@ -72,7 +72,7 @@ void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
             columns(i) = std::distance(this->sample_ids.begin(), it);
         } else {
             std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
-            return;
+            exit(1);
         }
     }
     this->data = data(Eigen::all, columns);
@@ -123,7 +123,7 @@ void PhenoData::slice_chromosome(int chrom_id) {
     for (int i = 0; i < row_inds.size(); ++i) {
         if (row_inds[i] >= data.rows()) {
             std::cerr << "Error: Invalid row index " << row_inds[i] << std::endl;
-            return;
+            exit(1);
         }
         new_data.row(i) = data.row(row_inds[i]);
     }
@@ -183,7 +183,7 @@ void CovData::read_cov_data() {
     std::ifstream file(cov_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open covariate file: " << cov_file << std::endl;
-        return;
+        exit(1);
     }
 
     std::string line;
@@ -193,7 +193,7 @@ void CovData::read_cov_data() {
         tokens = string_split(line, ",\t ");
         if (tokens.size() < 2 || tokens[0] != "sample_id") {
             std::cerr << "Error: Invalid header in covariate file. Expected 'sample_id' as the first column." << std::endl;
-            return;
+            exit(1);
         }
         cov_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
         n_cov = cov_ids.size();
@@ -219,7 +219,7 @@ void CovData::read_cov_data() {
         tokens = string_split(line, ",\t ");
         if (tokens.size() != n_cov + 1) {
             std::cerr << "Error: Inconsistent number of columns in covariate file at line " << row + 2 << std::endl;
-            return;
+            exit(1);
         }
         sample_ids.push_back(tokens[0]);
         for (int col = 0; col < n_cov; ++col) {
@@ -243,7 +243,7 @@ void CovData::slice_samples(std::vector<std::string>& sample_ids) {
             rows(i) = std::distance(this->sample_ids.begin(), it);
         } else {
             std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
-            return;
+            exit(1);
         }
     }
     this->data = data(rows, Eigen::all);
@@ -256,7 +256,7 @@ void FeatData::read_feat_data() {
     std::ifstream file(feat_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open feature annotation file: " << feat_file << std::endl;
-        return;
+        exit(1);
     }
 
     std::string line;
@@ -267,7 +267,7 @@ void FeatData::read_feat_data() {
         tokens = string_split(line, ",\t ");
         if (tokens.size() < 4 || tokens[0] != "feature_id" || tokens[1] != "chrom" || tokens[2] != "start" || tokens[3] != "end") {
             std::cerr << "Error: Invalid header in feature annotation file. Expected 'feature_id', 'chrom', 'start', 'end' as the first four columns." << std::endl;
-            return;
+            exit(1);
         }
     }
 
@@ -277,7 +277,7 @@ void FeatData::read_feat_data() {
         tokens = string_split(line, ",\t ");
         if (tokens.size() < 4) {
             std::cerr << "Error: Inconsistent number of columns in feature annotation file at line " << n_feat + 2 << std::endl;
-            return;
+            exit(1);
         }
 
         feat_id.push_back(tokens[0]);
@@ -304,7 +304,7 @@ void GRM::read_grm() {
     std::ifstream file(grm_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open GRM file: " << grm_file << std::endl;
-        return;
+        exit(1);
     }
 
     std::string line;
@@ -314,7 +314,7 @@ void GRM::read_grm() {
         tokens = string_split(line, ",\t ");
         if (tokens.size() < 2 || tokens[0] != "sample_id") {
             std::cerr << "Error: Invalid header in GRM file. Expected 'sample_id' as the first column." << std::endl;
-            return;
+            exit(1);
         }
         n_samps = tokens.size() - 1;
         sample_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
@@ -327,7 +327,7 @@ void GRM::read_grm() {
         tokens = string_split(line, ",\t ");
         if (tokens.size() != n_samps + 1) {
             std::cerr << "Error: Inconsistent number of columns in GRM file at line " << row + 2 << std::endl;
-            return;
+            exit(1);
         }
 
         for (int col = 0; col < n_samps; ++col) {
@@ -339,7 +339,7 @@ void GRM::read_grm() {
 
     if (row != n_samps) {
         std::cerr << "Error: Number of rows does not match number of samples in GRM file." << std::endl;
-        return;
+        exit(1);
     }
 
     file.close();
@@ -356,7 +356,8 @@ void GRM::slice_samples(std::vector<std::string>& sample_ids) {
         if (it != this->sample_ids.end()) {
             ind(i) = std::distance(this->sample_ids.begin(), it);
         } else {
-            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in GRM file." << std::endl;   
+            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in GRM file." << std::endl;
+            exit(1); 
             return;
         }
     }
