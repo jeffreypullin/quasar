@@ -22,21 +22,22 @@
  * SOFTWARE.
  */
 
-#ifndef NBGLM_H
-#define NBGLM_H
+#ifndef NBGLMM_H
+#define NBGLMM_H
 
 #include <Eigen/Dense>
 #include <iostream>
 #include <memory>
 #include "Family.hpp"
 #include "Phi.hpp"
-#include "GLM.hpp"
+#include "GLMM.hpp"
 
-class NBGLM {
+class NBGLMM {
 
     private:
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
+        const Eigen::Ref<Eigen::MatrixXd> grm;
         double tol = 1e-5;
         int max_iter = 10;
 
@@ -44,71 +45,74 @@ class NBGLM {
 
         Eigen::VectorXd w;
         Eigen::VectorXd beta;
+        Eigen::VectorXd beta_prev;
         Eigen::VectorXd y_tilde;
         Eigen::VectorXd mu;
         Eigen::MatrixXd eta;
         double phi;
+        double phi_prev;
+        double sigma2;
+        double sigma2_prev;
+        bool is_converged;
 
-        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_) : 
-              X(X_),
-              y(y_)
+        NBGLMM(const Eigen::Ref<Eigen::MatrixXd> X_, 
+               const Eigen::Ref<Eigen::VectorXd> y_, 
+               const Eigen::Ref<Eigen::MatrixXd> grm_) : 
+               X(X_),
+               y(y_),
+               grm(grm_)
         {
             beta = Eigen::VectorXd::Zero(X.cols());
             mu = y.array() + 0.1;
         };
 
-        double ll() {
-            double theta = 1 / phi;
-            double ll = 0;
-
-            for (int i = 0; i < y.size(); i++) {
-                ll += std::lgamma(y(i) + theta) 
-                    - std::lgamma(theta)
-                    - std::lgamma(y(i) + 1.0)
-                    + theta * std::log(theta)
-                    + y(i) * std::log(mu(i))
-                    - (theta + y(i)) * std::log(theta + mu(i));
-            }
-            return ll;
+        void check_converge () {
+            Eigen::VectorXd tol_vec_beta = Eigen::VectorXd::Constant(beta.size(), tol);
+            double delta1 = ((beta - beta_prev).cwiseAbs().cwiseQuotient(
+                (beta).cwiseAbs() + (beta_prev).cwiseAbs() + tol_vec_beta)).maxCoeff();
+            double delta2 = std::abs(sigma2 - sigma2_prev) / (std::abs(sigma2) + std::abs(sigma2_prev) + tol);
+            double delta3 = std::abs(phi - phi_prev) / (std::abs(phi) + std::abs(phi_prev) + tol);
+            is_converged = (2 * std::max({delta1, delta2, delta3})) < tol;
         }
 
         void fit() {
             
+            // TODO: How to best initiliase this?
+            sigma2 = 0.1;
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLM poisson_glm(X, y, std::move(poisson));
-            poisson_glm.fit();
-            mu = poisson_glm.mu;
-            
+            GLMM poisson_glmm(X, y, std::move(poisson), grm, beta, sigma2);
+            poisson_glmm.fit();
+            mu = poisson_glmm.mu;
+            beta_prev = beta;
+            beta = poisson_glmm.beta;
+            sigma2_prev = sigma2;
+            sigma2 = poisson_glmm.sigma2;
+
+            // TODO: How to best initialise this?
+            phi_prev = 0.1;          
             phi = estimate_phi_ml(y, mu);
 
-            double theta_0;
-            // FIXME: Use residuals to calculate d1.
-            double d1 = std::sqrt(2);
-            double theta_delta = 1;
-
-            double ll_m = ll();
-            double ll_0 = ll_m + 2 * d1;
-
             int iter = 0;
-            while ((std::abs(ll_0 - ll_m) / d1 + std::abs(theta_delta)) > tol) {
-                
+            while (iter < max_iter) {
+
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
-                GLM nb_glm(X, y, std::move(nb));
-                nb_glm.fit();
-                mu = nb_glm.mu;
+                GLMM nb_glmm(X, y, std::move(nb), grm, beta_prev, 0.1);
+                nb_glmm.fit();
 
-                theta_0 = 1 / phi;
+                sigma2_prev = sigma2;
+                sigma2 = nb_glmm.sigma2;
+                beta_prev = beta;
+                beta = nb_glmm.beta;
+                mu = nb_glmm.mu;
+                
+                phi_prev = phi;
                 phi = estimate_phi_ml(y, mu);
-                theta_delta = theta_0 - 1 / phi;
 
-                ll_0 = ll_m;
-                ll_m = ll();
-
-                iter++;
-
-                if (iter > max_iter) {
+                check_converge();
+                if (is_converged) {
                     break;
                 }
+                iter++;
             }
         }
 };

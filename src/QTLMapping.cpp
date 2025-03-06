@@ -27,6 +27,7 @@ SOFTWARE.
 #include "LM.hpp"
 #include "LMM.hpp"
 #include "NBGLM.hpp"
+#include "NBGLMM.hpp"
 #include "VarRatioApprox.hpp"
 
 #include <iostream>
@@ -100,9 +101,17 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         std::cout << "Null LMs fitted." << std::endl;
 
     } else if (params.model == "glmm") {
+        
+        std::cout << "\nFitting null NB-GLMs..." << std::endl;
+        for (int i = 0; i < Y.cols(); ++i) {
 
-        std::cerr << "\nError: Not yet implemented." << std::endl;
-        exit(1);
+            NBGLMM nb_glmm(X, Y.col(i), grm.mat);
+            nb_glmm.fit();
+
+            Y.col(i) = Y.col(i).array() - (X * nb_glmm.beta).array().exp();
+            W_mat.row(i) = nb_glmm.w;
+        }
+        std::cout << "Null NB-GLMs fitted." << std::endl;
 
     } else if (params.model == "glm") {
 
