@@ -167,9 +167,12 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             w = Eigen::VectorXd::Ones(n_samples);
         }
         // Pre-calculate matrices used in covariate adijustment.
-        Eigen::MatrixXd XtW, XtWX_inv;
-        XtW = X.transpose() * w.asDiagonal();
-        XtWX_inv = (XtW * X).inverse();
+        Eigen::MatrixXd XtWX_inv, Xt;
+        XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
+        Xt = X.transpose();
+
+        Eigen::VectorXd g_s(n_samples);
+        Eigen::VectorXd g_temp(n_cov);
 
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
@@ -179,16 +182,16 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
             std::stringstream variant_line;
             double beta, se, u, v, gtg, zscore, pval_esnp;
-            Eigen::VectorXd g, g_cov_adj, g_s;
 
             // Covariate-adjust and standardise g.
-            g = G_slice.col(slice_ind);
-            g_cov_adj = X * (XtWX_inv * (XtW * g));
-            g_s = standardise_vec(g);
+            g_temp.noalias() = Xt * G_slice.col(slice_ind).cwiseProduct(w);
+            g_temp.noalias() = XtWX_inv * g_temp;
+            g_s.noalias() = X * g_temp;
+            standardise_vec(g_s);
 
             // Calculate the score statistic.
             u = g_s.dot(Y.col(i));
-            gtg = g_s.dot(w.asDiagonal() * g_s);
+            gtg = g_s.cwiseProduct(w).dot(g_s);
             v = gtg;
             if (params.model == "lmm" || params.model == "glmm") {
                 v *= sigma2;
@@ -198,7 +201,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             if (v > 0) {
                 zscore = u / std::sqrt(v);
                 pval_esnp = 2 * pnorm(std::abs(zscore), true);
-            } else{
+            } else {
                 zscore = 0;
                 pval_esnp = -1;
             }
