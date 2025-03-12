@@ -28,12 +28,8 @@
 #include <Eigen/Dense>
 #include <limits>
 #include <iostream>
+#include "GLM.hpp"
 #include "Family.hpp"
-
-inline double variance(const Eigen::VectorXd& x) {
-    double mean = x.mean();
-    return (x.array() - mean).square().sum() / (x.size() - 1);
-}
 
 class GLMM {
     
@@ -42,7 +38,7 @@ class GLMM {
         const Eigen::Ref<Eigen::VectorXd> y;
         std::unique_ptr<Family> family;
         double tol = 1e-5;
-        int max_iter = 10;
+        int max_iter = 50;
         int n;
         int p;
 
@@ -59,6 +55,7 @@ class GLMM {
         Eigen::VectorXd y_tilde;
         Eigen::VectorXd eta;
         Eigen::VectorXd mu;
+        Eigen::VectorXd u;
         // Relatedness matrix.
         Eigen::MatrixXd K;
 
@@ -68,9 +65,13 @@ class GLMM {
         double sigma2;
         double sigma2_prev;
 
+        Eigen::LDLT<Eigen::MatrixXd> Sigma_ldlt;
+        Eigen::LDLT<Eigen::MatrixXd> XtSigmaX_ldlt;
+
         // Control parameters.
         bool is_converged;
         int iter;
+        double step_size;
 
         void update_y_tilde() {
             Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
@@ -78,8 +79,7 @@ class GLMM {
         }
 
         void update_eta() {
-            Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
-            eta = y_tilde + (Sigma_inv * (y_tilde - X * beta)).cwiseProduct(mu_eta_vec);
+            eta = X * beta + u;
             for (int i = 0; i < n; i++) {
                 if (eta(i) < -30 || eta(i) > 30) {
                     eta(i) = std::numeric_limits<double>::epsilon();
@@ -99,47 +99,64 @@ class GLMM {
 
         void update_Sigma() {
             Sigma = w.asDiagonal().inverse();
-            Sigma += (sigma2 * K);
+            Sigma += sigma2 * K;
+            Sigma_ldlt.compute(Sigma);
         }
 
         void update_P() {
-            Sigma_invX = Sigma_inv * X;
+            Sigma_invX = Sigma_ldlt.solve(X);
             XtSigma_invX = X.transpose() * Sigma_invX;
-            XtSigma_invX_inv = XtSigma_invX.inverse();
-            P = Sigma_inv - Sigma_invX * XtSigma_invX_inv * Sigma_invX.transpose();
+            XtSigmaX_ldlt.compute(XtSigma_invX);
+            
+            P = Sigma_ldlt.solve(Eigen::MatrixXd::Identity(n, n)) - 
+                Sigma_invX * XtSigmaX_ldlt.solve(Sigma_invX.transpose());
         }
 
         void update_beta() {
             beta_prev = beta;
-            beta = XtSigma_invX_inv * Sigma_invX.transpose() * y_tilde;
+            beta = XtSigmaX_ldlt.solve(X.transpose() * Sigma_ldlt.solve(y_tilde));
+        }
+        
+        void update_u() {
+            u = sigma2 * K * Sigma_ldlt.solve(y_tilde - X * beta);
         }
 
         void update_sigma2() {
             sigma2_prev = sigma2;
-            double score;
-            double ai;
-
+            
+            double score, ai;
             Eigen::VectorXd Py_tilde = P * y_tilde;
             Eigen::VectorXd KPy_tilde = K * Py_tilde;
-            score = Py_tilde.dot(KPy_tilde) - (P.cwiseProduct(K)).sum();
-            ai = (KPy_tilde.transpose() * KPy_tilde);
+            score = Py_tilde.dot(KPy_tilde) - (P * K).trace();
+            ai = (KPy_tilde.transpose() * P * KPy_tilde);
 
-            sigma2 += score / ai;
-
+            sigma2 += step_size * (score / ai);
+            
+            // Handle the case when sigma2 < 0 after the update.
             if (sigma2 < tol && sigma2_prev < tol) {
                 sigma2 = 0.0;
             }
 
+            double ss = step_size;
             while (sigma2 < 0.0) {
-                sigma2 = sigma2_prev + score / ai;
+                
+                ss = ss * 0.5;
+                sigma2 = sigma2_prev + ss * (score / ai);
 
                 if (sigma2 < tol && sigma2_prev < tol) {
                     sigma2 = 0.0;
-                } 
+                }
             }
+
             if (sigma2 < tol && sigma2_prev < tol) {
                 sigma2 = 0.0;
-            }  
+            }            
+        }
+
+        void update_step_size() {
+            if ((iter + 1) % 10 == 0) {
+                step_size = 0.9 * step_size;
+            }
         }
 
         void check_converge() {
@@ -150,56 +167,67 @@ class GLMM {
             is_converged = (2 * std::max(diff1, diff2)) < tol;
         }
 
-        void init_params(Eigen::Ref<Eigen::VectorXd> init_beta, const double init_sigma2) {
-            beta = init_beta;
-            sigma2 = init_sigma2;
-            eta = X * beta;
-            update_mu();
+        void init_params() {
+            // Fit a GLM to initialise beta and mu.
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLM glm(X, y, std::move(poisson));
+            glm.fit();
+            beta = glm.beta;
+            mu = glm.mu;
+
+            u = Eigen::VectorXd::Zero(n);
+            update_eta();
             update_w();
             update_y_tilde();
-            sigma2 = std::min(0.9, variance(y_tilde));
+            sigma2 = 1;
             update_Sigma();
             update_P();
-            Eigen::VectorXd Py_tilde = P * y_tilde;
-            sigma2 += (Py_tilde.dot(K * Py_tilde) - P.cwiseProduct(K).sum()) * sigma2 * sigma2;
-            sigma2 = std::max(0.0, sigma2 / n);
             iter = 0;
             is_converged = false;
+            step_size = 1;
         }
 
         GLMM(
             const Eigen::Ref<Eigen::MatrixXd> X_, 
             const Eigen::Ref<Eigen::VectorXd> y_, 
             std::unique_ptr<Family> family_, 
-            const Eigen::MatrixXd K_, 
-            const Eigen::Ref<Eigen::VectorXd> init_beta_,
-            const double init_sigma2_
+            const Eigen::MatrixXd K_
         ) : 
-            y(y_),
             X(X_),
-            K(K_),
-            family(std::move(family_))
+            y(y_),
+            family(std::move(family_)),
+            K(K_)
         {
             n = X.rows();
             p = X.cols();
-            init_params(init_beta_, init_sigma2_);
+            init_params();
         };
 
         void fit() {
-
+            
             while (iter < max_iter) {
+
+                std::cout << "GLMM iteration: " << iter << std::endl;
+                
                 update_Sigma();
                 update_P();
+
                 update_beta();
+                update_u();
                 update_eta();
-                update_sigma2();
                 update_mu();
+
+                update_sigma2();
+                
                 update_w();
+                
                 update_y_tilde();
+
                 check_converge();
                 if (is_converged) {
                     break;
                 }
+                update_step_size();
                 iter += 1;
             }
         }

@@ -29,6 +29,7 @@ SOFTWARE.
 #include "NBGLM.hpp"
 #include "NBGLMM.hpp"
 #include "VarRatioApprox.hpp"
+#include "Phi.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -101,27 +102,29 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
     } else if (params.model == "glmm") {
         
-        std::cout << "\nFitting null NB-GLMs..." << std::endl;
+        std::cout << "\nFitting null GLMMs..." << std::endl;
         for (int i = 0; i < Y.cols(); ++i) {
 
-            NBGLMM nb_glmm(X, Y.col(i), grm.mat);
-            nb_glmm.fit();
-
-            Y.col(i) = Y.col(i).array() - (X * nb_glmm.beta).array().exp();
-            W_mat.row(i) = nb_glmm.w;
+            std::cout << "Processing feature " << i + 1 << " of " << Y.cols() << std::endl;
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLMM poisson_glmm(X, Y.col(i), std::move(poisson), grm.mat);
+            poisson_glmm.fit();
+            Y.col(i) = Y.col(i).array() - (X * poisson_glmm.beta).array().exp();
+            W_mat.row(i) = poisson_glmm.w;
         }
-        std::cout << "Null NB-GLMs fitted." << std::endl;
+        std::cout << "Null GLMMs fitted." << std::endl;
 
     } else if (params.model == "glm") {
 
         std::cout << "\nFitting null NB-GLMs..." << std::endl;
         for (int i = 0; i < Y.cols(); ++i) {
-
+            
             NBGLM nb_glm(X, Y.col(i));
             nb_glm.fit();
 
-            Y.col(i) = Y.col(i).array() - (X * nb_glm.beta).array().exp();
-            W_mat.row(i) = nb_glm.w;
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLM poisson_glm(X, Y.col(i), std::move(poisson)); 
+            poisson_glm.fit();
         }
         std::cout << "Null NB-GLMs fitted." << std::endl;
     }

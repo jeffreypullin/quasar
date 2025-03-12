@@ -77,7 +77,8 @@ void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
             exit(1);
         }
     }
-    this->data = data(rows, Eigen::all);
+    Eigen::MatrixXd temp = this->data;
+    this->data = temp(rows, Eigen::all);
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
 }
@@ -244,11 +245,12 @@ void CovData::slice_samples(std::vector<std::string>& sample_ids) {
         if (it != this->sample_ids.end()) {
             rows(i) = std::distance(this->sample_ids.begin(), it);
         } else {
-            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
+            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in covariate data." << std::endl;
             exit(1);
         }
     }
-    this->data = data(rows, Eigen::all);
+    Eigen::MatrixXd temp = this->data;
+    this->data = temp(rows, Eigen::all);
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
 }

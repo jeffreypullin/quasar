@@ -36,7 +36,8 @@ class GLM {
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
         std::unique_ptr<Family> family;
-        double tol = 1e-5;
+        int max_iter = 25;
+        double tol = 1e-8;
 
     public:
 
@@ -74,12 +75,12 @@ class GLM {
 
         void fit() {
 
-            double delta = 1;
-            int iter = 1;
-            double ll = 0;
+            double dev = 1; 
+            double dev_old, delta;
             
-            while (std::abs(delta) > tol) {
-                
+            for (int i = 0; i < max_iter; ++i) {
+
+                std::cout << "GLM iteration: " << i << std::endl;
                 eta = family->link(mu);
                 Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
                 y_tilde = (eta.array() + mu_eta_vec.array() * (y - mu).array()).matrix();
@@ -88,12 +89,14 @@ class GLM {
                 beta = weighted_least_squares();
                 eta = X * beta;
                 mu = family->invlink(eta);
-    
-                double ll_old = ll;
-                ll = family->ll(y, mu);
-                delta = std::abs(ll - ll_old);
 
-                iter++;
+                dev_old = dev;
+                dev = family->dev(y, mu);
+                delta = std::abs(dev - dev_old) / (0.1 + std::abs(dev));
+
+                if (delta < tol) {
+                    break;
+                }
             }
         }
 };

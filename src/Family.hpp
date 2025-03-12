@@ -39,8 +39,8 @@ class Family {
         virtual Eigen::VectorXd invlink(Eigen::VectorXd eta) = 0;
         virtual Eigen::VectorXd init(Eigen::VectorXd y) = 0;
         virtual Eigen::VectorXd var(Eigen::VectorXd mu) = 0;
-        virtual double ll(Eigen::VectorXd y, Eigen::VectorXd mu) = 0;
         virtual Eigen::VectorXd mu_eta(Eigen::VectorXd mu) = 0;
+        virtual double dev(Eigen::VectorXd y, Eigen::VectorXd mu) = 0;
 };
 
 class Poisson : public Family {
@@ -71,9 +71,16 @@ class Poisson : public Family {
             return mu;
         };
 
-        double ll(Eigen::VectorXd y, Eigen::VectorXd mu) {
-            Eigen::VectorXd ll = -mu.array() + y.array() * log(mu.array());
-            return ll.sum();
+        double dev(Eigen::VectorXd y, Eigen::VectorXd mu) {
+            Eigen::VectorXd r(y.size());
+            for (int i = 0; i < y.size(); ++i) {
+                if (y(i) == 0)  {
+                    r(i) = mu(i);
+                } else {
+                    r(i) = y(i) * log(y(i) / mu(i)) - (y(i) - mu(i));
+                }
+           }
+           return 2 * r.sum();
         };
 };
 
@@ -113,20 +120,19 @@ class NegativeBinomial : public Family {
             return mu.array() + phi * mu.array().square();
         };
 
-        double ll(Eigen::VectorXd y, Eigen::VectorXd mu) {
+        double dev(Eigen::VectorXd y, Eigen::VectorXd mu) {
+            Eigen::VectorXd r(y.size());
             double theta = 1 / phi;
-            Eigen::VectorXd ll(y.size());
-    
-            for(int i = 0; i < y.size(); i++) {
-                ll(i) = std::lgamma(y(i) + theta) 
-                    - std::lgamma(theta)
-                    - std::lgamma(y(i) + 1.0)
-                    + theta * std::log(theta)
-                    + y(i) * std::log(mu(i))
-                    - (theta + y(i)) * std::log(theta + mu(i));
+            for (int i = 0; i < y.size(); ++i) {
+                if (y(i) == 0)  {
+                    r(i) = -(y(i) + theta) * std::log((y(i) + theta)/(mu(i) + theta));
+                } else {
+                    r(i) = y(i) * std::log(y(i) / mu(i)) - (y(i) + theta) * std::log((y(i) + theta)/(mu(i) + theta));
+                }
             }
-            return ll.sum();
+            return 2 * r.sum();
         };
+
 };
 
 

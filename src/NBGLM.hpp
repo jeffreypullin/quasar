@@ -92,14 +92,17 @@ class NBGLM {
             int iter = 0;
             while ((std::abs(ll_0 - ll_m) / d1 + std::abs(theta_delta)) > tol) {
                 
+                std::cout << "NBGLM iteration: " << iter << std::endl;
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
                 GLM nb_glm(X, y, std::move(nb));
                 nb_glm.fit();
                 mu = nb_glm.mu;
+                beta = nb_glm.beta;
 
                 theta_0 = 1 / phi;
                 phi = estimate_phi_ml(y, mu);
                 theta_delta = theta_0 - 1 / phi;
+                std::cout << "Theta: " << 1 / phi << std::endl;
 
                 ll_0 = ll_m;
                 ll_m = ll();

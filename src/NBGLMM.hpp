@@ -43,12 +43,10 @@ class NBGLMM {
 
     public:
 
-        Eigen::VectorXd w;
         Eigen::VectorXd beta;
         Eigen::VectorXd beta_prev;
-        Eigen::VectorXd y_tilde;
         Eigen::VectorXd mu;
-        Eigen::MatrixXd eta;
+        Eigen::VectorXd w;
         double phi;
         double phi_prev;
         double sigma2;
@@ -77,10 +75,8 @@ class NBGLMM {
 
         void fit() {
             
-            // TODO: How to best initiliase this?
-            sigma2 = 0.1;
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM poisson_glmm(X, y, std::move(poisson), grm, beta, sigma2);
+            GLMM poisson_glmm(X, y, std::move(poisson), grm);
             poisson_glmm.fit();
             mu = poisson_glmm.mu;
             beta_prev = beta;
@@ -95,16 +91,21 @@ class NBGLMM {
             int iter = 0;
             while (iter < max_iter) {
 
+                std::cout << "NBGLMM iteration: " << iter << std::endl;
+
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
-                GLMM nb_glmm(X, y, std::move(nb), grm, beta_prev, 0.1);
+                GLMM nb_glmm(X, y, std::move(nb), grm);
                 nb_glmm.fit();
 
                 sigma2_prev = sigma2;
                 sigma2 = nb_glmm.sigma2;
+
                 beta_prev = beta;
                 beta = nb_glmm.beta;
+
                 mu = nb_glmm.mu;
-                
+                w = nb_glmm.w; 
+
                 phi_prev = phi;
                 phi = estimate_phi_ml(y, mu);
 
@@ -114,6 +115,7 @@ class NBGLMM {
                 }
                 iter++;
             }
+
         }
 };
 

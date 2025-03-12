@@ -25,6 +25,7 @@
 #include <Eigen/Dense>
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/trigamma.hpp>
+#include <iostream>
 
 double theta_score(Eigen::VectorXd y, Eigen::VectorXd mu, double theta) {
     
@@ -44,7 +45,7 @@ double theta_info(Eigen::VectorXd y, Eigen::VectorXd mu, double theta) {
     
     double info = 0.0;
     for (int i = 0; i < y.size(); ++i) {
-        info -= boost::math::trigamma(theta + y(i)) 
+        info += - boost::math::trigamma(theta + y(i)) 
                 + boost::math::trigamma(theta) 
                 - 1.0 / theta 
                 + 2.0 / (mu(i) + theta) 
@@ -61,7 +62,8 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu) {
     
     double phi;
     double theta;
-
+    int n = y.size(); 
+    theta = n / (y.array() / mu.array() - 1).square().sum();
     int iter = 0;
     double delta = 1;
 
@@ -69,9 +71,8 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu) {
 
         theta = std::abs(theta);
         delta = theta_score(y, mu, theta) / theta_info(y, mu, theta);
-        theta+= delta;
+        theta += delta;
 
-        // Too many iterations. 
         if (iter > max_iter) {
             break;
         }
