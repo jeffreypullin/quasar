@@ -142,6 +142,10 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     variant_header_line << "feature_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue\n";
     variant_file << variant_header_line.str();
 
+    std::stringstream region_header_line;
+    region_header_line << "feature_id\tchrom\tpos\tpvalue\n";
+    region_file << region_header_line.str();
+
     // Iterate over features.
     for (int i = 0; i < pheno_data.n_pheno; ++i) {
 
@@ -175,8 +179,8 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         Xt = X.transpose();
 
         Eigen::VectorXd g_s(n_samples);
-        Eigen::VectorXd g_temp(n_cov);
-
+        Eigen::VectorXd g(n_samples);
+        
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
             
@@ -187,13 +191,12 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             double beta, se, u, v, gtg, zscore, pval_esnp;
 
             // Covariate-adjust and standardise g.
-            g_temp.noalias() = Xt * G_slice.col(slice_ind).cwiseProduct(w);
-            g_temp.noalias() = XtWX_inv * g_temp;
-            g_s.noalias() = X * g_temp;
+            g = G_slice.col(slice_ind); 
+            g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
             standardise_vec(g_s);
-
+            
             // Calculate the score statistic.
-            u = g_s.dot(Y.col(i));
+            u = g_s.cwiseProduct(w).dot(Y.col(i));
             gtg = g_s.cwiseProduct(w).dot(g_s);
             v = gtg;
             if (params.model == "lmm" || params.model == "glmm") {
