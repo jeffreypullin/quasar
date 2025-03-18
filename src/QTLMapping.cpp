@@ -28,7 +28,6 @@ SOFTWARE.
 #include "LMM.hpp"
 #include "NBGLM.hpp"
 #include "NBGLMM.hpp"
-#include "VarRatioApprox.hpp"
 #include "Phi.hpp"
 
 #include <iostream>
