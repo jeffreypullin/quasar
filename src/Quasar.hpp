@@ -58,6 +58,9 @@ struct Params {
     // when estimating the r for
     // main effect QTL mapping.
     int main_n_rand_samples = 30;
+    // Use adjusted profile likelihood 
+    // when estimating NB dispersion parameter.
+    bool use_apl;
 
     // Output parameters.
     std::string output_prefix;

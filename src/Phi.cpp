@@ -26,6 +26,7 @@
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/trigamma.hpp>
 #include <iostream>
+#include <brent_fmin.hpp>
 
 double theta_score(Eigen::VectorXd y, Eigen::VectorXd mu, double theta) {
     
@@ -80,6 +81,31 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu) {
     }
 
     phi = 1 / theta;
+    return phi;
+}
+
+double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, Eigen::MatrixXd X) {
+
+    double phi, theta;
+
+    std::function<double(double)> apl = [&y, &mu, &X](double theta) { 
+        double ll = 0.0, cr_adj;
+        for (int i = 0; i < y.size(); i++) {
+            ll += std::lgamma(y(i) + theta) 
+                - std::lgamma(theta)
+                - std::lgamma(y(i) + 1.0)
+                + theta * std::log(theta)
+                + y(i) * std::log(mu(i))
+                - (theta + y(i)) * std::log(theta + mu(i));
+        }
+        Eigen::VectorXd w = theta / (mu.array() + theta).array();
+        Eigen::MatrixXd W = w.asDiagonal();
+        cr_adj = 0.5 * std::log((X.transpose() * W * X).determinant());
+        return ll - cr_adj;
+    };
+
+    theta = Brent_fmin(0.00, 10000, apl, 2e-5);
+    phi = 1 / theta; 
     return phi;
 }
 

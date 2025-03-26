@@ -117,8 +117,9 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
         std::cout << "\nFitting null NB-GLMs..." << std::endl;
         for (int i = 0; i < Y.cols(); ++i) {
-            
-            NBGLM nb_glm(X, Y.col(i));
+
+            bool use_apl = params.use_apl;
+            NBGLM nb_glm(X, Y.col(i), use_apl);
             nb_glm.fit();
 
             auto poisson = std::unique_ptr<Family>(new Poisson());
@@ -192,7 +193,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             // Covariate-adjust and standardise g.
             g = G_slice.col(slice_ind); 
             g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
-            standardise_vec(g_s);
+            //standardise_vec(g_s);
             
             // Calculate the score statistic.
             u = g_s.cwiseProduct(w).dot(Y.col(i));

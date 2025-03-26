@@ -48,10 +48,12 @@ class NBGLM {
         Eigen::VectorXd mu;
         Eigen::MatrixXd eta;
         double phi;
+        bool use_apl;
 
-        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_) : 
+        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_, bool use_apl_) : 
               X(X_),
-              y(y_)
+              y(y_),
+              use_apl(use_apl_)
         {
             beta = Eigen::VectorXd::Zero(X.cols());
             mu = y.array() + 0.1;
@@ -78,8 +80,12 @@ class NBGLM {
             GLM poisson_glm(X, y, std::move(poisson));
             poisson_glm.fit();
             mu = poisson_glm.mu;
-            
-            phi = estimate_phi_ml(y, mu);
+
+            if (use_apl) {
+                phi = estimate_phi_apl(y, mu, X);
+            } else {
+               phi = estimate_phi_ml(y, mu); 
+            }
 
             double theta_0;
             // FIXME: Use residuals to calculate d1.

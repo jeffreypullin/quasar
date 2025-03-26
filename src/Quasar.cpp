@@ -47,6 +47,7 @@ int main(int argc, char* argv[]) {
         // Model arguments.
         ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
+        ("use-apl", "Use adjusted profile likelihood to estimate NB dispersion", cxxopts::value<bool>(params.use_apl))
         // Output arguments.
         ("o,output-prefix", "Output file prefix", cxxopts::value<std::string>(params.output_prefix))
         ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
