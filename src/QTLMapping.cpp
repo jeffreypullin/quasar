@@ -95,7 +95,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             LM lm(X, Y.col(i));
             lm.fit();
 
-            Y.col(i) = Y.col(i) - X * lm.beta;
+            Y.col(i) = (Y.col(i) - X * lm.beta) / std::sqrt(lm.s);
         }
         std::cout << "Null LMs fitted." << std::endl;
 
@@ -190,12 +190,9 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             std::stringstream variant_line;
             double beta, se, u, v, gtg, zscore, pval_esnp;
 
-            // Covariate-adjust and standardise g.
             g = G_slice.col(slice_ind); 
             g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
-            //standardise_vec(g_s);
             
-            // Calculate the score statistic.
             u = g_s.cwiseProduct(w).dot(Y.col(i));
             gtg = g_s.cwiseProduct(w).dot(g_s);
             v = gtg;
@@ -205,7 +202,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             beta = u / v;
             se = 1 / std::sqrt(v);
             if (v > 0) {
-                zscore = u / std::sqrt(v);
+                zscore = beta / se;
                 pval_esnp = 2 * pnorm(std::abs(zscore), true);
             } else {
                 zscore = 0;
