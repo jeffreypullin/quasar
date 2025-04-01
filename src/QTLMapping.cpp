@@ -217,8 +217,8 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
                 pheno_data.pheno_ids[i] << "\t" <<
                 geno_data.chrom[k] << "\t" <<
                 geno_data.pos[k] << "\t" <<
-                geno_data.allele1[k] << "\t" <<
-                geno_data.allele2[k] << "\t" <<
+                geno_data.alt[k] << "\t" <<
+                geno_data.ref[k] << "\t" <<
                 beta << "\t" << 
                 se << "\t" <<
                 pval_esnp << "\n";
