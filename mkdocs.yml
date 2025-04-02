@@ -1,5 +1,5 @@
 site_name: quasar
-theme: cosmo
+theme: flatly
 copyright: "QUASAR is licensed under the <a href='https://github.com/jeffreypullin/quasar/blob/main/LICENSE'>MIT license"
 
 nav:
@@ -8,4 +8,6 @@ nav:
   - Documentation: docs.md
   - Inspiration: inspiration.md
 
+extra_css: 
+  - extra.css
 
