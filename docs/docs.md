@@ -1,12 +1,14 @@
-# quasar
+# Usage
 
-A software package for performing quantitative trait loci (QTL) mapping.
+To run **quasar**, use the command `./quasar` on the command line. Flags and options specify how quasar will run. 
 
-## Installation
+To list all the possible options and see quasar's help you can run: 
 
-TODO
+```
+./qusar --help
+```
 
-## Usage
+A normal use of quasar, providing the necessary data with all other options at their default values is:
 
 ```
 ./quasar --plink_prefix plink_prefix \
@@ -14,6 +16,8 @@ TODO
     --cov covariate_data.tsv \
     --grm grm.tsv
 ```
+
+## Data formats
 
 ### Genotype data
 
@@ -55,11 +59,12 @@ sample_id sample_1 sample_2 sample_3 sample_4 ...
        ...
 ```
 
-## Inspiration
+## Other options
 
-Elements of the code and interface of quasar are based on:
-
-- [APEX](https://corbinq.github.io/apex/doc/)
-- [regenie](https://rgcgithub.github.io/regenie/)
-- [limix_qtl](https://github.com/single-cell-genetics/limix_qtl)
-- [PQLseq2](https://github.com/zhengli09/PQLseq2)
+* --model/-m: The model used to residualise phenotype data. Can be:
+    - lm: Linear model
+    - lmm: Linear mixed model
+    - glm: Negative binomial generalised linear model
+    - glmm: Poisson generalised linear mixed model
+* --window/-w: The size of the cis window in base pairs. Default: 1000000
+* --use-apl: Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion

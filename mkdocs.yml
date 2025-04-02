@@ -1,0 +1,11 @@
+site_name: quasar
+theme: cosmo
+copyright: "QUASAR is licensed under the <a href='https://github.com/jeffreypullin/quasar/blob/main/LICENSE'>MIT license"
+
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Documentation: docs.md
+  - Inspiration: inspiration.md
+
+
