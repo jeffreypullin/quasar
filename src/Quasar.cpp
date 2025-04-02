@@ -39,10 +39,9 @@ int main(int argc, char* argv[]) {
         ("h,help", "Display help message")
         ("v,version", "Display version information")
         // Data arguments.
-        ("f,feat", "Feature annotation file", cxxopts::value<std::string>(params.feat_file))
+        ("p,plink", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.plink_prefix))
+        ("b,bed", "Bed file holding phenotype informaton", cxxopts::value<std::string>(params.bed_file))
         ("c,cov", "Covariate file", cxxopts::value<std::string>(params.cov_file))
-        ("p,pheno", "Phenotype file", cxxopts::value<std::string>(params.pheno_file))
-        ("b,bed", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.bed_prefix))
         ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file))
         // Model arguments.
         ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
@@ -61,7 +60,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (result.count("version")) {
-        std::cout << "quasar version 0.0.1" << std::endl;
+        std::cout << "quasar version 0.1.0" << std::endl;
         exit(0);
     }
 
@@ -81,39 +80,38 @@ int main(int argc, char* argv[]) {
     std::cout << "\nquasar execution started." << std::endl;
 
     std::cout << "\nReading genotype data..." << std::endl;
-    GenoData geno_data(params.bed_prefix);
+    GenoData geno_data(params.plink_prefix);
     geno_data.read_bim_file();
     geno_data.read_fam_file();
     geno_data.prepare_bed_file();
     geno_data.read_bed_file();
 
     std::cout << "\nReading non-genotype data..." << std::endl;
-    PhenoData pheno_data(params.pheno_file);
+    PhenoData pheno_data(params.bed_file);
     pheno_data.read_pheno_data();
     CovData cov_data(params.cov_file);
     cov_data.read_cov_data();
-    FeatData feat_data(params.feat_file);
-    feat_data.read_feat_data();
     GRM grm(params.grm_file);
     grm.read_grm();
 
     std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
     std::vector<std::vector<std::string>> sample_ids_vecs = {
-        grm.sample_ids, 
-        cov_data.sample_ids, 
+        geno_data.sample_ids,
         pheno_data.sample_ids, 
-        geno_data.sample_ids
+        cov_data.sample_ids, 
+        grm.sample_ids
     };
     std::vector<std::string> int_sample_ids = intersection(sample_ids_vecs);
+
     if (int_sample_ids.size() == 0) {
         std::cerr << "Error: no common sample ids found." << std::endl;
         exit(1);
     }
 
+    geno_data.slice_samples(int_sample_ids);
     pheno_data.slice_samples(int_sample_ids);
     cov_data.slice_samples(int_sample_ids);
     grm.slice_samples(int_sample_ids);
-    geno_data.slice_samples(int_sample_ids);
 
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs" << std::endl;
 
@@ -129,8 +127,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::cout << "\nProcessing and slicing phenotype data..." << std::endl;
-    pheno_data.add_feature_info(feat_data);
+    std::cout << "\nFiltering phenotype data..." << std::endl;
 
     std::vector<int> g_chrom = geno_data.chrom;
     bool one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());

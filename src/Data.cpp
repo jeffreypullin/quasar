@@ -20,11 +20,12 @@ void PhenoData::read_pheno_data() {
     if (std::getline(file, line)) {
         remove_carriage_return(line);
         tokens = string_split(line, ",\t ");
-        if (tokens[0] != "feature_id") {
-            std::cerr << "Error: Invalid header in phenotype file. Expected 'feature_id' as the first column." << std::endl;
+        if (tokens[0] != "#chr" || tokens[1] != "start" || 
+            tokens[2] != "end" || tokens[3] != "phenotype_id") {
+            std::cerr << "Error: Invalid header in phenotype file. Expected '#chr', 'start', 'end' and 'phenotype_id' as the first column names." << std::endl;
             exit(1);
         }
-        sample_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
+        sample_ids = std::vector<std::string>(tokens.begin() + 4, tokens.end());
         n_samples = sample_ids.size();
     }
 
@@ -42,18 +43,24 @@ void PhenoData::read_pheno_data() {
     
     data = Eigen::MatrixXd(n_pheno, n_samples);
     pheno_ids.reserve(n_pheno);
+    chrom.reserve(n_pheno);
+    start.reserve(n_pheno);
+    end.reserve(n_pheno);
 
     int row = 0;
     while (std::getline(file, line) && row < n_pheno) {
         remove_carriage_return(line);
         tokens = string_split(line, ",\t ");
-        if (tokens.size() != n_samples + 1) {
+        if (tokens.size() != n_samples + 4) {
             std::cerr << "Error: Inconsistent number of columns in phenotype file." << std::endl;
             exit(1);
         }
-        pheno_ids.push_back(tokens[0]);
+        chrom.push_back(std::stoi(tokens[0]));
+        start.push_back(std::stoi(tokens[1]));
+        end.push_back(std::stoi(tokens[2]));
+        pheno_ids.push_back(tokens[3]);
         for (int col = 0; col < n_samples; ++col) {
-            data(row, col) = std::stod(tokens[col + 1]);
+            data(row, col) = std::stod(tokens[col + 4]);
         }
         row++;
     }
@@ -81,20 +88,6 @@ void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
     this->data = temp(rows, Eigen::all);
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
-}
-
-void PhenoData::add_feature_info(FeatData& feat_data) {
-
-    for (int i = 0; i < n_pheno; ++i) {
-        for (int j = 0; j < feat_data.n_feat; ++j) {
-            if (pheno_ids[i] == feat_data.feat_id[j]) {
-                chrom.push_back(feat_data.chrom[j]);                
-                start.push_back(feat_data.start[j]);
-                break;
-            } 
-        }
-    }
-
 }
 
 void PhenoData::slice_chromosome(int chrom_id) {
@@ -181,7 +174,6 @@ void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool ver
     }
 }
 
-
 void CovData::read_cov_data() {
     std::ifstream file(cov_file);
     if (!file.is_open()) {
@@ -253,55 +245,6 @@ void CovData::slice_samples(std::vector<std::string>& sample_ids) {
     this->data = temp(rows, Eigen::all);
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
-}
-
-void FeatData::read_feat_data() {
-
-    std::ifstream file(feat_file);
-    if (!file.is_open()) {
-        std::cerr << "Error: Unable to open feature annotation file: " << feat_file << std::endl;
-        exit(1);
-    }
-
-    std::string line;
-    std::vector<std::string> tokens;
-
-    if (std::getline(file, line)) {
-        remove_carriage_return(line);
-        tokens = string_split(line, ",\t ");
-        if (tokens.size() < 4 || tokens[0] != "feature_id" || tokens[1] != "chrom" || tokens[2] != "start" || tokens[3] != "end") {
-            std::cerr << "Error: Invalid header in feature annotation file. Expected 'feature_id', 'chrom', 'start', 'end' as the first four columns." << std::endl;
-            exit(1);
-        }
-    }
-
-    n_feat = 0;
-    while (std::getline(file, line)) {
-        remove_carriage_return(line);
-        tokens = string_split(line, ",\t ");
-        if (tokens.size() < 4) {
-            std::cerr << "Error: Inconsistent number of columns in feature annotation file at line " << n_feat + 2 << std::endl;
-            exit(1);
-        }
-
-        feat_id.push_back(tokens[0]);
-        chrom.push_back(std::stoi(tokens[1]));
-        start.push_back(std::stoi(tokens[2]));
-        end.push_back(std::stoi(tokens[3]));
-
-        // Check if gene_name column exists
-        if (tokens.size() > 4) {
-            gene_name.push_back(tokens[4]);
-        } else {
-            gene_name.push_back("");
-        }
-
-        n_feat++;
-    }
-
-    file.close();
-
-    std::cout << "Read " << n_feat << " features from feature annotation file." << std::endl;
 }
 
 void GRM::read_grm() {

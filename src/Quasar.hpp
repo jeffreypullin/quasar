@@ -41,23 +41,20 @@
 struct Params {
 
     // Input files.
-    std::string bed_prefix;
+    std::string plink_prefix;
     std::string grm_file;
-    std::string feat_file;
     std::string cov_file;
-    std::string pheno_file;
+    std::string bed_file;
 
     // Statistical model, can be either
     // "lmm": linear mixed model or
     // "glmm": generalised linear mixed model. 
+    // "lm": linear model
+    // "glm": generalised lienar model (negative binomial)
     std::string model;
     // QTL mapping parameters.
     // By default we use a +/- 1Mb window.
     int window_size = 1000000;
-    // The number of genotypes to sample
-    // when estimating the r for
-    // main effect QTL mapping.
-    int main_n_rand_samples = 30;
     // Use adjusted profile likelihood 
     // when estimating NB dispersion parameter.
     bool use_apl;
