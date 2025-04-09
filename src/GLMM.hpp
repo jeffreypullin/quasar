@@ -170,7 +170,8 @@ class GLMM {
         void init_params() {
             // Fit a GLM to initialise beta and mu.
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLM glm(X, y, std::move(poisson));
+            Eigen::VectorXd offset = Eigen::VectorXd::Zero(n);
+            GLM glm(X, y, offset, std::move(poisson));
             glm.fit();
             beta = glm.beta;
             mu = glm.mu;

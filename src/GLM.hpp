@@ -35,6 +35,7 @@ class GLM {
     private:
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
+        const Eigen::Ref<Eigen::VectorXd> offset;
         std::unique_ptr<Family> family;
         int max_iter = 25;
         double tol = 1e-8;
@@ -49,9 +50,11 @@ class GLM {
 
         GLM(const Eigen::Ref<Eigen::MatrixXd> X_, 
             const Eigen::Ref<Eigen::VectorXd> y_,
-            std::unique_ptr<Family> family_) : 
+            const Eigen::Ref<Eigen::VectorXd> offset_,
+            std::unique_ptr<Family> family_) :
             X(X_),
             y(y_),
+            offset(offset_),
             family(std::move(family_))
         {
             beta = Eigen::VectorXd::Zero(X.cols());
@@ -83,12 +86,12 @@ class GLM {
                 std::cout << "GLM iteration: " << i << std::endl;
                 eta = family->link(mu);
                 Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
-                y_tilde = (eta.array() + mu_eta_vec.array() * (y - mu).array()).matrix();
+                y_tilde = ((eta.array() - offset.array()) + mu_eta_vec.array() * (y - mu).array()).matrix();
                 w = compute_w(mu);
     
                 beta = weighted_least_squares();
                 eta = X * beta;
-                mu = family->invlink(eta);
+                mu = family->invlink(eta + offset);
 
                 dev_old = dev;
                 dev = family->dev(y, mu);

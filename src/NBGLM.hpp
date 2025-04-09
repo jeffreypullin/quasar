@@ -37,6 +37,7 @@ class NBGLM {
     private:
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
+        const Eigen::Ref<Eigen::VectorXd> offset;
         double tol = 1e-5;
         int max_iter = 10;
 
@@ -50,9 +51,11 @@ class NBGLM {
         double phi;
         bool use_apl;
 
-        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_, bool use_apl_) : 
+        NBGLM(const Eigen::Ref<Eigen::MatrixXd> X_, const Eigen::Ref<Eigen::VectorXd> y_, 
+              const Eigen::Ref<Eigen::MatrixXd> offset_, bool use_apl_) : 
               X(X_),
               y(y_),
+              offset(offset_),
               use_apl(use_apl_)
         {
             beta = Eigen::VectorXd::Zero(X.cols());
@@ -77,7 +80,7 @@ class NBGLM {
         void fit() {
             
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLM poisson_glm(X, y, std::move(poisson));
+            GLM poisson_glm(X, y, offset, std::move(poisson));
             poisson_glm.fit();
             mu = poisson_glm.mu;
 
@@ -100,7 +103,7 @@ class NBGLM {
                 
                 std::cout << "NBGLM iteration: " << iter << std::endl;
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
-                GLM nb_glm(X, y, std::move(nb));
+                GLM nb_glm(X, y, offset, std::move(nb));
                 nb_glm.fit();
                 mu = nb_glm.mu;
                 beta = nb_glm.beta;
