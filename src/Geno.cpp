@@ -162,6 +162,34 @@ void GenoData::read_bed_file() {
     file.close();
 }
 
+void GenoData::run_mean_imputation() {
+
+    for (int j = 0; j < this->genotype_matrix.cols(); ++j) {
+        auto col = this->genotype_matrix.col(j);
+        
+        if ((col.array() == -1).any()) {
+            
+            double sum = 0;
+            int count = 0;
+            for (int i = 0; i < col.size(); ++i) {
+                if (col(i) != -1) {
+                    sum += col(i);
+                    count++;
+                }
+            }
+            double mean = sum / count;
+
+            for (int i = 0; i < col.size(); ++i) {
+                if (col(i) == -1) {
+                    col(i) = mean;
+                }
+            }
+        }
+    }
+
+    std::cout << "Mean imputation completed successfully." << std::endl;
+}
+
 void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     
     Eigen::VectorXi rows;

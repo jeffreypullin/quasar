@@ -85,6 +85,7 @@ int main(int argc, char* argv[]) {
     geno_data.read_fam_file();
     geno_data.prepare_bed_file();
     geno_data.read_bed_file();
+    geno_data.run_mean_imputation();
 
     std::cout << "\nReading non-genotype data..." << std::endl;
     PhenoData pheno_data(params.bed_file);

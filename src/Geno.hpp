@@ -58,6 +58,7 @@ class GenoData {
     void read_bim_file();
     void read_fam_file();
     void prepare_bed_file();
+    void run_mean_imputation();
     void read_bed_file();
     void slice_samples(std::vector<std::string>& sample_ids);
 };
