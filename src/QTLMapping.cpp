@@ -80,9 +80,8 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             LMM lmm(QtX, QtY.col(i), lambda);
             lmm.fit();
 
-            double sigma2 = lmm.sigma2;
             Eigen::DiagonalMatrix<double,Eigen::Dynamic> D_inv = lmm.D_inv;
-            Y.col(i) = (Q.transpose() * D_inv * (QtY.col(i) - QtX * lmm.beta)) / std::sqrt(sigma2);
+            Y.col(i) = (Q * D_inv * (QtY.col(i) - QtX * lmm.beta)) / std::sqrt(lmm.sigma2);
         
         }
         std::cout << "Null LMMs fitted." << std::endl;
