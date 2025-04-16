@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         ("p,plink", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.plink_prefix))
         ("b,bed", "Bed file holding phenotype informaton", cxxopts::value<std::string>(params.bed_file))
         ("c,cov", "Covariate file", cxxopts::value<std::string>(params.cov_file))
-        ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file))
+        ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file)->default_value("no-grm"))
         // Model arguments.
         ("m,model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
@@ -77,6 +77,11 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
+    bool mixed_model = params.model == "lmm" || params.model == "glmm";
+    if (!mixed_model && params.grm_file != "no-grm") {
+       std::cout << "\nA GRM is not needed when using the LM or NB-GLM models and will be ignored." << std::endl;
+    }
+
     std::cout << "\nquasar execution started." << std::endl;
 
     std::cout << "\nReading genotype data..." << std::endl;
@@ -93,15 +98,20 @@ int main(int argc, char* argv[]) {
     CovData cov_data(params.cov_file);
     cov_data.read_cov_data();
     GRM grm(params.grm_file);
-    grm.read_grm();
+    if (mixed_model) {
+        grm.read_grm();
+    }
 
     std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
+
     std::vector<std::vector<std::string>> sample_ids_vecs = {
         geno_data.sample_ids,
         pheno_data.sample_ids, 
         cov_data.sample_ids, 
-        grm.sample_ids
     };
+    if (mixed_model) {
+        sample_ids_vecs.push_back(grm.sample_ids);
+    }
     std::vector<std::string> int_sample_ids = intersection(sample_ids_vecs);
 
     if (int_sample_ids.size() == 0) {
@@ -112,7 +122,9 @@ int main(int argc, char* argv[]) {
     geno_data.slice_samples(int_sample_ids);
     pheno_data.slice_samples(int_sample_ids);
     cov_data.slice_samples(int_sample_ids);
-    grm.slice_samples(int_sample_ids);
+    if (mixed_model) {
+        grm.slice_samples(int_sample_ids);
+    }
 
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs" << std::endl;
 
