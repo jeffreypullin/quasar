@@ -123,9 +123,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             NBGLM nb_glm(X, Y.col(i), offset, use_apl);
             nb_glm.fit();
 
-            // Eigen::VectorXd var = nb_glm.mu.array() + nb_glm.phi * nb_glm.mu.array().square();
-            Eigen::VectorXd var = nb_glm.mu.array().square();
-            Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta).array().exp()) / var.array().sqrt();
+            Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta).array().exp()) / nb_glm.mu.array();
             W_mat.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
         }
         std::cout << "Null NB-GLMs fitted." << std::endl;
