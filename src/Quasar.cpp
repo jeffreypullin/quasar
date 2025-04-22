@@ -70,14 +70,15 @@ int main(int argc, char* argv[]) {
 
     // Check model.
     if (params.model != "lmm" && 
-        params.model != "glmm" && 
+        params.model != "p_glmm" && 
         params.model != "lm" && 
-        params.model != "glm") {
-        std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'glm' or 'glmm'." << std::endl;
+        params.model != "p_glm" && 
+        params.model != "nb_glm") {
+        std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'p_glm', 'nb_glm', or 'p_glmm'." << std::endl;
         exit(1);
     }
 
-    bool mixed_model = params.model == "lmm" || params.model == "glmm";
+    bool mixed_model = params.model == "lmm" || params.model == "p_glmm";
     if (!mixed_model && params.grm_file != "no-grm") {
        std::cout << "\nA GRM is not needed when using the LM or NB-GLM models and will be ignored." << std::endl;
     }

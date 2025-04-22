@@ -98,28 +98,27 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         }
         std::cout << "Null LMs fitted." << std::endl;
 
-    } else if (params.model == "glmm") {
+    } else if (params.model == "p_glmm") {
         
-        std::cout << "\nFitting null GLMMs..." << std::endl;
+        std::cout << "\nFitting null Poisson GLMMs..." << std::endl;
         for (int i = 0; i < Y.cols(); ++i) {
 
-            std::cout << "Processing feature " << i + 1 << " of " << Y.cols() << std::endl;
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM poisson_glmm(X, Y.col(i), std::move(poisson), grm.mat);
-            poisson_glmm.fit();
-            Y.col(i) = Y.col(i).array() - (X * poisson_glmm.beta).array().exp();
-            W_mat.row(i) = poisson_glmm.w;
-        }
-        std::cout << "Null GLMMs fitted." << std::endl;
+            GLMM p_glmm(X, Y.col(i), std::move(poisson), grm.mat);
+            p_glmm.fit();
 
-    } else if (params.model == "glm") {
+            Y.col(i) = (Y.col(i).array() - (X * p_glmm.beta).array().exp()) / p_glmm.mu.array();
+            W_mat.row(i) = p_glmm.w;
+        }
+        std::cout << "Null Poisson GLMMs fitted." << std::endl;
+
+    } else if (params.model == "nb_glm") {
 
         std::cout << "\nFitting null NB-GLMs..." << std::endl;
         Eigen::VectorXd offset = Y.rowwise().sum().array().log();
         for (int i = 0; i < Y.cols(); ++i) {
 
             bool use_apl = params.use_apl;
-            std::cout << "use_apl: " << use_apl << std::endl;
             NBGLM nb_glm(X, Y.col(i), offset, use_apl);
             nb_glm.fit();
 
@@ -127,6 +126,22 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             W_mat.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
         }
         std::cout << "Null NB-GLMs fitted." << std::endl;
+
+    } else if (params.model == "p_glm") {
+
+        std::cout << "\nFitting null Poisson-GLMs..." << std::endl;
+        Eigen::VectorXd offset = Y.rowwise().sum().array().log();
+        for (int i = 0; i < Y.cols(); ++i) {
+
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLM p_glm(X, Y.col(i), offset, std::move(poisson));
+            p_glm.fit();
+
+            Y.col(i) = (Y.col(i).array() - (X * p_glm.beta).array().exp()) / p_glm.mu.array();
+            W_mat.row(i) = p_glm.mu.array();
+        }
+        std::cout << "Null Poisson GLMs fitted." << std::endl;
+
     }
 
     // Step 2 ------------------------------------------------------------
@@ -168,7 +183,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
         double sigma2 = Y.col(i).squaredNorm() / (n_samples - n_cov);
         Eigen::VectorXd w;
-        if (params.model == "glm" || params.model == "glmm") {
+        if (params.model == "p_glm" || params.model == "nb_glm"|| params.model == "p_glmm") {
             w = W_mat.row(i);
         } else {
             w = Eigen::VectorXd::Ones(n_samples);
@@ -196,7 +211,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             u = g_s.cwiseProduct(w).dot(Y.col(i));
             gtg = g_s.cwiseProduct(w).dot(g_s);
             v = gtg;
-            if (params.model == "lmm" || params.model == "glmm") {
+            if (params.model == "lmm" || params.model == "p_glmm") {
                 v *= sigma2;
             }
             beta = u / v;
