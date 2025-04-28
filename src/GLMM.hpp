@@ -36,6 +36,7 @@ class GLMM {
     private:
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
+        const Eigen::Ref<Eigen::VectorXd> offset;
         std::unique_ptr<Family> family;
         double tol = 1e-5;
         int max_iter = 50;
@@ -56,6 +57,7 @@ class GLMM {
         Eigen::VectorXd eta;
         Eigen::VectorXd mu;
         Eigen::VectorXd u;
+
         // Relatedness matrix.
         Eigen::MatrixXd K;
 
@@ -75,11 +77,11 @@ class GLMM {
 
         void update_y_tilde() {
             Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
-            y_tilde = eta + (y - mu).cwiseProduct(mu_eta_vec);
+            y_tilde = (eta - offset) + (y - mu).cwiseProduct(mu_eta_vec);
         }
 
         void update_eta() {
-            eta = X * beta + u;
+            eta = X * beta + offset + u;
             for (int i = 0; i < n; i++) {
                 if (eta(i) < -30 || eta(i) > 30) {
                     eta(i) = std::numeric_limits<double>::epsilon();
@@ -118,7 +120,7 @@ class GLMM {
         }
         
         void update_u() {
-            u = sigma2 * K * Sigma_ldlt.solve(y_tilde - X * beta);
+            u = sigma2 * K * Sigma_ldlt.solve(y_tilde - (X * beta));
         }
 
         void update_sigma2() {
@@ -170,7 +172,6 @@ class GLMM {
         void init_params() {
             // Fit a GLM to initialise beta and mu.
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            Eigen::VectorXd offset = Eigen::VectorXd::Zero(n);
             GLM glm(X, y, offset, std::move(poisson));
             glm.fit();
             beta = glm.beta;
@@ -191,11 +192,13 @@ class GLMM {
         GLMM(
             const Eigen::Ref<Eigen::MatrixXd> X_, 
             const Eigen::Ref<Eigen::VectorXd> y_, 
+            const Eigen::Ref<Eigen::VectorXd> offset_,
             std::unique_ptr<Family> family_, 
             const Eigen::MatrixXd K_
         ) : 
             X(X_),
             y(y_),
+            offset(offset_),
             family(std::move(family_)),
             K(K_)
         {
@@ -209,7 +212,6 @@ class GLMM {
             while (iter < max_iter) {
 
                 std::cout << "GLMM iteration: " << iter << std::endl;
-                
                 update_Sigma();
                 update_P();
 

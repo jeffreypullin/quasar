@@ -55,6 +55,8 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     // Step 1 ------------------------------------------------------------
     std::cout << "\nResidualising features...." << std::endl;
     Eigen::MatrixXd W_mat(n_pheno, n_samples);
+    Eigen::VectorXd offset = Y.rowwise().sum().array().log();
+    Eigen::VectorXd tr_vec(n_pheno);
     if (params.model == "lmm") {
 
         std::cout << "\nPerforming eigen decomposition of GRM..." << std::endl;
@@ -104,18 +106,18 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         for (int i = 0; i < Y.cols(); ++i) {
 
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM p_glmm(X, Y.col(i), std::move(poisson), grm.mat);
+            GLMM p_glmm(X, Y.col(i), offset, std::move(poisson), grm.mat);
             p_glmm.fit();
 
             Y.col(i) = (Y.col(i).array() - (X * p_glmm.beta).array().exp()) / p_glmm.mu.array();
-            W_mat.row(i) = p_glmm.w;
+            W_mat.row(i) = p_glmm.mu.array();
+            tr_vec(i) = p_glmm.P.trace() / p_glmm.mu.sum();
         }
         std::cout << "Null Poisson GLMMs fitted." << std::endl;
 
     } else if (params.model == "nb_glm") {
 
         std::cout << "\nFitting null NB-GLMs..." << std::endl;
-        Eigen::VectorXd offset = Y.rowwise().sum().array().log();
         for (int i = 0; i < Y.cols(); ++i) {
 
             bool use_apl = params.use_apl;
@@ -130,7 +132,6 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     } else if (params.model == "p_glm") {
 
         std::cout << "\nFitting null Poisson-GLMs..." << std::endl;
-        Eigen::VectorXd offset = Y.rowwise().sum().array().log();
         for (int i = 0; i < Y.cols(); ++i) {
 
             auto poisson = std::unique_ptr<Family>(new Poisson());
@@ -183,7 +184,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
         double sigma2 = Y.col(i).squaredNorm() / (n_samples - n_cov);
         Eigen::VectorXd w;
-        if (params.model == "p_glm" || params.model == "nb_glm"|| params.model == "p_glmm") {
+        if (params.model == "p_glm" || params.model == "nb_glm" || params.model == "p_glmm") {
             w = W_mat.row(i);
         } else {
             w = Eigen::VectorXd::Ones(n_samples);
@@ -211,8 +212,11 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             u = g_s.cwiseProduct(w).dot(Y.col(i));
             gtg = g_s.cwiseProduct(w).dot(g_s);
             v = gtg;
-            if (params.model == "lmm" || params.model == "p_glmm") {
+            if (params.model == "lmm") {
                 v *= sigma2;
+            }
+            if (params.model == "p_glmm") {
+                v *= tr_vec(i);
             }
             beta = u / v;
             se = 1 / std::sqrt(v);

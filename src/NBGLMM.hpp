@@ -37,6 +37,7 @@ class NBGLMM {
     private:
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
+        const Eigen::Ref<Eigen::VectorXd> offset;
         const Eigen::Ref<Eigen::MatrixXd> grm;
         double tol = 1e-5;
         int max_iter = 10;
@@ -54,10 +55,12 @@ class NBGLMM {
         bool is_converged;
 
         NBGLMM(const Eigen::Ref<Eigen::MatrixXd> X_, 
-               const Eigen::Ref<Eigen::VectorXd> y_, 
+               const Eigen::Ref<Eigen::VectorXd> y_,
+               const Eigen::Ref<Eigen::VectorXd> offset_,
                const Eigen::Ref<Eigen::MatrixXd> grm_) : 
                X(X_),
                y(y_),
+               offset(offset_),
                grm(grm_)
         {
             beta = Eigen::VectorXd::Zero(X.cols());
@@ -76,7 +79,7 @@ class NBGLMM {
         void fit() {
             
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM poisson_glmm(X, y, std::move(poisson), grm);
+            GLMM poisson_glmm(X, y, offset, std::move(poisson), grm);
             poisson_glmm.fit();
             mu = poisson_glmm.mu;
             beta_prev = beta;
@@ -94,7 +97,7 @@ class NBGLMM {
                 std::cout << "NBGLMM iteration: " << iter << std::endl;
 
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
-                GLMM nb_glmm(X, y, std::move(nb), grm);
+                GLMM nb_glmm(X, y, offset, std::move(nb), grm);
                 nb_glmm.fit();
 
                 sigma2_prev = sigma2;
