@@ -83,12 +83,11 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converge
     return phi;
 }
 
-double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, Eigen::MatrixXd X) {
+double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, const Eigen::MatrixXd& X) {
 
     double phi, theta;
-
     std::function<double(double)> apl = [&y, &mu, &X](double theta) { 
-        double ll = 0.0, cr_adj;
+        double ll = 0.0, cr_adj, value;
         for (int i = 0; i < y.size(); i++) {
             ll += std::lgamma(y(i) + theta) 
                 - std::lgamma(theta)
@@ -97,13 +96,14 @@ double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, Eigen::MatrixXd X
                 + y(i) * std::log(mu(i))
                 - (theta + y(i)) * std::log(theta + mu(i));
         }
-        Eigen::VectorXd w = theta / (mu.array() + theta).array();
+        Eigen::VectorXd w = (theta * mu.array()) / (mu.array() + theta).array();
         Eigen::MatrixXd W = w.asDiagonal();
         cr_adj = 0.5 * std::log((X.transpose() * W * X).determinant());
-        return ll - cr_adj;
+        value = -1 * (ll - cr_adj);
+        return value;
     };
 
-    theta = Brent_fmin(0.00, 10000, apl, 2e-5);
+    theta = Brent_fmin(0.00, 100000, apl, 2e-5);
     phi = 1 / theta; 
     return phi;
 }

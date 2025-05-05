@@ -110,7 +110,11 @@ class NBGLM {
                 beta = nb_glm.beta;
 
                 theta_0 = 1 / phi;
-                phi = estimate_phi_ml(y, mu, phi_converged);
+                if (use_apl) {
+                  phi = estimate_phi_apl(y, mu, X);
+                } else {
+                  phi = estimate_phi_ml(y, mu, phi_converged); 
+                }
                 theta_delta = theta_0 - 1 / phi;
                 std::cout << "Theta: " << 1 / phi << std::endl;
 
