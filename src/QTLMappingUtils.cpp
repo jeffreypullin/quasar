@@ -165,3 +165,15 @@ void standardise_vec(Eigen::VectorXd& x) {
         x.array() /= sd;
     }
 }
+
+std::string make_variant_header_line(std::string& model) {
+
+    std::string line = "feature_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue";
+
+    if (model == "nb_glm") {
+        line = line + "\tphi\tglm_converged\tphi_converged";
+    }
+
+    line = line + "\n";
+    return line;
+}

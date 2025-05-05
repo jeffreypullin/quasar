@@ -53,6 +53,7 @@ class NBGLMM {
         double sigma2;
         double sigma2_prev;
         bool is_converged;
+        bool phi_converged;
 
         NBGLMM(const Eigen::Ref<Eigen::MatrixXd> X_, 
                const Eigen::Ref<Eigen::VectorXd> y_,
@@ -89,7 +90,7 @@ class NBGLMM {
 
             // TODO: How to best initialise this?
             phi_prev = 0.1;          
-            phi = estimate_phi_ml(y, mu);
+            phi = estimate_phi_ml(y, mu, phi_converged);
 
             int iter = 0;
             while (iter < max_iter) {
@@ -110,7 +111,7 @@ class NBGLMM {
                 w = nb_glmm.w; 
 
                 phi_prev = phi;
-                phi = estimate_phi_ml(y, mu);
+                phi = estimate_phi_ml(y, mu, phi_converged);
 
                 check_converge();
                 if (is_converged) {

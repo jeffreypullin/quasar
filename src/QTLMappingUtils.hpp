@@ -26,4 +26,6 @@ double pcauchy(double x, bool lower);
 double qchisq(double p, double df, bool lower);
 double pchisq(double x, double df, bool lower);
 
+std::string make_variant_header_line(std::string& model);
+
 #endif

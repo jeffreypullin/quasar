@@ -57,6 +57,9 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     Eigen::MatrixXd W_mat(n_pheno, n_samples);
     Eigen::VectorXd offset = Y.rowwise().sum().array().log();
     Eigen::VectorXd tr_vec(n_pheno);
+    Eigen::VectorXd glm_converged_vec(n_pheno);
+    Eigen::VectorXd phi_converged_vec(n_pheno);
+    Eigen::VectorXd phi_vec(n_pheno);
     if (params.model == "lmm") {
 
         std::cout << "\nPerforming eigen decomposition of GRM..." << std::endl;
@@ -126,6 +129,9 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
             Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta).array().exp()) / nb_glm.mu.array();
             W_mat.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
+            phi_converged_vec(i) = nb_glm.phi_converged;
+            glm_converged_vec(i) = nb_glm.glm_converged;
+            phi_vec(i) = nb_glm.phi;
         }
         std::cout << "Null NB-GLMs fitted." << std::endl;
 
@@ -148,19 +154,15 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     // Step 2 ------------------------------------------------------------
     std::cout << "\nCalculating variant significance..." << std::endl;
 
-    std::string region_file_path = params.output_prefix + "-cis-region.txt";
-    std::string variant_file_path = params.output_prefix + "-cis-variant.txt";
+    std::ofstream region_file(params.output_prefix + "-cis-region.txt");
+    std::ofstream variant_file(params.output_prefix + "-cis-variant.txt");
 
-    std::ofstream region_file(region_file_path);
-    std::ofstream variant_file(variant_file_path);
+    // Create the file headers.
+    std::string variant_header_line = make_variant_header_line(params.model);
+    variant_file << variant_header_line;
 
-    std::stringstream variant_header_line;
-    variant_header_line << "feature_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue\n";
-    variant_file << variant_header_line.str();
-
-    std::stringstream region_header_line;
-    region_header_line << "feature_id\tchrom\tpos\tpvalue\n";
-    region_file << region_header_line.str();
+    std::string region_header_line = "feature_id\tchrom\tpos\tpvalue\n";
+    region_file << region_header_line;
 
     // Iterate over features.
     for (int i = 0; i < pheno_data.n_pheno; ++i) {
@@ -237,7 +239,15 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
                 geno_data.ref[k] << "\t" <<
                 beta << "\t" << 
                 se << "\t" <<
-                pval_esnp << "\n";
+                pval_esnp;
+
+            if (params.model == "nb_glm") {
+                variant_line << "\t" << phi_vec(i) << 
+                    "\t" << glm_converged_vec(i) <<
+                    "\t" << phi_converged_vec(i);
+            }
+
+            variant_line << "\n";
             variant_file << variant_line.str();
         }
         std::stringstream region_line;

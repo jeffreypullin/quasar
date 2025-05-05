@@ -55,29 +55,28 @@ double theta_info(Eigen::VectorXd y, Eigen::VectorXd mu, double theta) {
     return info;
 }
 
-double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu) {
+double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converged) {
 
     // TODO: Make these parameters.
-    int max_iter = 10;
+    int max_iter = 30;
     double tol = 1e-5;
     
-    double phi;
-    double theta;
-    int n = y.size(); 
-    theta = n / (y.array() / mu.array() - 1).square().sum();
-    int iter = 0;
+    double phi, theta;
+    theta = y.size() / (y.array() / mu.array() - 1).square().sum();
+    
     double delta = 1;
-
-    while (std::abs(delta) > tol) {
-
+    for (int i = 0; i < max_iter; ++i) {
+       
+        std::cout << "Phi iteration " << i + 1 << std::endl;
         theta = std::abs(theta);
         delta = theta_score(y, mu, theta) / theta_info(y, mu, theta);
         theta += delta;
 
-        if (iter > max_iter) {
+        if (std::abs(delta) < tol) {
+            phi_converged = true;
             break;
         }
-        iter++;
+
     }
 
     phi = 1 / theta;

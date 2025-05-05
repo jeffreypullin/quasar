@@ -68,6 +68,8 @@ int main(int argc, char* argv[]) {
         params.output_prefix = "quasar_output";
     }
 
+    std::cout << "\nquasar execution started." << std::endl;
+    
     // Check model.
     if (params.model != "lmm" && 
         params.model != "p_glmm" && 
@@ -82,8 +84,6 @@ int main(int argc, char* argv[]) {
     if (!mixed_model && params.grm_file != "no-grm") {
        std::cout << "\nA GRM is not needed when using the LM or NB-GLM models and will be ignored." << std::endl;
     }
-
-    std::cout << "\nquasar execution started." << std::endl;
 
     std::cout << "\nReading genotype data..." << std::endl;
     GenoData geno_data(params.plink_prefix);
