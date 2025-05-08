@@ -31,8 +31,8 @@ class PhenoData {
 
     public:
       std::string pheno_file;
-      int n_pheno;
-      int n_samples;
+      size_t n_pheno;
+      size_t n_samples;
       std::vector<std::string> pheno_ids;
       std::vector<std::string> sample_ids;
       Eigen::MatrixXd data;
@@ -59,8 +59,8 @@ class CovData {
 
     public:
       std::string cov_file;
-      int n_cov;
-      int n_samples;
+      size_t n_cov;
+      size_t n_samples;
       std::vector<std::string> cov_ids;
       std::vector<std::string> sample_ids;
       Eigen::MatrixXd data;
@@ -75,7 +75,7 @@ class GRM {
 
   public:
     std::string grm_file;
-    int n_samps;
+    size_t n_samples;
     std::vector<std::string> sample_ids;
     Eigen::MatrixXd mat;
     GRM(std::string grm_file) {

@@ -72,22 +72,6 @@ double pcauchy(double x, bool lower){
     return boost::math::cdf(C01, x);
 }
 
-double qchisq(double p, double df, bool lower){
-    boost::math::chi_squared CHISQ(df);
-    if (lower) { 
-        return boost::math::quantile(boost::math::complement(CHISQ, p));
-    }
-    return boost::math::quantile(CHISQ, p);
-}
-
-double pchisq(double x, double df, bool lower){
-    boost::math::chi_squared CHISQ(df);
-    if (lower) { 
-        return boost::math::cdf(boost::math::complement(CHISQ, x));
-    }
-    return boost::math::cdf(CHISQ, x);
-}
-
 void rank_normalize(Eigen::MatrixXd& Y){
     double n = Y.rows();
     double p = Y.cols();
@@ -153,17 +137,6 @@ double ACAT(const std::vector<double>& pvals) {
         }
     }
     return pcauchy(sum, true);
-}
-
-void standardise_vec(Eigen::VectorXd& x) {
-    double mean = x.mean();
-    double sd = std::sqrt((x.array() - mean).square().sum() / (x.size() - 1));
-    if (sd < 1e-10) {
-        x.setZero();
-    } else {
-        x.array() -= mean;
-        x.array() /= sd;
-    }
 }
 
 std::string make_variant_header_line(std::string& model) {

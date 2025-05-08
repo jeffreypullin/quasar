@@ -47,7 +47,7 @@ void PhenoData::read_pheno_data() {
     start.reserve(n_pheno);
     end.reserve(n_pheno);
 
-    int row = 0;
+    size_t row = 0;
     while (std::getline(file, line) && row < n_pheno) {
         remove_carriage_return(line);
         tokens = string_split(line, ",\t ");
@@ -59,7 +59,7 @@ void PhenoData::read_pheno_data() {
         start.push_back(std::stoi(tokens[1]));
         end.push_back(std::stoi(tokens[2]));
         pheno_ids.push_back(tokens[3]);
-        for (int col = 0; col < n_samples; ++col) {
+        for (size_t col = 0; col < n_samples; ++col) {
             data(row, col) = std::stod(tokens[col + 4]);
         }
         row++;
@@ -75,7 +75,7 @@ void PhenoData::read_pheno_data() {
 void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
     Eigen::VectorXi rows;
     rows.resize(sample_ids.size());
-    for (int i = 0; i < sample_ids.size(); ++i) {
+    for (size_t i = 0; i < sample_ids.size(); ++i) {
         auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
         if (it != this->sample_ids.end()) {
             rows(i) = std::distance(this->sample_ids.begin(), it);
@@ -101,7 +101,7 @@ void PhenoData::slice_chromosome(int chrom_id) {
     std::vector<int> new_start;
     std::vector<std::string> new_pheno_ids;
     std::vector<int> col_inds;
-    for (int i = 0; i < n_pheno; ++i) {
+    for (size_t i = 0; i < n_pheno; ++i) {
         if (chrom[i] == chrom_id) {
             new_chrom.push_back(chrom[i]);
             new_start.push_back(start[i]);
@@ -112,11 +112,11 @@ void PhenoData::slice_chromosome(int chrom_id) {
 
     Eigen::VectorXi cols;
     cols.resize(col_inds.size());
-    for (int i = 0; i < col_inds.size(); ++i) {
+    for (size_t i = 0; i < col_inds.size(); ++i) {
         cols(i) = col_inds[i];
     }
     Eigen::MatrixXd new_data(data.rows(), col_inds.size());
-    for (int i = 0; i < col_inds.size(); ++i) {
+    for (size_t i = 0; i < col_inds.size(); ++i) {
         if (col_inds[i] >= data.cols()) {
             std::cerr << "Error: Invalid row index " << col_inds[i] << std::endl;
             exit(1);
@@ -133,7 +133,7 @@ void PhenoData::slice_chromosome(int chrom_id) {
 
 void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool verbose) {
 
-    for (int i = 0; i < n_pheno; ++i) {
+    for (size_t i = 0; i < n_pheno; ++i) {
 
         int window_start = 0;
         int window_end = 0; 
@@ -144,7 +144,7 @@ void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool ver
 
         std::vector<int> g_chr_vec = geno_data.chrom;
         std::vector<int> g_pos_vec = geno_data.pos;
-        for (int j = 0; j < geno_data.n_snps - 1; ++j) {
+        for (size_t j = 0; j < geno_data.n_snps - 1; ++j) {
             if (g_chr_vec[j] == chr_f) {
 
                 if (window_start == 0 && g_pos_vec[j] >= pos_f - window_size) {
@@ -209,7 +209,7 @@ void CovData::read_cov_data() {
     data = Eigen::MatrixXd(n_samples, n_cov);
     sample_ids.reserve(n_samples);
 
-    int row = 0;
+    size_t row = 0;
     while (std::getline(file, line) && row < n_samples) {
         tokens = string_split(line, ",\t ");
         if (tokens.size() != n_cov + 1) {
@@ -217,7 +217,7 @@ void CovData::read_cov_data() {
             exit(1);
         }
         sample_ids.push_back(tokens[0]);
-        for (int col = 0; col < n_cov; ++col) {
+        for (size_t col = 0; col < n_cov; ++col) {
             data(row, col) = std::stod(tokens[col + 1]);
         }
         row++;
@@ -232,7 +232,7 @@ void CovData::slice_samples(std::vector<std::string>& sample_ids) {
     
     Eigen::VectorXi rows;
     rows.resize(sample_ids.size());
-    for (int i = 0; i < sample_ids.size(); ++i) {
+    for (size_t i = 0; i < sample_ids.size(); ++i) {
         auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
         if (it != this->sample_ids.end()) {
             rows(i) = std::distance(this->sample_ids.begin(), it);
@@ -263,42 +263,42 @@ void GRM::read_grm() {
             std::cerr << "Error: Invalid header in GRM file. Expected 'sample_id' as the first column." << std::endl;
             exit(1);
         }
-        n_samps = tokens.size() - 1;
+        n_samples = tokens.size() - 1;
         sample_ids = std::vector<std::string>(tokens.begin() + 1, tokens.end());
     }
 
-    mat = Eigen::MatrixXd::Zero(n_samps, n_samps);
+    mat = Eigen::MatrixXd::Zero(n_samples, n_samples);
 
-    int row = 0;
+    size_t row = 0;
     while (std::getline(file, line)) {
         tokens = string_split(line, ",\t ");
-        if (tokens.size() != n_samps + 1) {
+        if (tokens.size() != n_samples + 1) {
             std::cerr << "Error: Inconsistent number of columns in GRM file at line " << row + 2 << std::endl;
             exit(1);
         }
 
-        for (int col = 0; col < n_samps; ++col) {
+        for (size_t col = 0; col < n_samples; ++col) {
             mat(row, col) = std::stod(tokens[col + 1]);
         }
 
         row++;
     }
 
-    if (row != n_samps) {
+    if (row != n_samples) {
         std::cerr << "Error: Number of rows does not match number of samples in GRM file." << std::endl;
         exit(1);
     }
 
     file.close();
 
-    std::cout << "Read GRM with " << n_samps << " samples." << std::endl;
+    std::cout << "Read GRM with " << n_samples << " samples." << std::endl;
 }
 
 void GRM::slice_samples(std::vector<std::string>& sample_ids) {
 
     Eigen::VectorXi ind;
     ind.resize(sample_ids.size());
-    for (int i = 0; i < sample_ids.size(); ++i) {
+    for (size_t i = 0; i < sample_ids.size(); ++i) {
         auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
         if (it != this->sample_ids.end()) {
             ind(i) = std::distance(this->sample_ids.begin(), it);
@@ -317,5 +317,5 @@ void GRM::slice_samples(std::vector<std::string>& sample_ids) {
     this->mat = sliced_mat;
 
     this->sample_ids = sample_ids;
-    n_samps = sample_ids.size();
+    n_samples = sample_ids.size();
 }

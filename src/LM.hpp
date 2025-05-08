@@ -26,7 +26,6 @@
 #define LM_H
 
 #include <Eigen/Dense>
-#include <iostream>
 
 class LM {
 

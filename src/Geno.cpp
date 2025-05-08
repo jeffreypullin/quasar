@@ -194,7 +194,7 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     
     Eigen::VectorXi rows;
     rows.resize(sample_ids.size());
-    for (int i = 0; i < sample_ids.size(); ++i) {
+    for (size_t i = 0; i < sample_ids.size(); ++i) {
         auto it = std::find(this->sample_ids.begin(), this->sample_ids.end(), sample_ids[i]);
         if (it != this->sample_ids.end()) {
             rows(i) = std::distance(this->sample_ids.begin(), it);
@@ -205,7 +205,7 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     }
     // Create a new matrix with the selected columns
     Eigen::MatrixXd sliced_genotype_matrix(rows.size(), genotype_matrix.cols());
-    for (size_t i = 0; i < rows.size(); ++i) {
+    for (Eigen::Index i = 0; i < rows.size(); ++i) {
         sliced_genotype_matrix.row(i) = genotype_matrix.row(rows[i]);
     }
     

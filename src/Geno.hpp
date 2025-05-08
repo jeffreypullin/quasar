@@ -39,11 +39,11 @@ class GenoData {
     
     Eigen::MatrixXd genotype_matrix;
     
-    int n_samples;
+    size_t n_samples;
     std::vector<std::string> sample_ids;
     
     // SNP information.
-    int n_snps;
+    size_t n_snps;
     std::vector<int> chrom;
     std::vector<int> pos;
     std::vector<std::string> id;

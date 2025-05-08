@@ -40,26 +40,15 @@
 
 struct Params {
 
-    // Input files.
     std::string plink_prefix;
     std::string grm_file;
     std::string cov_file;
     std::string bed_file;
-
-    // Statistical model, can be either
-    // "lmm": linear mixed model or
-    // "glmm": generalised linear mixed model. 
-    // "lm": linear model
-    // "glm": generalised lienar model (negative binomial)
+    
     std::string model;
-    // QTL mapping parameters.
-    // By default we use a +/- 1Mb window.
     int window_size = 1000000;
-    // Use adjusted profile likelihood 
-    // when estimating NB dispersion parameter.
     bool use_apl;
 
-    // Output parameters.
     std::string output_prefix;
     bool verbose = false;
 };

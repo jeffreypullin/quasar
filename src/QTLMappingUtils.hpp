@@ -15,7 +15,6 @@
 
 std::vector<int> rank_vector(const std::vector<double>& v);
 void rank_normalize(Eigen::MatrixXd& Y);
-void standardise_vec(Eigen::VectorXd& x);
 
 double ACAT(const std::vector<double>& pvals);
 
@@ -23,8 +22,6 @@ double pnorm(double x, bool lower);
 double qnorm(double p, bool lower);
 double qcauchy(double p, bool lower);
 double pcauchy(double x, bool lower);
-double qchisq(double p, double df, bool lower);
-double pchisq(double x, double df, bool lower);
 
 std::string make_variant_header_line(std::string& model);
 
