@@ -46,6 +46,8 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
     int n_pheno = Y.cols();
     int n_cov = X.cols();
 
+    std::string model = params.model;
+
     if (params.model == "lmm" || params.model == "lm") {
         std::cout << "\nPerforming rank normalization..." << std::endl;
         rank_normalize(Y); 
@@ -149,6 +151,20 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
         }
         std::cout << "Null Poisson GLMs fitted." << std::endl;
 
+    } else if (params.model == "nb_glmm") {
+
+        std::cout << "\nFitting null NB GLMMs..." << std::endl;
+        for (int i = 0; i < Y.cols(); ++i) {
+
+            NBGLMM nb_glmm(X, Y.col(i), offset, grm.mat);
+            nb_glmm.fit();
+
+            Y.col(i) = (Y.col(i).array() - (X * nb_glmm.beta).array().exp()) / nb_glmm.mu.array();
+            W_mat.row(i) = nb_glmm.mu.array() / (1 + nb_glmm.phi * nb_glmm.mu.array());
+            tr_vec(i) = nb_glmm.P.trace() / nb_glmm.mu.sum();
+        }
+        std::cout << "Null NB GLMMs fitted." << std::endl;
+
     }
 
     // Step 2 ------------------------------------------------------------
@@ -186,7 +202,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
 
         double sigma2 = Y.col(i).squaredNorm() / (n_samples - n_cov);
         Eigen::VectorXd w;
-        if (params.model == "p_glm" || params.model == "nb_glm" || params.model == "p_glmm") {
+        if (model == "p_glm" || model == "nb_glm" || model == "p_glmm" || model == "nb_glmm") {
             w = W_mat.row(i);
         } else {
             w = Eigen::VectorXd::Ones(n_samples);
@@ -217,7 +233,7 @@ void run_qtl_mapping(Params& params, GenoData& geno_data, CovData& cov_data, Phe
             if (params.model == "lmm") {
                 v *= sigma2;
             }
-            if (params.model == "p_glmm") {
+            if (params.model == "p_glmm" || params.model == "nb_glmm") {
                 v *= tr_vec(i);
             }
             beta = u / v;

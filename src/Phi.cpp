@@ -58,7 +58,7 @@ double theta_info(Eigen::VectorXd y, Eigen::VectorXd mu, double theta) {
 double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converged) {
 
     // TODO: Make these parameters.
-    int max_iter = 30;
+    int max_iter = 20;
     double tol = 1e-5;
     
     double phi, theta;
