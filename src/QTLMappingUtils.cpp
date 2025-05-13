@@ -128,12 +128,11 @@ double ACAT(const std::vector<double>& pvals) {
     double n = pvals.size();
     for (const double& p: pvals) {
         if (p >= 1){
-            sum += qcauchy(1 - 1 / n, true);
+            sum += (qcauchy(1 - 1 / n, true) / n);
         } else if (p <= 0){
-            // FIXME: Handle this case better.
             continue;
         } else {
-            sum += qcauchy(p, true);
+            sum += (qcauchy(p, true) / n);
         }
     }
     return pcauchy(sum, true);
