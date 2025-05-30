@@ -97,8 +97,7 @@ double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, const Eigen::Matr
                 - (theta + y(i)) * std::log(theta + mu(i));
         }
         Eigen::VectorXd w = (theta * mu.array()) / (mu.array() + theta).array();
-        Eigen::MatrixXd W = w.asDiagonal();
-        cr_adj = 0.5 * std::log((X.transpose() * W * X).determinant());
+        cr_adj = 0.5 * std::log((X.transpose() *  w.asDiagonal() * X).determinant());
         value = -1 * (ll - cr_adj);
         return value;
     };
