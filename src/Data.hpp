@@ -48,6 +48,7 @@ class PhenoData {
         this->pheno_file = pheno_file;
       }
       void read_pheno_data();
+      void write_pheno_data(std::string out_file);
 
       void construct_windows(GenoData& geno_data, int window_size, bool verbose); 
 

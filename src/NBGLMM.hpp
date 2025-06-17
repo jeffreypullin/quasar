@@ -54,7 +54,7 @@ class NBGLMM {
         double phi_prev;
         double sigma2;
         double sigma2_prev;
-        bool is_converged;
+        bool glmm_converged;
         bool use_apl;
         bool phi_converged;
 
@@ -77,7 +77,7 @@ class NBGLMM {
                 (beta).cwiseAbs() + (beta_prev).cwiseAbs() + tol_vec_beta)).maxCoeff();
             double delta2 = std::abs(sigma2 - sigma2_prev) / (std::abs(sigma2) + std::abs(sigma2_prev) + tol);
             double delta3 = std::abs(phi - phi_prev) / (std::abs(phi) + std::abs(phi_prev) + tol);
-            is_converged = (2 * std::max({delta1, delta2, delta3})) < tol;
+            glmm_converged = (2 * std::max({delta1, delta2, delta3})) < tol;
         }
 
         void fit() {
@@ -94,15 +94,13 @@ class NBGLMM {
             // TODO: How to best initialise this?
             phi_prev = 0.1;
             if (use_apl) {
-               phi = estimate_phi_apl(y, mu, X);
+               phi = estimate_phi_apl(y, mu, X, phi_converged);
             } else {
                phi = estimate_phi_ml(y, mu, phi_converged); 
             } 
 
             int iter = 0;
             while (iter < max_iter) {
-
-                std::cout << "NBGLMM iteration: " << iter << std::endl;
 
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
                 GLMM nb_glmm(X, y, offset, std::move(nb), grm);
@@ -120,13 +118,13 @@ class NBGLMM {
 
                 phi_prev = phi;
                 if (use_apl) {
-                    phi = estimate_phi_apl(y, mu, X);
+                    phi = estimate_phi_apl(y, mu, X, phi_converged);
                 } else {
                     phi = estimate_phi_ml(y, mu, phi_converged); 
                 } 
 
                 check_converge();
-                if (is_converged) {
+                if (glmm_converged) {
                     break;
                 }
                 iter++;

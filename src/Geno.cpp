@@ -59,7 +59,7 @@ void GenoData::read_bim_file() {
     }
 
     n_snps = index;
-    std::cout << "Number of SNPs read: " << n_snps << std::endl;
+    std::cout << "Number of SNPs: " << n_snps << std::endl;
     std::cout << "SNPs on chromosome(s): ";
     std::vector<int> unique_chrom = chrom;
     std::sort(unique_chrom.begin(), unique_chrom.end());
@@ -97,7 +97,7 @@ void GenoData::read_fam_file() {
     }
     n_samples = sample_ids.size();
 
-    std::cout << "Number of samples read: " << n_samples << std::endl;
+    std::cout << "Number of samples: " << n_samples << std::endl;
 
     file.close();
 }

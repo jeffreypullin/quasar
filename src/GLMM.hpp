@@ -71,7 +71,7 @@ class GLMM {
         Eigen::LDLT<Eigen::MatrixXd> XtSigmaX_ldlt;
 
         // Control parameters.
-        bool is_converged;
+        bool glmm_converged;
         int iter;
         double step_size;
 
@@ -166,7 +166,7 @@ class GLMM {
             double diff1 = ((beta - beta_prev).cwiseAbs().cwiseQuotient(
                 (beta).cwiseAbs() + (beta_prev).cwiseAbs() + tol_vec_beta)).maxCoeff();
             double diff2 = std::abs(sigma2 - sigma2_prev) / (std::abs(sigma2) + std::abs(sigma2_prev) + tol);
-            is_converged = (2 * std::max(diff1, diff2)) < tol;
+            glmm_converged = (2 * std::max(diff1, diff2)) < tol;
         }
 
         void init_params() {
@@ -185,7 +185,7 @@ class GLMM {
             update_Sigma();
             update_P();
             iter = 0;
-            is_converged = false;
+            glmm_converged = false;
             step_size = 1;
         }
 
@@ -211,7 +211,6 @@ class GLMM {
             
             while (iter < max_iter) {
 
-                std::cout << "GLMM iteration: " << iter << std::endl;
                 update_Sigma();
                 update_P();
 
@@ -227,7 +226,7 @@ class GLMM {
                 update_y_tilde();
 
                 check_converge();
-                if (is_converged) {
+                if (glmm_converged) {
                     break;
                 }
                 update_step_size();

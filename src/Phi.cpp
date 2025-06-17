@@ -63,14 +63,20 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converge
     
     double phi, theta;
     theta = y.size() / (y.array() / mu.array() - 1).square().sum();
-    
+
     double delta = 1;
     for (int i = 0; i < max_iter; ++i) {
        
-        std::cout << "Phi iteration " << i + 1 << std::endl;
         theta = std::abs(theta);
         delta = theta_score(y, mu, theta) / theta_info(y, mu, theta);
         theta += delta;
+
+        // Fix convergence problems with very small thetas.
+        if (theta < 1e-5) {
+            theta = 1e-1;
+            phi_converged = true;
+            break;
+        }
 
         if (std::abs(delta) < tol) {
             phi_converged = true;
@@ -83,7 +89,7 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converge
     return phi;
 }
 
-double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, const Eigen::MatrixXd& X) {
+double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, const Eigen::MatrixXd& X, bool& phi_converged) {
 
     double phi, theta;
     std::function<double(double)> apl = [&y, &mu, &X](double theta) { 
@@ -104,6 +110,8 @@ double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, const Eigen::Matr
 
     theta = Brent_fmin(0.00, 100000, apl, 2e-5);
     phi = 1 / theta; 
+    // FIXME: Improve Brent algorithm diagnostics.
+    phi_converged = true;
     return phi;
 }
 

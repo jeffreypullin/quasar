@@ -39,7 +39,7 @@ class NBGLM {
         const Eigen::Ref<Eigen::VectorXd> y;
         const Eigen::Ref<Eigen::VectorXd> offset;
         double tol = 1e-5;
-        int max_iter = 10;
+        int max_iter = 25;
 
     public:
 
@@ -87,7 +87,7 @@ class NBGLM {
             mu = poisson_glm.mu;
 
             if (use_apl) {
-               phi = estimate_phi_apl(y, mu, X);
+               phi = estimate_phi_apl(y, mu, X, phi_converged);
             } else {
                phi = estimate_phi_ml(y, mu, phi_converged); 
             }
@@ -100,9 +100,10 @@ class NBGLM {
             double ll_m = ll();
             double ll_0 = ll_m + 2 * d1;
 
+            glm_converged = false;
+            phi_converged = false;
             for (int i = 0; i < max_iter; ++i) {
                 
-                std::cout << "NBGLM iteration: " << i << std::endl;
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
                 GLM nb_glm(X, y, offset, std::move(nb));
                 nb_glm.fit();
@@ -111,12 +112,11 @@ class NBGLM {
 
                 theta_0 = 1 / phi;
                 if (use_apl) {
-                  phi = estimate_phi_apl(y, mu, X);
+                  phi = estimate_phi_apl(y, mu, X, phi_converged);
                 } else {
                   phi = estimate_phi_ml(y, mu, phi_converged); 
                 }
                 theta_delta = theta_0 - 1 / phi;
-                std::cout << "Theta: " << 1 / phi << std::endl;
 
                 ll_0 = ll_m;
                 ll_m = ll();

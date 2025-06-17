@@ -72,6 +72,28 @@ void PhenoData::read_pheno_data() {
     std::cout << "Read " << n_pheno << " features for " << n_samples << " samples from phenotype file." << std::endl;
 }
 
+void PhenoData::write_pheno_data(std::string out_file) {
+    std::ofstream file(out_file);
+    
+    file << "#chr\tstart\tend\tphenotype_id";
+    for (const auto& sample_id : sample_ids) {
+        file << "\t" << sample_id;
+    }
+    file << "\n";
+
+    Eigen::MatrixXd transposed_data = data.transpose();
+
+    for (size_t i = 0; i < n_pheno; ++i) {
+        file << chrom[i] << "\t" << start[i] << "\t" << end[i] << "\t" << pheno_ids[i];
+        for (size_t j = 0; j < n_samples; ++j) {
+            file << "\t" << transposed_data(i, j);
+        }
+        file << "\n";
+    }
+
+    file.close();
+}
+
 void PhenoData::slice_samples(std::vector<std::string>& sample_ids) {
     Eigen::VectorXi rows;
     rows.resize(sample_ids.size());
@@ -156,13 +178,12 @@ void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool ver
                 }
             }
         }
+
         if (window_start == 0 && window_end == 0) {
-            if (verbose) {
+            if (verbose && g_chr_vec[0] == chr_f) {
                 std::cout << "Warning: No variants found in window for feature " << pheno_ids[i] << std::endl;
             }
-            continue;
-        }
-        if (window_end == 0) {
+        } else if (window_end == 0) {
             window_end = geno_data.n_snps - 1;
         }
 

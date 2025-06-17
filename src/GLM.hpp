@@ -47,6 +47,7 @@ class GLM {
         Eigen::VectorXd y_tilde;
         Eigen::VectorXd mu;
         Eigen::MatrixXd eta;
+        bool glm_converged;
 
         GLM(const Eigen::Ref<Eigen::MatrixXd> X_, 
             const Eigen::Ref<Eigen::VectorXd> y_,
@@ -81,9 +82,9 @@ class GLM {
             double dev = 1; 
             double dev_old, delta;
             
+            glm_converged = false;
             for (int i = 0; i < max_iter; ++i) {
 
-                std::cout << "GLM iteration: " << i << std::endl;
                 eta = family->link(mu);
                 Eigen::VectorXd mu_eta_vec = family->mu_eta(mu);
                 y_tilde = ((eta.array() - offset.array()) + mu_eta_vec.array() * (y - mu).array()).matrix();
@@ -98,6 +99,7 @@ class GLM {
                 delta = std::abs(dev - dev_old) / (0.1 + std::abs(dev));
 
                 if (delta < tol) {
+                    glm_converged = true;
                     break;
                 }
             }

@@ -142,8 +142,14 @@ std::string make_variant_header_line(std::string& model) {
 
     std::string line = "feature_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue";
 
-    if (model == "nb_glm") {
-        line = line + "\tphi\tglm_converged\tphi_converged";
+    if (model == "p_glm") {
+        line = line + "\tglm_converged";
+    } else if (model == "nb_glm") {
+        line = line + "\tglm_converged\tphi\tphi_converged";
+    } else if (model == "p_glmm") {
+        line = line + "\tglmm_converged";
+    } else if (model == "nb_glmm") {
+        line = line + "\tglmm_converged\tphi\tphi_converged";
     }
 
     line = line + "\n";
