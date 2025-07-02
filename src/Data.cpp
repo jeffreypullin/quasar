@@ -58,6 +58,7 @@ void PhenoData::read_pheno_data() {
         chrom.push_back(std::stoi(tokens[0]));
         start.push_back(std::stoi(tokens[1]));
         end.push_back(std::stoi(tokens[2]));
+        std::cout << "Start: " << tokens[1] << ", End: " << tokens[2] << std::endl;
         pheno_ids.push_back(tokens[3]);
         for (size_t col = 0; col < n_samples; ++col) {
             data(row, col) = std::stod(tokens[col + 4]);
@@ -121,12 +122,14 @@ void PhenoData::slice_chromosome(int chrom_id) {
     // Assume window parameters are not initialised.
     std::vector<int> new_chrom;
     std::vector<int> new_start;
+    std::vector<int> new_end;
     std::vector<std::string> new_pheno_ids;
     std::vector<int> col_inds;
     for (size_t i = 0; i < n_pheno; ++i) {
         if (chrom[i] == chrom_id) {
             new_chrom.push_back(chrom[i]);
             new_start.push_back(start[i]);
+            new_end.push_back(end[i]);
             new_pheno_ids.push_back(pheno_ids[i]); 
             col_inds.push_back(i); 
         }
@@ -149,6 +152,7 @@ void PhenoData::slice_chromosome(int chrom_id) {
 
     this->chrom = new_chrom;
     this->start = new_start;
+    this->end = new_end;
     this->pheno_ids = new_pheno_ids;
     this->n_pheno = new_chrom.size();
 }
@@ -162,17 +166,18 @@ void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool ver
         int window_n = 0;
         
         int chr_f = chrom[i];
-        int pos_f = start[i];
+        int start_pos_f = start[i];
+        int end_pos_f = end[i];
 
         std::vector<int> g_chr_vec = geno_data.chrom;
         std::vector<int> g_pos_vec = geno_data.pos;
         for (size_t j = 0; j < geno_data.n_snps - 1; ++j) {
             if (g_chr_vec[j] == chr_f) {
 
-                if (window_start == 0 && g_pos_vec[j] >= pos_f - window_size) {
+                if (window_start == 0 && g_pos_vec[j] >= start_pos_f - window_size) {
                     window_start = j;
                 }
-                if (g_pos_vec[j] > pos_f + window_size) {
+                if (g_pos_vec[j] > end_pos_f + window_size) {
                     window_end = j;
                     break;
                 }
