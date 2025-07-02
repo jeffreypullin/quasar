@@ -4,12 +4,6 @@ The quasar source code is hosted on [GitHub](https://github.com/jeffreypullin/qu
 
 # Installation
 
-### Installation with pre-compiled binaries
-
-Coming soon...
-
-### Installation from source
-
 To compile quasar from source run
 
 ```sh

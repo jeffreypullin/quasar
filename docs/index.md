@@ -2,8 +2,6 @@
 
 **quasar** is a C++ program for performing quantitative trait loci (QTL) mapping.
 
-It is developed and maintained by Jeffrey Pullin - PhD student in the MRC Biostatistics Unit, University of Cambridge - in collaboration with Dr Chris Wallace.
-
 The program has the following features:
 
 * ability to handle quantatative and count input data
