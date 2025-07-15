@@ -4,7 +4,7 @@ quasar is a C++ software package for performing expression quantitative trait lo
 
 Compared to other eQTL mapping software, quasar: 
 
-* is ~6-400 times faster when run on CPUs,
+* is ~5-45 times faster when run on CPUs,
 * implements a much wider range of models, including both count distribution models and mixed models,
 * implements the Cox-Reid adjusted profile likelihood for estimating the negative bimomial dispersion, and
 * implements a novel trace-based approximation of the mixed-model score test variance.
@@ -22,9 +22,18 @@ To install quasar run:
 ```sh
 git clone https://github.com/jeffreypullin/quasar.git
 cd quasar
-cmake 
+mkdir -p build
+cd build
+cmake ..
 make
 ```
+
+This process generates the binary in the `build/` subdirectory of quasar. To verify the installation has completed succesfully, fun
+
+```
+./quasar --version
+```
+
 
 ## Quickstart
 
@@ -40,6 +49,6 @@ The following invocation runs quasar with our recommended settings for cis-eQTL 
     --out quasar_out
 ```
 
-For further information see the [Documenation](https://jeffreypullin.github.io/quasar/).
+For further information see the [Documentation](https://jeffreypullin.github.io/quasar/).
 
 Please contact jp2045[at]cam.ac.uk for assistance running quasar for other questions.
