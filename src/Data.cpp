@@ -58,7 +58,6 @@ void PhenoData::read_pheno_data() {
         chrom.push_back(std::stoi(tokens[0]));
         start.push_back(std::stoi(tokens[1]));
         end.push_back(std::stoi(tokens[2]));
-        std::cout << "Start: " << tokens[1] << ", End: " << tokens[2] << std::endl;
         pheno_ids.push_back(tokens[3]);
         for (size_t col = 0; col < n_samples; ++col) {
             data(row, col) = std::stod(tokens[col + 4]);
