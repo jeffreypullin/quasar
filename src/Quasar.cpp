@@ -99,6 +99,10 @@ int main(int argc, char* argv[]) {
         std::cout << "Warning: using the Poisson GLM is not recommended due to its high rate of false positives." << std::endl;
     }
 
+    if (params.model == "nb_glmm") {
+        std::cout << "Warning: using the NB-GLMM is not recommended, use the Poisson GLMM instead." << std::endl;
+    }
+
     bool mixed_model = params.model == "lmm" || params.model == "p_glmm" || params.model == "nb_glmm";
     if (!mixed_model && params.grm_file != "no-grm") {
        std::cout << "\nA GRM is not needed when using the LM, P-GLM or NB-GLM models and will be ignored." << std::endl;

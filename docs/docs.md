@@ -47,7 +47,7 @@ The quasar software package supports a wide range of statistical models used to 
 * `lmm`: linear mixed model
 * `p_glmm`: Poisson generalised linear mixed model (GLMM)
 * `p_glm`: Poisson GLM (**not recommended** due to producing a very high rate of false positives)
-* `nb_glmm`: negative binomial GLMM (**not recommended** due to producing highly similar results to the Poisson GLMM while being slower)
+* `nb_glmm`: negative binomial GLMM (**not generally recommended** due to producing highly similar results to the Poisson GLMM while being slower, can be used if there is known to be high relatedness between samples)
 
 When the model is a mixed model i.e. is specified to be any of `lmm`, `p_glmm`, `nb_glmm` the --grm flag (see below) must be used to specify a genetic relatedness matrix used in the covarariance matrix of the random effects. 
 
