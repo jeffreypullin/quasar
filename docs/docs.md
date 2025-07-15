@@ -117,6 +117,13 @@ sample_id sample_1 sample_2 sample_3 sample_4 ...
 
 To construct the GRM we recommend using the plink2 --make-king command after pruning variants.
 
+## Output
+
+quasar produces two files:
+
+* {quasar-out}-variant.txt which contains variant information
+* {quasar-out}-cis-gene.txt which contains gene information
+
 ## Option list
 
 * --plink/-p: Plink files prefix
