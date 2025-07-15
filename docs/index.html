@@ -98,6 +98,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#output" class="nav-link">Output</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
             <li class="nav-item" data-bs-level="2"><a href="#option-list" class="nav-link">Option list</a>
               <ul class="nav flex-column">
               </ul>
@@ -140,7 +144,7 @@
 <li><code>lmm</code>: linear mixed model</li>
 <li><code>p_glmm</code>: Poisson generalised linear mixed model (GLMM)</li>
 <li><code>p_glm</code>: Poisson GLM (<strong>not recommended</strong> due to producing a very high rate of false positives)</li>
-<li><code>nb_glmm</code>: negative binomial GLMM (<strong>not recommended</strong> due to producing highly similar results to the Poisson GLMM while being slower)</li>
+<li><code>nb_glmm</code>: negative binomial GLMM (<strong>not generally recommended</strong> due to producing highly similar results to the Poisson GLMM while being slower, can be used if there is known to be high relatedness between samples)</li>
 </ul>
 <p>When the model is a mixed model i.e. is specified to be any of <code>lmm</code>, <code>p_glmm</code>, <code>nb_glmm</code> the --grm flag (see below) must be used to specify a genetic relatedness matrix used in the covarariance matrix of the random effects. </p>
 <p>When the <code>nb_glm</code> or <code>nb_glmm</code> flags are specified the --use-apl flag can be specified to use the Cox-Reid adjusted profile likelihood (APL) when estimating the negative binomial dispersion paraemter. Use of the APL is recommended as it reduces the number of false-positives but is slightly slower than standard maximum likelihood estimation.</p>
@@ -183,6 +187,12 @@ columns give feature inforamtion and the rest are sample ids are the sample ids.
        ...
 </code></pre>
 <p>To construct the GRM we recommend using the plink2 --make-king command after pruning variants.</p>
+<h2 id="output">Output</h2>
+<p>quasar produces two files:</p>
+<ul>
+<li>{quasar-out}-variant.txt which contains variant information</li>
+<li>{quasar-out}-cis-gene.txt which contains gene information</li>
+</ul>
 <h2 id="option-list">Option list</h2>
 <ul>
 <li>--plink/-p: Plink files prefix</li>
