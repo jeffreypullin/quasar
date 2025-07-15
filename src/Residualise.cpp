@@ -117,9 +117,31 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             p_glmm.fit();
 
             Y.col(i) = (Y.col(i).array() - (X * p_glmm.beta).array().exp()) / p_glmm.mu.array();
-
             W.row(i) = p_glmm.mu.array();
-            tr.push_back(p_glmm.P.trace() / p_glmm.mu.sum());
+
+            Eigen::MatrixXd P = p_glmm.P;
+            Eigen::VectorXd w = p_glmm.mu;
+            Eigen::MatrixXd W = w.asDiagonal();
+            Eigen::MatrixXd WX = W * X;
+
+            double tr_P = P.trace();
+            double tr_W = w.sum();
+
+            Eigen::MatrixXd XtWX_inv = (X.transpose() * W * X).inverse();
+            Eigen::MatrixXd XtW2X = (X.transpose() * (w.array() * w.array()).matrix().asDiagonal() * X);
+            Eigen::MatrixXd XtW3X = (X.transpose() * (w.array() * w.array() * w.array()).matrix().asDiagonal() * X);
+
+            double tr_WPw = tr_W - (XtW2X * XtWX_inv).trace();
+            double a = tr_P / tr_WPw;
+            
+            double tr_PWPw = (P * W).trace() - (((P * WX) * XtWX_inv) * WX.transpose()).trace();
+            double b = 2 * tr_PWPw / pow(tr_WPw, 2);
+
+            double tmp = (XtW2X * XtWX_inv * XtW2X * XtWX_inv).trace();
+            double tr_WPwWPw = (w.array() * w.array()).sum() - 2 * (XtW3X * XtWX_inv).trace() + tmp;
+            double c = ((2 * tr_WPwWPw) * tr_P) / pow(tr_WPw, 3);
+
+            tr.push_back(a - b + c);
             glmm_converged.push_back(p_glmm.glmm_converged);
         }
         std::cout << "Null Poisson GLMMs fitted." << std::endl;
@@ -167,8 +189,30 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
 
             Y.col(i) = (Y.col(i).array() - (X * nb_glmm.beta).array().exp()) / nb_glmm.mu.array();
             W.row(i) = nb_glmm.mu.array() / (1 + nb_glmm.phi * nb_glmm.mu.array());
+
+            Eigen::MatrixXd P = nb_glmm.P;
+            Eigen::VectorXd w = nb_glmm.mu;
+            Eigen::MatrixXd W = w.asDiagonal();
+            Eigen::MatrixXd WX = W * X;
+
+            double tr_P = P.trace();
+            double tr_W = w.sum();
+
+            Eigen::MatrixXd XtWX_inv = (X.transpose() * W * X).inverse();
+            Eigen::MatrixXd XtW2X = (X.transpose() * (w.array() * w.array()).matrix().asDiagonal() * X);
+            Eigen::MatrixXd XtW3X = (X.transpose() * (w.array() * w.array() * w.array()).matrix().asDiagonal() * X);
+
+            double tr_WPw = tr_W - (XtW2X * XtWX_inv).trace();
+            double a = tr_P / tr_WPw;
             
-            tr.push_back(nb_glmm.P.trace() / nb_glmm.mu.sum());
+            double tr_PWPw = (P * W).trace() - (((P * WX) * XtWX_inv) * WX.transpose()).trace();
+            double b = 2 * tr_PWPw / pow(tr_WPw, 2);
+
+            double tmp = (XtW2X * XtWX_inv * XtW2X * XtWX_inv).trace();
+            double tr_WPwWPw = (w.array() * w.array()).sum() - 2 * (XtW3X * XtWX_inv).trace() + tmp;
+            double c = ((2 * tr_WPwWPw) * tr_P) / pow(tr_WPw, 3);
+
+            tr.push_back(a - b + c);
             phi.push_back(nb_glmm.phi);
             phi_converged.push_back(nb_glmm.phi_converged);
             glmm_converged.push_back(nb_glmm.glmm_converged);
