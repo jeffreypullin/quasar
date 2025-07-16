@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (result.count("version")) {
-        std::cout << "quasar version 0.1.0" << std::endl;
+        std::cout << "quasar version 1.0.0" << std::endl;
         exit(0);
     }
 
