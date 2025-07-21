@@ -13,7 +13,9 @@ Compared to other eQTL mapping software, quasar:
 
 If you use quasar in your research, please cite
 
-> TODO
+> Flexible and efficient count-distribution and mixed-model methods for eQTL mapping with quasar
+> Jeffrey M. Pullin, Chris Wallace
+> medRxiv 2025.07.17.25331702; doi: https://doi.org/10.1101/2025.07.17.25331702
 
 ## Installation
 
