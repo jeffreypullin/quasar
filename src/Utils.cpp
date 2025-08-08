@@ -24,6 +24,18 @@
 #include <unordered_set>
 #include <iostream>
 
+std::string format_with_commas(size_t number) {
+    std::string numStr = std::to_string(number);
+    
+    int pos = numStr.length();
+    while (pos > 3) {
+        pos -= 3;
+        numStr.insert(pos, ",");
+    }
+
+    return numStr;
+}
+
 // From regenie.
 std::vector<std::string> string_split(std::string const& s, const char* delims) {
 

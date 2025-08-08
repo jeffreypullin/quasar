@@ -157,11 +157,14 @@ void GenoData::read_bed_file() {
 
 void GenoData::run_mean_imputation() {
 
+    bool needs_impute = false;
     for (int j = 0; j < this->genotype_matrix.cols(); ++j) {
         auto col = this->genotype_matrix.col(j);
         
         if ((col.array() == -1).any()) {
             
+            needs_impute = true;            
+
             double sum = 0;
             int count = 0;
             for (int i = 0; i < col.size(); ++i) {
@@ -180,7 +183,9 @@ void GenoData::run_mean_imputation() {
         }
     }
 
-    std::cout << "Mean imputation completed successfully." << std::endl;
+    if (needs_impute) {
+        std::cout << "Mean imputation performed successfully." << std::endl;
+    }
 }
 
 void GenoData::slice_samples(std::vector<std::string>& sample_ids) {

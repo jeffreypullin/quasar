@@ -168,11 +168,11 @@ int main(int argc, char* argv[]) {
             pheno_data.slice_chromosome(g_chrom.front());
         }
     }
-    std::cout << "\nRunning analysis for " << pheno_data.n_pheno << " phenotypes." << std::endl;
+    std::cout << "\nRunning analysis for " << format_with_commas(pheno_data.n_pheno) << " phenotypes." << std::endl;
 
     ModelFit model_fit(params.model, params.fit_file, pheno_data);
     if (params.mode == "cis" || params.mode == "residualise") {
-        std::cout << "\nResidualsing data..." << std::endl;
+        std::cout << "\nResidualising data..." << std::endl;
         residualise(params, model_fit, cov_data, pheno_data, grm);
         std::cout << "\nResidualisation finished." << std::endl;
     } else {
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\nPerforming variant score tests..." << std::endl;
     score_test(params, model_fit, geno_data, pheno_data, cov_data);
-    std::cout << "\nVariant score tests finished." << std::endl;
+    std::cout << "Variant score tests finished." << std::endl;
 
     std::cout << "\nquasar execution finished." << std::endl;
     return 0;

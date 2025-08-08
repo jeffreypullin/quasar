@@ -24,5 +24,6 @@
 std::vector<std::string> string_split(std::string const& s, const char* delims);
 void remove_carriage_return(std::string& str);
 std::vector<std::string> intersection(std::vector<std::vector<std::string>> &vecs);
+std::string format_with_commas(size_t number);
 
 #endif

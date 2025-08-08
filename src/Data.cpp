@@ -85,7 +85,8 @@ void PhenoData::read_pheno_data() {
 
     file.close();
 
-    std::cout << "Read " << n_pheno << " features for " << n_samples << " samples from phenotype file." << std::endl;
+    std::cout << "Read " << format_with_commas(n_pheno) << " features for " 
+              << format_with_commas(n_samples) << " samples from phenotype file." << std::endl;
 }
 
 void PhenoData::write_pheno_data(std::string out_file) {
@@ -266,7 +267,7 @@ void CovData::read_cov_data() {
 
     file.close();
 
-    std::cout << "Read " << n_cov << " covariates for "<< n_samples << " samples from covariate file." << std::endl;
+    std::cout << "Read " << n_cov << " covariates for "<< format_with_commas(n_samples) << " samples from covariate file." << std::endl;
 }
 
 void CovData::slice_samples(std::vector<std::string>& sample_ids) {
@@ -332,7 +333,7 @@ void GRM::read_grm() {
 
     file.close();
 
-    std::cout << "Read GRM with " << n_samples << " samples." << std::endl;
+    std::cout << "Read GRM with " << format_with_commas(n_samples) << " samples." << std::endl;
 }
 
 void GRM::slice_samples(std::vector<std::string>& sample_ids) {
