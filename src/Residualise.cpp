@@ -138,7 +138,8 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             glmm_converged.push_back(p_glmm.glmm_converged);
         }
         std::cout << "Null Poisson GLMMs fitted." << std::endl;
-
+    } else if (params.model == "p_glmm" && params.type == "sc") {
+        // TODO.
     } else if (params.model == "nb_glm") {
 
         std::cout << "\nFitting null NB-GLMs..." << std::endl;

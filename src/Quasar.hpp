@@ -42,6 +42,7 @@ struct Params {
 
     std::string mode; 
     std::string model;
+    std::string type;
     int window_size = 1000000;
     bool use_apl;
 

@@ -43,6 +43,7 @@ int main(int argc, char* argv[]) {
         // Execution arguments.
         ("mode", "Mode to run quasar in (residualise, cis, trans, gwas)", cxxopts::value<std::string>(params.mode))
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
+        ("type", "Type of data passed to quasar (bulk, pb/pseudobulk, sc/single-cell", cxxopts::value<std::string(params.type))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
         ("use-apl", "Use adjusted profile likelihood to estimate NB dispersion", cxxopts::value<bool>(params.use_apl))
         // Output arguments.
@@ -76,6 +77,27 @@ int main(int argc, char* argv[]) {
         params.model != "nb_glm" && 
         params.model != "nb_glmm") {
         std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'p_glm', 'nb_glm', 'p_glmm', 'nb_glmm'." << std::endl;
+        exit(1);
+    }
+
+    if (params.type != "bulk" &&
+        params.type != "pseudobulk" && 
+        params.type != "pb" && 
+        params.type != "single-cell" &&
+        params.type != "sc") {
+        std::cerr << "Invalid type specified. Please use one of: bulk, pseudobulk/pb, single-cell/sc." << std::endl;
+        exit(1);
+    }
+
+    // Normalise type.
+    if (params.type == "bulk" || params.type == "pseudobulk" || params.type == "pb") {
+        params.type = "bulk";
+    } else {
+        params.type = "sc";
+    }
+
+    if (params.type == "sc" && params.model != "p_glmm") {
+        std::cerr << "Only the Poisson GLMM model is supported for single-cell data." << std::endl;
         exit(1);
     }
 
