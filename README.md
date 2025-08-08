@@ -48,7 +48,7 @@ The following invocation runs quasar with our recommended settings for cis-eQTL 
     --mode cis \
     --model nb_glm \
     --use-apl \
-    --out quasar_out
+    --out nb_fit
 ```
 
 For further information see the [Documentation](https://jeffreypullin.github.io/quasar/).

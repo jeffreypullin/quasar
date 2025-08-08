@@ -25,7 +25,7 @@ We recommend running quasar to perform cis-eQTL mapping using the negative binom
     --mode cis \
     --model nb_glm \
     --use-apl \
-    --out quasar_out
+    --out nb_fit
 ```
 
 ## QTL mapping modes
@@ -121,8 +121,10 @@ To construct the GRM we recommend using the plink2 --make-king command after pru
 
 quasar produces two files:
 
-* {quasar-out}-variant.txt which contains variant information
-* {quasar-out}-cis-gene.txt which contains gene information
+* {out-prefix}-quasar-variant.txt which contains variant information
+* {out-prefix}-quasar-cis-gene.txt which contains gene information
+
+This files are written into the directory which quasar is run in.
 
 ## Option list
 
