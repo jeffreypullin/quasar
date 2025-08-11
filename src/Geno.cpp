@@ -42,7 +42,15 @@ void GenoData::read_bim_file() {
             std::cerr << "Error: Invalid BIM file format." << std::endl;
             exit(1);
         }
-        chrom.push_back(std::stoi(tokens[0]));
+        try {
+            chrom.push_back(std::stoi(tokens[0]));
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "Error: Invalid chromosome detected: " << tokens[0] << std::endl;
+            std::cerr << "quasar currently only supports autosomal chromosomes." << std::endl;
+            std::cerr << "Data can be filtered with plink2: " << std::endl;
+            std::cerr << "plink2 --bfile {data} --autosome --make-bed --out {autosome_data}" << std::endl;
+            exit(1);
+        }
         id.push_back(tokens[1]);
         pos.push_back(std::stoul(tokens[3]));
         alt.push_back(tokens[4]);
