@@ -129,7 +129,7 @@
     --mode cis \
     --model nb_glm \
     --use-apl \
-    --out quasar_out
+    --out nb_fit
 </code></pre>
 <h2 id="qtl-mapping-modes">QTL mapping modes</h2>
 <p>The quasar software can be run in three modes: <code>cis</code>, <code>trans</code>, <code>gwas</code>. These modes specify which varaints are tested for asscociation with a particular feature. </p>
@@ -160,14 +160,15 @@
 </code></pre>
 <p>If using --make-bed with PLINK 1.9 or earlier, add the --keep-allele-order flag.</p>
 <h3 id="phenotype-data">Phenotype data</h3>
-<p>--bed/-p</p>
+<p>--bed/-b</p>
 <p>The phenotype data is a tab-seperated file with where rows are features and the first four
-columns give feature inforamtion and the rest are sample ids are the sample ids. For example, </p>
+columns give feature information and the rest are sample ids are the sample ids. For example, </p>
 <pre><code>#chr      start         end      phenotype_id  sample_1   sample_2   sample_3 ...
-   1  113871759   113813811   ENSG00000134242      39.1      435.4      435.8 ...
+   1  113871759   113813811   ENSG00000134242      39           43         45 ...
  ...
 </code></pre>
 <p>The start and end values are used to specify the centre of the cis-window. To specify the gene TSS as the centre of the window, set TSS = start, end = start + 1, so that the cis-window is [TSS - window, TSS + window + 1] or alternatively set the start and end values to the start and end of the gene so that the cis-window is [start - window, end + window].</p>
+<p>For the count based models (i.e. <code>nb_glm</code>, <code>p_glm</code>, <code>p_glmm</code> and <code>nb_glmm</code>) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. <code>lm</code> and <code>lmm</code>) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.</p>
 <h3 id="covariate-data">Covariate data</h3>
 <p>--cov/-c</p>
 <p>The covariate data is a tab-separated file with rows as samples and first column <code>sample_id</code> and other columns containing the covariates. For example,</p>
@@ -190,35 +191,83 @@ columns give feature inforamtion and the rest are sample ids are the sample ids.
 <h2 id="output">Output</h2>
 <p>quasar produces two files:</p>
 <ul>
-<li>{quasar-out}-variant.txt which contains variant information</li>
-<li>{quasar-out}-cis-gene.txt which contains gene information</li>
+<li>{out-prefix}-quasar-variant.txt which contains variant information</li>
+<li>{out-prefix}-quasar-cis-gene.txt which contains gene information</li>
 </ul>
+<p>This files are written into the directory which quasar is run in.</p>
 <h2 id="option-list">Option list</h2>
-<ul>
-<li>--plink/-p: Plink files prefix</li>
-<li>--cov/-c: Covariate data file</li>
-<li>--bed/-b: Phenotype bed file</li>
-<li>--grm/-g: A (dense) genetic relatedness matrix</li>
-<li>--out/-o: The output file prefix</li>
-<li>--mode: The mode used to run quasar in. One of: <ul>
-<li>cis</li>
-<li>trans</li>
-<li>gwas</li>
-</ul>
-</li>
-<li>--model: The model used to residualise phenotype data. One of:<ul>
-<li>lm: Linear model</li>
-<li>lmm: Linear mixed model</li>
-<li>p_glm: Poissom GLM</li>
-<li>nb_glm: Negative binomial GLM</li>
-<li>p_glmm: Poisson GLMM</li>
-<li>nb_glmm: Negative binomial GLMM</li>
-</ul>
-</li>
-<li>--window_size/-w: The size of the cis window in base pairs. Default: 1000000</li>
-<li>--use-apl: Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion</li>
-<li>--verbose: Write additional information to the console</li>
-</ul></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Argument</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--plink</code></td>
+<td>FILE</td>
+<td>Required</td>
+<td>Plink files prefix, assumes that <code>{prefix}.bed</code>, <code>{prefix}.bim</code>, <code>{prefix}.fam</code> exist</td>
+</tr>
+<tr>
+<td><code>--cov</code></td>
+<td>FILE</td>
+<td>Required</td>
+<td>Covariate data file</td>
+</tr>
+<tr>
+<td><code>--bed</code></td>
+<td>FILE</td>
+<td>Required</td>
+<td>Phenotype bed file</td>
+</tr>
+<tr>
+<td><code>--grm</code></td>
+<td>FILE</td>
+<td>Optional</td>
+<td>A (dense) genetic relatedness matrix</td>
+</tr>
+<tr>
+<td><code>--out</code></td>
+<td>STRING</td>
+<td>Optional</td>
+<td>The output file prefix</td>
+</tr>
+<tr>
+<td><code>--mode</code></td>
+<td>STRING</td>
+<td>Required</td>
+<td>The mode used to run quasar in. One of: <code>cis</code>, <code>trans</code>, <code>gwas</code>.</td>
+</tr>
+<tr>
+<td><code>--model</code></td>
+<td>STRING</td>
+<td>Required</td>
+<td>The model used to residualise phenotype data. One of: <code>lm</code>, <code>lmm</code>, <code>p_glm</code>, <code>nb_glm</code>, <code>p_glmm</code> or <code>nb_glmm</code>.</td>
+</tr>
+<tr>
+<td><code>--window_size</code></td>
+<td>NUMBER</td>
+<td>Optional</td>
+<td>The size of the cis window in base pairs. Default: 1000000</td>
+</tr>
+<tr>
+<td><code>--use-apl</code></td>
+<td>FLAG</td>
+<td>Optional</td>
+<td>Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion</td>
+</tr>
+<tr>
+<td><code>--verbose</code></td>
+<td>FLAG</td>
+<td>Optional</td>
+<td>Write additional information to the console</td>
+</tr>
+</tbody>
+</table></div>
             </div>
         </div>
 
