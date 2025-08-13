@@ -11,11 +11,11 @@ The program has the following features:
 
 ## Citation
 
-> TODO
+> Flexible and efficient count-distribution and mixed-model methods for eQTL mapping with quasar Jeffrey M. Pullin, Chris Wallace medRxiv 2025.07.17.25331702; doi: https://doi.org/10.1101/2025.07.17.25331702
 
 ## Contact 
 
-qusar is under active developement and we appreciate your feedback, questions and feature requests. Contact: Jeffrey Pullin (jp2045[at]cam.ac.uk). 
+quasar is under active developement and we appreciate your feedback, questions and feature requests. Contact: Jeffrey Pullin (jp2045[at]cam.ac.uk). 
  
 If you wish to submit an issue please do so on quasar's [GitHub repository](https://github.com/jeffreypullin/quasar).
 

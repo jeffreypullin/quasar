@@ -74,18 +74,20 @@ If using --make-bed with PLINK 1.9 or earlier, add the --keep-allele-order flag.
 
 ### Phenotype data
 
---bed/-p
+--bed/-b
 
 The phenotype data is a tab-seperated file with where rows are features and the first four
-columns give feature inforamtion and the rest are sample ids are the sample ids. For example, 
+columns give feature information and the rest are sample ids are the sample ids. For example, 
 
 ```
 #chr      start         end      phenotype_id  sample_1   sample_2   sample_3 ...
-   1  113871759   113813811   ENSG00000134242      39.1      435.4      435.8 ...
+   1  113871759   113813811   ENSG00000134242      39           43         45 ...
  ...
 ```
 
 The start and end values are used to specify the centre of the cis-window. To specify the gene TSS as the centre of the window, set TSS = start, end = start + 1, so that the cis-window is [TSS - window, TSS + window + 1] or alternatively set the start and end values to the start and end of the gene so that the cis-window is [start - window, end + window].
+
+For the count based models (i.e. `nb_glm`, `p_glm`, `p_glmm` and `nb_glmm`) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. `lm` and `lmm`) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.
 
 ### Covariate data
 
@@ -128,22 +130,15 @@ This files are written into the directory which quasar is run in.
 
 ## Option list
 
-* --plink/-p: Plink files prefix
-* --cov/-c: Covariate data file
-* --bed/-b: Phenotype bed file
-* --grm/-g: A (dense) genetic relatedness matrix
-* --out/-o: The output file prefix
-* --mode: The mode used to run quasar in. One of: 
-    - cis
-    - trans
-    - gwas
-* --model: The model used to residualise phenotype data. One of:
-    - lm: Linear model
-    - lmm: Linear mixed model
-    - p_glm: Poissom GLM
-    - nb_glm: Negative binomial GLM
-    - p_glmm: Poisson GLMM
-    - nb_glmm: Negative binomial GLMM
-* --window_size/-w: The size of the cis window in base pairs. Default: 1000000
-* --use-apl: Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion
-* --verbose: Write additional information to the console
+| Option | Argument | Type | Description|
+|--------|-------|------|----|
+|`--plink` | FILE | Required | Plink files prefix, assumes that `{prefix}.bed`, `{prefix}.bim`, `{prefix}.fam` exist |
+|`--cov` | FILE | Required | Covariate data file |
+|`--bed` | FILE | Required | Phenotype bed file |
+|`--grm` | FILE | Optional | A (dense) genetic relatedness matrix |
+|`--out` | STRING | Optional | The output file prefix |
+|`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |
+|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm` or `nb_glmm`. |
+|`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
+|`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
+|`--verbose` | FLAG | Optional | Write additional information to the console |
