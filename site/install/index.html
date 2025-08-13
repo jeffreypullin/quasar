@@ -80,12 +80,12 @@
     <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
         <ul class="nav flex-column">
             
-            <li class="nav-item" data-bs-level="1"><a href="#download" class="nav-link">Download</a>
+            <li class="nav-item" data-bs-level="1"><a href="#installation" class="nav-link">Installation</a>
               <ul class="nav flex-column">
               </ul>
             </li>
             
-            <li class="nav-item" data-bs-level="1"><a href="#installation" class="nav-link">Installation</a>
+            <li class="nav-item" data-bs-level="1"><a href="#installation_1" class="nav-link">Installation</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -94,14 +94,19 @@
 </div></div>
                     <div class="col-md-9" role="main">
 
-<h1 id="download">Download</h1>
-<p>The quasar source code is hosted on <a href="https://github.com/jeffreypullin/quasar">GitHub</a></p>
 <h1 id="installation">Installation</h1>
-<p>To compile quasar from source run</p>
+<p>The quasar source code is hosted on <a href="https://github.com/jeffreypullin/quasar">GitHub</a></p>
+<h1 id="installation_1">Installation</h1>
+<p>To compile quasar from source run:</p>
 <pre><code class="language-sh">git clone https://github.com/jeffreypullin/quasar.git
 cd quasar
-cmake 
+mkdir -p build
+cd build
+cmake ..
 make
+</code></pre>
+<p>This process generates the binary in the <code>build/</code> subdirectory of quasar. To verify the installation has completed succesfully, run</p>
+<pre><code>./quasar --version
 </code></pre></div>
             </div>
         </div>
