@@ -30,7 +30,7 @@ cmake ..
 make
 ```
 
-This process generates the binary in the `build/` subdirectory of quasar. To verify the installation has completed succesfully, fun
+This process generates the binary in the `build/` subdirectory of quasar. To verify the installation has completed succesfully, run,
 
 ```
 ./quasar --version
@@ -51,6 +51,8 @@ The following invocation runs quasar with our recommended settings for cis-eQTL 
     --out nb_fit
 ```
 
-For further information see the [Documentation](https://jeffreypullin.github.io/quasar/).
+Here, `phenotype_data.bed` should contain bulk/pseudobulk gene counts.
 
-Please contact jp2045[at]cam.ac.uk for assistance running quasar for other questions.
+For further information see the [Documentation](https://jeffreypullin.github.io/quasar/). 
+
+Please contact jp2045[at]cam.ac.uk for assistance running quasar or other questions.

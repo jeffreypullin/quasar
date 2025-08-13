@@ -172,6 +172,22 @@ int main(int argc, char* argv[]) {
 
     ModelFit model_fit(params.model, params.fit_file, pheno_data);
     if (params.mode == "cis" || params.mode == "residualise") {
+
+        // Check model and data align.
+        if (params.model != "p_glmm" && 
+            params.model != "p_glm" && 
+            params.model != "nb_glm" && 
+            params.model != "nb_glmm") {     
+            Eigen::VectorXd first_gene = pheno_data.data.col(0).head(10);
+            bool has_negative = (first_gene.array() < 0).any();
+            bool has_noninteger = ((first_gene.array() - first_gene.array().floor()) > 0).any();
+        
+            if (has_negative || has_noninteger) {
+                std::cerr << "Error: GLM/GLMM models require count data. The first gene appears to contain non-count values." << std::endl;
+                exit(1);
+            }
+        }
+
         std::cout << "\nResidualising data..." << std::endl;
         residualise(params, model_fit, cov_data, pheno_data, grm);
         std::cout << "\nResidualisation finished." << std::endl;
