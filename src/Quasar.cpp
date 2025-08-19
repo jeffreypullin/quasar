@@ -174,10 +174,10 @@ int main(int argc, char* argv[]) {
     if (params.mode == "cis" || params.mode == "residualise") {
 
         // Check model and data align.
-        if (params.model != "p_glmm" && 
-            params.model != "p_glm" && 
-            params.model != "nb_glm" && 
-            params.model != "nb_glmm") {     
+        if (params.model == "p_glmm" ||
+            params.model == "p_glm" ||
+            params.model == "nb_glm" || 
+            params.model == "nb_glmm") {     
             Eigen::VectorXd first_gene = pheno_data.data.col(0).head(10);
             bool has_negative = (first_gene.array() < 0).any();
             bool has_noninteger = ((first_gene.array() - first_gene.array().floor()) > 0).any();

@@ -36,13 +36,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     int n_cov = X.cols();
     size_t n_snps = geno_data.n_snps;
 
-    std::ofstream variant_file(params.out + "-" + mode + "quasar-variant.txt");
+    std::ofstream variant_file(params.out + "-quasar-" + mode + "-variant.txt");
     std::string variant_header_line = make_variant_header_line(model);
     variant_file << variant_header_line;
 
     std::ofstream region_file;
     if (mode == "cis") {
-        region_file.open(params.out + "quasar-cis-region.txt");
+        region_file.open(params.out + "-quasar-cis-region.txt");
         std::string region_header_line = "feature_id\tchrom\tpos\tpvalue\n";
         region_file << region_header_line;
     }
