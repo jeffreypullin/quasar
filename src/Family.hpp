@@ -85,7 +85,7 @@ class NegativeBinomial : public Family {
     public:
         NegativeBinomial(double phi_) : phi(phi_) { 
             name = "negative_binomial"; 
-            if (phi_ <= 0) {
+            if (phi_ < 0) {
                 throw std::invalid_argument("NegativeBinomial family requires positive theta parameter");
             }
         }

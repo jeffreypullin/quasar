@@ -79,6 +79,10 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converge
     }
 
     phi = 1 / theta;
+    if (phi < 0) {
+        phi = 0;
+        std::cout << "Warning: phi < 0, setting to 0" << std::endl;
+    }
     return phi;
 }
 
@@ -105,6 +109,10 @@ double estimate_phi_apl(Eigen::VectorXd y, Eigen::VectorXd mu, const Eigen::Matr
     phi = 1 / theta; 
     // FIXME: Improve Brent algorithm diagnostics.
     phi_converged = true;
+    if (phi < 0) {
+        phi = 0;
+        std::cout << "Warning: phi < 0, setting to 0" << std::endl;
+    }
     return phi;
 }
 
