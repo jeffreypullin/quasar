@@ -55,6 +55,7 @@ void GenoData::read_bim_file() {
         pos.push_back(std::stoul(tokens[3]));
         alt.push_back(tokens[4]);
         ref.push_back(tokens[5]);
+        snp_id.push_back(tokens[0] + ":" + tokens[3] + tokens[5] + "-" + tokens[4]);
         this->index.push_back(index);
         index++;
     }

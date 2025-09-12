@@ -41,6 +41,7 @@ class GenoData {
     std::vector<std::string> id;
     std::vector<std::string> alt;
     std::vector<std::string> ref;
+    std::vector<std::string> snp_id;
     std::vector<size_t> index;
 
     GenoData(std::string bed_prefix) {

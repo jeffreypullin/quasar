@@ -142,6 +142,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
             variant_line << 
                 pheno_data.pheno_ids[i] << "\t" <<
+                geno_data.snp_id[k] << "\t" <<
                 geno_data.chrom[k] << "\t" <<
                 geno_data.pos[k] << "\t" <<
                 geno_data.alt[k] << "\t" <<
