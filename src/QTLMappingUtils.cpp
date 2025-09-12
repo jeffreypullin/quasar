@@ -133,7 +133,7 @@ double ACAT(const std::vector<double>& pvals) {
 
 std::string make_variant_header_line(std::string& model) {
 
-    std::string line = "feature_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue";
+    std::string line = "feature_id\tsnp_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue";
 
     if (model == "p_glm") {
         line = line + "\tglm_converged";
