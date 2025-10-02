@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs." << std::endl;
 
-    if (params.mode == "cis") {
+    if (params.mode == "cis" || params.mode == "residualise") {
         std::vector<int> g_chrom = geno_data.chrom;
         bool one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());
         if (one_chrom) {
