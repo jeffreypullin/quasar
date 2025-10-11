@@ -267,6 +267,31 @@ void CovData::read_cov_data() {
 
     file.close();
 
+    // Add intercept column if not already present in the data.
+    bool has_intercept = false;
+    for (size_t j = 0; j < n_cov; j++) {
+        bool is_intercept = true;
+        double first_val = data(0, j);
+        for (size_t i = 1; i < n_samples; i++) {
+            if (data(i, j) != first_val) {
+                is_intercept = false;
+                break;
+            }
+        }
+        if (is_intercept && first_val == 1.0) {
+            has_intercept = true;
+            break;
+        }
+    }
+
+    if (!has_intercept) {
+        Eigen::MatrixXd new_data(n_samples, n_cov + 1);
+        new_data << Eigen::VectorXd::Ones(n_samples), data;
+        data = new_data;
+        cov_ids.insert(cov_ids.begin(), "intercept");
+        n_cov++;
+    }
+
     std::cout << "Read " << n_cov << " covariates for "<< format_with_commas(n_samples) << " samples from covariate file." << std::endl;
 }
 
