@@ -205,7 +205,13 @@ void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool ver
                 std::cout << "Warning: No variants found in window for feature " << pheno_ids[i] << std::endl;
             }
         } else if (window_end == 0) {
-            window_end = geno_data.n_snps - 1;
+            int index_last_on_chr = -1;
+            for (size_t k = 0; k < geno_data.n_snps - 1; ++k) {
+                if (g_chr_vec[k] == chr_f) {
+                    index_last_on_chr = k;
+                }
+            }
+            window_end = index_last_on_chr;
         }
 
         window_n = window_end - window_start;
