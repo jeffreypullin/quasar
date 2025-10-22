@@ -108,7 +108,8 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             auto poisson = std::unique_ptr<Family>(new Poisson());
             GLMM p_glmm(X, Y.col(i), offset, std::move(poisson), grm.mat);
             p_glmm.fit();
-
+            
+            // Offset not needed.
             Y.col(i) = (Y.col(i).array() - (X * p_glmm.beta).array().exp()) / p_glmm.mu.array();
             W.row(i) = p_glmm.mu.array();
 
@@ -148,7 +149,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             NBGLM nb_glm(X, Y.col(i), offset, use_apl);
             nb_glm.fit();
 
-            Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta).array().exp()) / nb_glm.mu.array();
+            Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta + offset).array().exp()) / nb_glm.mu.array();
             W.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
 
             phi.push_back(nb_glm.phi);
@@ -166,7 +167,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             GLM p_glm(X, Y.col(i), offset, std::move(poisson));
             p_glm.fit();
 
-            Y.col(i) = (Y.col(i).array() - (X * p_glm.beta).array().exp()) / p_glm.mu.array();
+            Y.col(i) = (Y.col(i).array() - (X * p_glm.beta + offset).array().exp()) / p_glm.mu.array();
             W.row(i) = p_glm.mu.array();
             glm_converged.push_back(p_glm.glm_converged);
         }
@@ -180,6 +181,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             NBGLMM nb_glmm(X, Y.col(i), offset, grm.mat);
             nb_glmm.fit();
 
+            // Offset not needed.
             Y.col(i) = (Y.col(i).array() - (X * nb_glmm.beta).array().exp()) / nb_glmm.mu.array();
             W.row(i) = nb_glmm.mu.array() / (1 + nb_glmm.phi * nb_glmm.mu.array());
 
