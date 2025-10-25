@@ -129,6 +129,10 @@ int main(int argc, char* argv[]) {
     
     GRM grm(params.grm_file);
     if (mixed_model) {
+        if (params.grm_file == "no-grm") {
+            std::cerr << "Error: GRM file must be provided when using mixed models." << std::endl;
+            exit(1);
+        }
         grm.read_grm();
     }
     
