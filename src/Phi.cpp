@@ -64,18 +64,15 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converge
         delta = theta_score(y, mu, theta) / theta_info(y, mu, theta);
         theta += delta;
 
-        // Fix convergence problems with very small thetas.
-        if (theta < 1e-5) {
-            theta = 1e-1;
-            phi_converged = true;
-            break;
-        }
-
         if (std::abs(delta) < tol) {
             phi_converged = true;
             break;
         }
 
+    }
+
+    if (abs(theta) > 1e5) {
+        theta = 1e2;
     }
 
     phi = 1 / theta;
