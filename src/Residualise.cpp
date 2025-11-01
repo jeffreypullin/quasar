@@ -83,7 +83,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             lmm.fit();
 
             Eigen::DiagonalMatrix<double, Eigen::Dynamic> D_inv = lmm.D_inv;
-            Y.col(i) = (Q * D_inv * (QtY.col(i) - QtX * lmm.beta)) / std::sqrt(lmm.sigma2);
+            Y.col(i) = (Q * D_inv * (QtY.col(i) - QtX * lmm.beta)) / lmm.sigma2;
         
         }
         std::cout << "Null LMMs fitted." << std::endl;
@@ -109,8 +109,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             GLMM p_glmm(X, Y.col(i), offset, std::move(poisson), grm.mat);
             p_glmm.fit();
             
-            // Offset not needed.
-            Y.col(i) = (Y.col(i).array() - (X * p_glmm.beta).array().exp()) / p_glmm.mu.array();
+            Y.col(i) = (Y.col(i).array() - p_glmm.mu.array()) / p_glmm.mu.array();
             W.row(i) = p_glmm.mu.array();
 
             Eigen::MatrixXd P = p_glmm.P;
@@ -181,8 +180,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             NBGLMM nb_glmm(X, Y.col(i), offset, grm.mat);
             nb_glmm.fit();
 
-            // Offset not needed.
-            Y.col(i) = (Y.col(i).array() - (X * nb_glmm.beta).array().exp()) / nb_glmm.mu.array();
+            Y.col(i) = (Y.col(i).array() - nb_glmm.mu.array()) / nb_glmm.mu.array();
             W.row(i) = nb_glmm.mu.array() / (1 + nb_glmm.phi * nb_glmm.mu.array());
 
             Eigen::MatrixXd P = nb_glmm.P;
