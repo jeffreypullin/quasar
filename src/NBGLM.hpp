@@ -86,8 +86,8 @@ class NBGLM {
             }
 
             double theta_0;
-            // FIXME: Use residuals to calculate d1.
-            double d1 = std::sqrt(2);
+            int df_res = X.rows() - X.cols();
+            double d1 = std::sqrt(2 * std::max(1, df_res));
             double theta_delta = 1;
 
             double ll_m = ll();
