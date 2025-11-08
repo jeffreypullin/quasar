@@ -43,7 +43,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     std::ofstream region_file;
     if (mode == "cis") {
         region_file.open(params.out + "-quasar-cis-region.txt");
-        std::string region_header_line = "feature_id\tchrom\tpos\tpvalue\n";
+        std::string region_header_line = "feature_id\tchrom\tstart\tend\tpvalue\n";
         region_file << region_header_line;
     }
 
@@ -176,6 +176,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 pheno_data.pheno_ids[i] << "\t" <<
                 pheno_data.chrom[i] << "\t" <<
                 pheno_data.start[i] << "\t" <<
+                pheno_data.end[i] << "\t" <<
                 ACAT(pvals) << "\n";
             region_file << region_line.str();
         }
