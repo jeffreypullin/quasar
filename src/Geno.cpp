@@ -197,6 +197,40 @@ void GenoData::run_mean_imputation() {
     }
 }
 
+void GenoData::compute_maf() {
+    maf.clear();
+    maf.reserve(n_snps);
+    for (size_t i = 0; i < n_snps; ++i) {
+        const auto col = genotype_matrix.col(i);
+        double sum = col.sum();
+        double af = sum / (2 * n_samples);
+        double maf_value = std::min(af, 1.0 - af);
+        maf.push_back(maf_value);
+    }
+    std::cout << "MAF computed.\n" << std::endl;
+}
+
+void GenoData::compute_maf_problems() {
+    int n_zero_maf = 0;
+    int n_low_maf = 0;
+    for (size_t i = 0; i < maf.size(); ++i) {
+        if (std::abs(maf[i]) <= 1e-8) {
+            n_zero_maf++;
+        }
+        if (maf[i] <= 0.05) {
+            n_low_maf++;
+        }
+    }
+
+    if (n_zero_maf != 0) {
+        std::cout << "Warning: " << n_zero_maf << " variants with zero MAF detected." << std::endl;
+    }
+    if (n_low_maf != 0 && n_samples < 1000) {
+        std::cout << "Warning: " << n_low_maf << " variants with MAF < 0.05 detected." << std::endl;
+        std::cout << "Sample subsetting may have reduced MAF." << std::endl;
+    }
+}
+
 void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     
     Eigen::VectorXi rows;

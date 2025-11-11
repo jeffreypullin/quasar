@@ -133,8 +133,11 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 zscore = beta / se;
                 pval_esnp = 2 * pnorm(std::abs(zscore), true);
             } else {
-                zscore = 0;
-                pval_esnp = -1;
+                zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
+            }
+            // MAF == 0 case.
+            if (std::abs(geno_data.maf[k]) < 1e-8) {
+                beta = se = zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
             }
             if (mode == "cis") {
                 pvals.push_back(pval_esnp);
@@ -147,6 +150,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 geno_data.pos[k] << "\t" <<
                 geno_data.alt[k] << "\t" <<
                 geno_data.ref[k] << "\t" <<
+                geno_data.maf[k] << "\t" <<
                 beta << "\t" << 
                 se << "\t" <<
                 pval_esnp;

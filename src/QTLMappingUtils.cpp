@@ -122,7 +122,7 @@ double ACAT(const std::vector<double>& pvals) {
     for (const double& p: pvals) {
         if (p >= 1){
             sum += (qcauchy(1 - 1 / n, true) / n);
-        } else if (p <= 0){
+        } else if (p <= 0 || std::isnan(p)){
             continue;
         } else {
             sum += (qcauchy(p, true) / n);
@@ -133,7 +133,7 @@ double ACAT(const std::vector<double>& pvals) {
 
 std::string make_variant_header_line(std::string& model) {
 
-    std::string line = "feature_id\tsnp_id\tchrom\tpos\tref\talt\tbeta\tse\tpvalue";
+    std::string line = "feature_id\tsnp_id\tchrom\tpos\tref\talt\tmaf\tbeta\tse\tpvalue";
 
     if (model == "p_glm") {
         line = line + "\tglm_converged";

@@ -43,6 +43,7 @@ class GenoData {
     std::vector<std::string> ref;
     std::vector<std::string> snp_id;
     std::vector<size_t> index;
+    std::vector<double> maf;
 
     GenoData(std::string bed_prefix) {
       this->bed_prefix = bed_prefix;
@@ -53,6 +54,9 @@ class GenoData {
     void prepare_bed_file();
     void run_mean_imputation();
     void read_bed_file();
+    void compute_maf();
+    void compute_maf_problems();
+    void maf_warning();
     void slice_samples(std::vector<std::string>& sample_ids);
 };
 

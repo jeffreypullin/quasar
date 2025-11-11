@@ -217,6 +217,8 @@ int main(int argc, char* argv[]) {
     geno_data.read_bed_file();
     geno_data.run_mean_imputation();
     geno_data.slice_samples(int_sample_ids);
+    geno_data.compute_maf();
+    geno_data.compute_maf_problems();
 
     std::cout << "\nConstructing cis-windows..." << std::endl;
     pheno_data.construct_windows(geno_data, params.window_size, params.verbose);
