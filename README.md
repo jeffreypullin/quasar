@@ -4,18 +4,18 @@ quasar is a C++ software package for performing expression quantitative trait lo
 
 Compared to other eQTL mapping software, quasar: 
 
-* is ~5-45 times faster when run on CPUs,
 * implements a much wider range of models, including both count distribution models and mixed models,
-* implements the Cox-Reid adjusted profile likelihood for estimating the negative bimomial dispersion, and
-* implements a novel trace-based approximation of the mixed-model score test variance.
+* implements the Cox-Reid adjusted profile likelihood for estimating the negative bimomial dispersion,
+* implements a novel trace-based approximation of the mixed-model score test variance, and 
+* is generally faster.
 
 ## Citation
 
 If you use quasar in your research, please cite
 
-> Flexible and efficient count-distribution and mixed-model methods for eQTL mapping with quasar
-> Jeffrey M. Pullin, Chris Wallace
-> medRxiv 2025.07.17.25331702; doi: https://doi.org/10.1101/2025.07.17.25331702
+> Flexible and efficient count-distribution and mixed-model methods for eQTL mapping with quasar  
+> Jeffrey M. Pullin, Jarny Choi, Davis J. McCarthy, Chris Wallace  
+> medRxiv 2025.07.17.25331702; doi: https://doi.org/10.1101/2025.07.17.25331702  
 
 ## Installation
 
@@ -56,3 +56,7 @@ Here, `phenotype_data.bed` should contain bulk/pseudobulk gene counts.
 For further information see the [Documentation](https://jeffreypullin.github.io/quasar/). 
 
 Please contact jp2045[at]cam.ac.uk for assistance running quasar or other questions.
+
+FAQs:
+
+quasar is named after the [astronomical object](https://en.wikipedia.org/wiki/Quasar), mainly because it is a cool word that starts with Q for QTL mapping. 
