@@ -8,6 +8,7 @@
 - Add check if phi <0
 - Add better error message for non-autosomal chromosomes
 - Add snp_id to variant-level output
+- Add example data
 
 ### Changed
 
