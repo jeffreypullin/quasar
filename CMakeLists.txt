@@ -36,3 +36,17 @@ set(EXTERN_LIBS_PATH "${CMAKE_SOURCE_DIR}/external_libs")
 target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/cxxopts/include/)
 target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/eigen-3.4.0/)
 target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/brent/)
+
+enable_testing()
+
+add_executable(quasar_tests EXCLUDE_FROM_ALL tests/test_smoke.cpp)
+target_include_directories(quasar_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+target_compile_definitions(quasar_tests PRIVATE
+    EXAMPLE_DATA_DIR="${CMAKE_SOURCE_DIR}/example"
+    QUASAR_EXECUTABLE="$<TARGET_FILE:quasar>"
+    BUILD_DIR="${CMAKE_BINARY_DIR}"
+)
+
+add_test(NAME smoke_lm COMMAND quasar_tests "LM smoke test")
+add_test(NAME smoke_nb_glm COMMAND quasar_tests "NB-GLM smoke test")
+add_test(NAME smoke_lmm COMMAND quasar_tests "LMM smoke test")
