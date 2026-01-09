@@ -2,6 +2,8 @@
 
 ## [Unreleased] 
 
+## [1.1.0] - 9/1/2026
+
 ### Added
 
 - Add MAF in variant-level output
