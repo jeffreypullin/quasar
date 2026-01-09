@@ -14,6 +14,7 @@
 
 - Return both gene start and end in gene-level output
 - Automatically add intercept if not present in the covariates
+- Fix ref/alt order in variant-level output header
 
 ### Fixed
 
