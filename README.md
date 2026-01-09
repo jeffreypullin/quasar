@@ -11,7 +11,7 @@ Compared to other eQTL mapping software, quasar:
 
 ## Citation
 
-If you use quasar in your research, please cite
+If you use quasar in your research, please cite:
 
 > Flexible and efficient count-distribution and mixed-model methods for eQTL mapping with quasar  
 > Jeffrey M. Pullin, Jarny Choi, Davis J. McCarthy, Chris Wallace  
@@ -36,7 +36,6 @@ This process generates the binary in the `build/` subdirectory of quasar. To ver
 ./quasar --version
 ```
 
-
 ## Quickstart
 
 The following invocation runs quasar with our recommended settings for cis-eQTL mapping:
@@ -51,12 +50,10 @@ The following invocation runs quasar with our recommended settings for cis-eQTL 
     --out nb_fit
 ```
 
-Here, `phenotype_data.bed` should contain bulk/pseudobulk gene counts.
+Here, `phenotype_data.bed` should contain bulk/pseudobulk gene counts. For further information see the [Documentation](https://jeffreypullin.github.io/quasar/). 
 
-For further information see the [Documentation](https://jeffreypullin.github.io/quasar/). 
-
-Please contact jp2045[at]cam.ac.uk for assistance running quasar or other questions.
-
-FAQs:
+## FAQs
 
 quasar is named after the [astronomical object](https://en.wikipedia.org/wiki/Quasar), mainly because it is a cool word that starts with Q for QTL mapping. 
+
+Please contact jp2045[at]cam.ac.uk for assistance running quasar or other questions.
