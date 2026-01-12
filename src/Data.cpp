@@ -71,7 +71,12 @@ void PhenoData::read_pheno_data() {
             std::cerr << "Error: Inconsistent number of columns in phenotype file." << std::endl;
             exit(1);
         }
-        chrom.push_back(std::stoi(tokens[0]));
+        // Handle both chrXX and XX chromosome formats.
+        if (tokens[0].substr(0, 3) == "chr") {
+            chrom.push_back(std::stoi(tokens[0].substr(3)));
+        } else {
+            chrom.push_back(std::stoi(tokens[0]));
+        }
         start.push_back(std::stoi(tokens[1]));
         end.push_back(std::stoi(tokens[2]));
         pheno_ids.push_back(tokens[3]);
