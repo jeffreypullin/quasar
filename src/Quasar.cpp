@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
         ("v,version", "Display version information")
         // Data arguments.
         ("p,plink", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.plink_prefix))
+        ("pgen", "Prefix to PLINK2 files (.pgen, .pvar, .psam)", cxxopts::value<std::string>(params.pgen_prefix))
         ("b,bed", "Bed file holding phenotype informaton", cxxopts::value<std::string>(params.bed_file)->default_value("no-bed"))
         ("c,cov", "Covariate file", cxxopts::value<std::string>(params.cov_file))
         ("r,resid", "Residualised phenotype bed file", cxxopts::value<std::string>(params.resid_file)->default_value("no-resid"))
@@ -84,9 +85,29 @@ int main(int argc, char* argv[]) {
         std::cerr << "Invalid mode specified. Please use one of 'cis', 'trans', 'gwas', 'residualise'" << std::endl;
         exit(1);
     }
+
+     // Check genotype input.
+     if (params.plink_prefix.empty() && params.pgen_prefix.empty()) {
+        std::cerr << "Error: genotype data must be provided via --plink or --pgen." << std::endl;
+        exit(1);
+    }
+    if (!params.plink_prefix.empty() && !params.pgen_prefix.empty()) {
+        std::cerr << "Error: only one of --plink or --pgen can be specified." << std::endl;
+        exit(1);
+    }
+
+    std::string geno_prefix;
+    if (!params.plink_prefix.empty()) {
+        params.genotype_format = "bed";
+        geno_prefix = params.plink_prefix;
+    } else if (!params.pgen_prefix.empty()) {
+        params.genotype_format = "pgen";
+        geno_prefix = params.pgen_prefix;
+    }
     
     std::cout << "\nmode: " << params.mode << std::endl;
     std::cout << "model: " << params.model << std::endl;
+    std::cout << "genotype format: " << params.genotype_format << std::endl;
 
     if (params.model == "p_glm") {
         std::cout << "Warning: using the Poisson GLM is not recommended due to its high rate of false positives." << std::endl;
@@ -136,9 +157,14 @@ int main(int argc, char* argv[]) {
         grm.read_grm();
     }
     
-    GenoData geno_data(params.plink_prefix);
-    geno_data.read_fam_file();
-    geno_data.read_bim_file();
+    GenoData geno_data(geno_prefix, params.genotype_format);
+    if (params.genotype_format == "pgen") {
+        geno_data.read_psam_file();
+        geno_data.read_pvar_file();
+    } else if (params.genotype_format == "bed") {
+        geno_data.read_fam_file();
+        geno_data.read_bim_file();
+    }
 
     std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
     std::vector<std::vector<std::string>> sample_ids_vecs = {
@@ -213,8 +239,12 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "\nReading genotype data..." << std::endl;
-    geno_data.prepare_bed_file();
-    geno_data.read_bed_file();
+    if (params.genotype_format == "pgen") {
+        geno_data.read_pgen_file();
+    } else if (params.genotype_format == "bed") {
+        geno_data.prepare_bed_file();
+        geno_data.read_bed_file();
+    }
     geno_data.run_mean_imputation();
     geno_data.slice_samples(int_sample_ids);
     geno_data.compute_maf();

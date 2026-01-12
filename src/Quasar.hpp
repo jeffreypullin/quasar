@@ -34,6 +34,7 @@
 struct Params {
 
     std::string plink_prefix;
+    std::string pgen_prefix;
     std::string grm_file;
     std::string cov_file;
     std::string bed_file;
@@ -42,6 +43,7 @@ struct Params {
 
     std::string mode; 
     std::string model;
+    std::string genotype_format;
     int window_size = 1000000;
     bool use_apl;
 
