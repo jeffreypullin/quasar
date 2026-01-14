@@ -71,9 +71,16 @@ void PhenoData::read_pheno_data() {
             std::cerr << "Error: Inconsistent number of columns in phenotype file." << std::endl;
             exit(1);
         }
-        chrom.push_back(std::stoi(tokens[0]));
-        start.push_back(std::stoi(tokens[1]));
-        end.push_back(std::stoi(tokens[2]));
+        try {
+            chrom.push_back(std::stoi(tokens[0]));
+            start.push_back(std::stoi(tokens[1]));
+            end.push_back(std::stoi(tokens[2]));
+        } catch (const std::exception& e) {
+            std::cerr << "Error: Failed to parse coordinates at row " << row + 1 
+                      << " (chrom='" << tokens[0] << "', start='" << tokens[1] 
+                      << "', end='" << tokens[2] << "')" << std::endl;
+            exit(1);
+        }
         pheno_ids.push_back(tokens[3]);
         for (size_t col = 0; col < n_samples; ++col) {
             data(row, col) = std::stod(tokens[col + 4]);
