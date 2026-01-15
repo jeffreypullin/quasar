@@ -23,7 +23,7 @@
 #include <memory>
 #include "Family.hpp"
 #include "Phi.hpp"
-#include "GLMM.hpp"
+#include "GLMM_GRM.hpp"
 
 class NBGLMM {
 
@@ -76,7 +76,7 @@ class NBGLMM {
         void fit() {
             
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM poisson_glmm(X, y, offset, std::move(poisson), grm);
+            GLMM_GRM poisson_glmm(X, y, offset, std::move(poisson), grm);
             poisson_glmm.fit();
             mu = poisson_glmm.mu;
             beta_prev = beta;
@@ -96,7 +96,7 @@ class NBGLMM {
             while (iter < max_iter) {
 
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
-                GLMM nb_glmm(X, y, offset, std::move(nb), grm);
+                GLMM_GRM nb_glmm(X, y, offset, std::move(nb), grm);
                 nb_glmm.fit();
 
                 sigma2_prev = sigma2;

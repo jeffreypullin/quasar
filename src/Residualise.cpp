@@ -23,6 +23,8 @@
 #include "LM.hpp"
 #include "LMM.hpp"
 #include "NBGLM.hpp"
+#include "GLMM_GRM.hpp"
+#include "GLMM_ID.hpp"
 #include "NBGLMM.hpp"
 #include "Phi.hpp"
 
@@ -100,42 +102,40 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         }
         std::cout << "Null LMs fitted." << std::endl;
 
-    } else if (params.model == "p_glmm") {
+    } else if (params.model == "p_glmm" || params.model == "p_glmm_grm") {
         
-        std::cout << "\nFitting null Poisson GLMMs..." << std::endl;
+        std::cout << "\nFitting null Poisson GLMMs with GRM..." << std::endl;
         for (int i = 0; i < n_pheno; ++i) {
 
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM p_glmm(X, Y.col(i), offset, std::move(poisson), grm.mat);
-            p_glmm.fit();
+            GLMM_GRM p_glmm_grm(X, Y.col(i), offset, std::move(poisson), grm.mat);
+            p_glmm_grm.fit();
             
-            Y.col(i) = (Y.col(i).array() - p_glmm.mu.array()) / p_glmm.mu.array();
-            W.row(i) = p_glmm.mu.array();
+            Y.col(i) = (Y.col(i).array() - p_glmm_grm.mu.array()) / p_glmm_grm.mu.array();
+            W.row(i) = p_glmm_grm.mu.array();
 
-            Eigen::MatrixXd P = p_glmm.P;
-            Eigen::VectorXd w = p_glmm.mu;
-            Eigen::MatrixXd W = w.asDiagonal();
-            Eigen::MatrixXd WX = W * X;
+            Eigen::MatrixXd P = p_glmm_grm.P;
+            Eigen::VectorXd w = p_glmm_grm.mu;
+            tr.push_back(compute_r_approx(P, w, X));
+            glmm_converged.push_back(p_glmm_grm.glmm_converged);
+        }
+        std::cout << "Null Poisson GLMMs fitted." << std::endl;
 
-            double tr_P = P.trace();
-            double tr_W = w.sum();
-
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * W * X).inverse();
-            Eigen::MatrixXd XtW2X = (X.transpose() * (w.array() * w.array()).matrix().asDiagonal() * X);
-            Eigen::MatrixXd XtW3X = (X.transpose() * (w.array() * w.array() * w.array()).matrix().asDiagonal() * X);
-
-            double tr_WPw = tr_W - (XtW2X * XtWX_inv).trace();
-            double a = tr_P / tr_WPw;
+    } else if (params.model == "p_glmm_id") {
+        
+        std::cout << "\nFitting null Poisson identity GLMMs..." << std::endl;
+        for (int i = 0; i < n_pheno; ++i) {
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLMM_ID p_glmm_id(X, Y.col(i), offset, std::move(poisson));
+            p_glmm_id.fit();
             
-            double tr_PWPw = (P * W).trace() - (((P * WX) * XtWX_inv) * WX.transpose()).trace();
-            double b = 2 * tr_PWPw / pow(tr_WPw, 2);
+            Y.col(i) = (Y.col(i).array() - p_glmm_id.mu.array()) / p_glmm_id.mu.array();
+            W.row(i) = p_glmm_id.mu.array();
 
-            double tmp = (XtW2X * XtWX_inv * XtW2X * XtWX_inv).trace();
-            double tr_WPwWPw = (w.array() * w.array()).sum() - 2 * (XtW3X * XtWX_inv).trace() + tmp;
-            double c = ((2 * tr_WPwWPw) * tr_P) / pow(tr_WPw, 3);
-
-            tr.push_back(a - b + c);
-            glmm_converged.push_back(p_glmm.glmm_converged);
+            Eigen::MatrixXd P = p_glmm_id.P;
+            Eigen::VectorXd w = p_glmm_id.mu;
+            tr.push_back(compute_r_approx(P, w, X));
+            glmm_converged.push_back(p_glmm_id.glmm_converged);
         }
         std::cout << "Null Poisson GLMMs fitted." << std::endl;
 
@@ -185,27 +185,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
 
             Eigen::MatrixXd P = nb_glmm.P;
             Eigen::VectorXd w = nb_glmm.mu;
-            Eigen::MatrixXd W = w.asDiagonal();
-            Eigen::MatrixXd WX = W * X;
-
-            double tr_P = P.trace();
-            double tr_W = w.sum();
-
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * W * X).inverse();
-            Eigen::MatrixXd XtW2X = (X.transpose() * (w.array() * w.array()).matrix().asDiagonal() * X);
-            Eigen::MatrixXd XtW3X = (X.transpose() * (w.array() * w.array() * w.array()).matrix().asDiagonal() * X);
-
-            double tr_WPw = tr_W - (XtW2X * XtWX_inv).trace();
-            double a = tr_P / tr_WPw;
-            
-            double tr_PWPw = (P * W).trace() - (((P * WX) * XtWX_inv) * WX.transpose()).trace();
-            double b = 2 * tr_PWPw / pow(tr_WPw, 2);
-
-            double tmp = (XtW2X * XtWX_inv * XtW2X * XtWX_inv).trace();
-            double tr_WPwWPw = (w.array() * w.array()).sum() - 2 * (XtW3X * XtWX_inv).trace() + tmp;
-            double c = ((2 * tr_WPwWPw) * tr_P) / pow(tr_WPw, 3);
-
-            tr.push_back(a - b + c);
+            tr.push_back(compute_r_approx(P, w, X));
             phi.push_back(nb_glmm.phi);
             phi_converged.push_back(nb_glmm.phi_converged);
             glmm_converged.push_back(nb_glmm.glmm_converged);
@@ -223,4 +203,32 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.glmm_converged = glmm_converged;
 
     pheno_data.data = Y;
+}
+
+double compute_r_approx(
+    const Eigen::MatrixXd& P,
+    const Eigen::VectorXd& w,
+    const Eigen::MatrixXd& X
+) {
+    Eigen::MatrixXd W = w.asDiagonal();
+    Eigen::MatrixXd WX = W * X;
+
+    double tr_P = P.trace();
+    double tr_W = w.sum();
+
+    Eigen::MatrixXd XtWX_inv = (X.transpose() * W * X).inverse();
+    Eigen::MatrixXd XtW2X = (X.transpose() * (w.array() * w.array()).matrix().asDiagonal() * X);
+    Eigen::MatrixXd XtW3X = (X.transpose() * (w.array() * w.array() * w.array()).matrix().asDiagonal() * X);
+
+    double tr_WPw = tr_W - (XtW2X * XtWX_inv).trace();
+    double a = tr_P / tr_WPw;
+    
+    double tr_PWPw = (P * W).trace() - (((P * WX) * XtWX_inv) * WX.transpose()).trace();
+    double b = 2 * tr_PWPw / pow(tr_WPw, 2);
+
+    double tmp = (XtW2X * XtWX_inv * XtW2X * XtWX_inv).trace();
+    double tr_WPwWPw = (w.array() * w.array()).sum() - 2 * (XtW3X * XtWX_inv).trace() + tmp;
+    double c = ((2 * tr_WPwWPw) * tr_P) / pow(tr_WPw, 3);
+
+    return a - b + c;
 }

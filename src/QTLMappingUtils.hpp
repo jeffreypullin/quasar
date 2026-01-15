@@ -21,7 +21,7 @@
 #include "Geno.hpp"
 #include "Data.hpp"
 #include "LMM.hpp"
-#include "GLMM.hpp"
+#include "GLMM_GRM.hpp"
 
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/cauchy.hpp>

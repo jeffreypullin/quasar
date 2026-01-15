@@ -15,8 +15,8 @@
    http://www.r-project.org/Licenses/
 */
 
-#ifndef GLMM_H
-#define GLMM_H
+#ifndef GLMM_ID_H
+#define GLMM_ID_H
 
 #include <Eigen/Dense>
 #include <limits>
@@ -24,7 +24,7 @@
 #include "GLM.hpp"
 #include "Family.hpp"
 
-class GLMM {
+class GLMM_ID {
     
     private:
         const Eigen::Ref<Eigen::MatrixXd> X;
@@ -40,8 +40,9 @@ class GLMM {
 
         // Diagonal elements of W.
         Eigen::VectorXd w;
-        Eigen::MatrixXd Sigma;
-        Eigen::MatrixXd Sigma_inv;
+        // Diagonal elements of Sigma.
+        Eigen::VectorXd Sigma_diag;
+        Eigen::VectorXd Sigma_diag_inv;
         Eigen::MatrixXd Sigma_invX;
         Eigen::MatrixXd XtSigma_invX;
         Eigen::MatrixXd XtSigma_invX_inv;
@@ -51,17 +52,13 @@ class GLMM {
         Eigen::VectorXd mu;
         Eigen::VectorXd u;
 
-        // Relatedness matrix.
-        Eigen::MatrixXd K;
-
         // Parameters
         Eigen::VectorXd beta;
         Eigen::VectorXd beta_prev;
         double sigma2;
         double sigma2_prev;
 
-        Eigen::LDLT<Eigen::MatrixXd> Sigma_ldlt;
-        Eigen::LDLT<Eigen::MatrixXd> XtSigmaX_ldlt;
+        Eigen::LDLT<Eigen::MatrixXd> XtSigma_invX_ldlt;
 
         // Control parameters.
         bool glmm_converged;
@@ -93,37 +90,50 @@ class GLMM {
         }
 
         void update_Sigma() {
-            Sigma = w.asDiagonal().inverse();
-            Sigma += sigma2 * K;
-            Sigma_ldlt.compute(Sigma);
+            Sigma_diag = w.cwiseInverse().array() + sigma2;
+            Sigma_diag_inv = Sigma_diag.cwiseInverse();
         }
 
-        void update_P() {
-            Sigma_invX = Sigma_ldlt.solve(X);
+        void update_P_components() {
+            Sigma_invX = X.array().colwise() * Sigma_diag_inv.array();
             XtSigma_invX = X.transpose() * Sigma_invX;
-            XtSigmaX_ldlt.compute(XtSigma_invX);
-            
-            P = Sigma_ldlt.solve(Eigen::MatrixXd::Identity(n, n)) - 
-                Sigma_invX * XtSigmaX_ldlt.solve(Sigma_invX.transpose());
+            XtSigma_invX_ldlt.compute(XtSigma_invX);
+            XtSigma_invX_inv = XtSigma_invX_ldlt.solve(Eigen::MatrixXd::Identity(p, p));
+        }
+
+        Eigen::VectorXd apply_P(Eigen::VectorXd x) {
+            Eigen::VectorXd Sigma_inv_x = Sigma_diag_inv.array() * x.array();
+            Eigen::VectorXd XtSigma_inv_x = X.transpose() * Sigma_inv_x;
+            Eigen::VectorXd mid = XtSigma_invX_ldlt.solve(XtSigma_inv_x);
+            Eigen::VectorXd Px = Sigma_inv_x - (Sigma_diag_inv.asDiagonal() * X) * mid;
+            return Px;
         }
 
         void update_beta() {
             beta_prev = beta;
-            beta = XtSigmaX_ldlt.solve(X.transpose() * Sigma_ldlt.solve(y_tilde));
+            Eigen::VectorXd Sigma_inv_y = Sigma_diag_inv.array() * y_tilde.array();
+            Eigen::VectorXd XtSigma_inv_y = X.transpose() * Sigma_inv_y;
+            beta = XtSigma_invX_ldlt.solve(XtSigma_inv_y);
         }
         
         void update_u() {
-            u = sigma2 * K * Sigma_ldlt.solve(y_tilde - (X * beta));
+            Eigen::VectorXd resid = y_tilde - X * beta;
+            u = sigma2 * (Sigma_diag_inv.array() * resid.array()).matrix();
         }
 
         void update_sigma2() {
             sigma2_prev = sigma2;
             
             double score, ai;
-            Eigen::VectorXd Py_tilde = P * y_tilde;
-            Eigen::VectorXd KPy_tilde = K * Py_tilde;
-            score = Py_tilde.dot(KPy_tilde) - (P * K).trace();
-            ai = (KPy_tilde.transpose() * P * KPy_tilde);
+            Eigen::VectorXd Py_tilde = apply_P(y_tilde);
+            Eigen::VectorXd KPy_tilde = Py_tilde;
+            Eigen::VectorXd Sigma_inv2_diag = Sigma_diag_inv.array().square();
+            Eigen::MatrixXd XtS_inv2X = X.transpose() * (Sigma_inv2_diag.asDiagonal() * X);
+            double a = Sigma_diag_inv.sum();
+            double b = (XtS_inv2X * XtSigma_invX_inv).trace();
+            double tr = a - b;
+            score = Py_tilde.dot(KPy_tilde) - tr;
+            ai = (KPy_tilde.transpose() * apply_P(KPy_tilde));
 
             sigma2 += step_size * (score / ai);
             
@@ -176,24 +186,22 @@ class GLMM {
             update_y_tilde();
             sigma2 = 1;
             update_Sigma();
-            update_P();
+            update_P_components();
             iter = 0;
             glmm_converged = false;
             step_size = 1;
         }
 
-        GLMM(
+        GLMM_ID(
             const Eigen::Ref<Eigen::MatrixXd> X_, 
             const Eigen::Ref<Eigen::VectorXd> y_, 
             const Eigen::Ref<Eigen::VectorXd> offset_,
-            std::unique_ptr<Family> family_, 
-            const Eigen::MatrixXd K_
+            std::unique_ptr<Family> family_
         ) : 
             X(X_),
             y(y_),
             offset(offset_),
-            family(std::move(family_)),
-            K(K_)
+            family(std::move(family_))
         {
             n = X.rows();
             p = X.cols();
@@ -205,26 +213,23 @@ class GLMM {
             while (iter < max_iter) {
 
                 update_Sigma();
-                update_P();
-
+                update_P_components();
                 update_beta();
                 update_u();
                 update_eta();
                 update_mu();
-
                 update_sigma2();
-                
                 update_w();
-                
                 update_y_tilde();
-
                 check_converge();
                 if (glmm_converged) {
                     break;
                 }
                 update_step_size();
+
                 iter += 1;
             }
+            P = Eigen::MatrixXd(Sigma_diag_inv.asDiagonal()) - Sigma_invX * XtSigma_invX_inv * Sigma_invX.transpose();
         }
 };
 
