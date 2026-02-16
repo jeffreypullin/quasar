@@ -25,6 +25,7 @@
 #include "NBGLM.hpp"
 #include "GLMM_GRM.hpp"
 #include "GLMM_ID.hpp"
+#include "GLMM_SC.hpp"
 #include "NBGLMM.hpp"
 #include "Phi.hpp"
 
@@ -37,7 +38,16 @@
 void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm) {
 
     Eigen::MatrixXd& Y = pheno_data.data;
-    Eigen::MatrixXd& X = cov_data.data;
+    if (params.data_type == "single-cell") {
+        Y = Eigen::MatrixXd::Zero(pheno_data.n_samples, pheno_data.n_pheno);
+    }
+    
+    // We need to expand 'bulk' covariate data into single-cell covariate data.
+    if (params.data_type == "single-cell" && cov_data.cov_data_type == "bulk") {
+        cov_data.expand_cov_data(pheno_data.cell_counts);
+    }
+
+    Eigen::MatrixXd& X = (params.data_type == "single-cell") ? cov_data.sc_data : cov_data.data;
 
     int n_pheno = pheno_data.n_pheno;
 
@@ -48,7 +58,12 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     }
 
     // Compute offset for count-distribution models.
-    Eigen::VectorXd offset = Y.rowwise().sum().array().log();
+    Eigen::VectorXd offset;
+    if (params.data_type == "single-cell") {
+        offset = pheno_data.offset;
+    } else {
+        offset = Y.rowwise().sum().array().log();
+    }
     
     Eigen::MatrixXd W(n_pheno, pheno_data.n_samples);
 
@@ -58,8 +73,36 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<bool> glm_converged;
     std::vector<bool> phi_converged;
     std::vector<bool> glmm_converged;
+    std::vector<Eigen::MatrixXd> XtWX_inv_vec;
+    std::vector<Eigen::VectorXd> Xty_res_vec;
+    std::vector<Eigen::MatrixXd> XtWZ_vec;
 
-    if (params.model == "lmm") {
+    Eigen::VectorXd ns(pheno_data.cell_counts.size());
+    for (size_t idx = 0; idx < pheno_data.cell_counts.size(); ++idx) {
+        ns(idx) = static_cast<double>(pheno_data.cell_counts[idx]);
+    }
+
+    if (params.model == "p_glmm_sc") {
+        
+        std::cout <<"\nFitting single-cell Poisson GLMMs..." << std::endl; 
+        for (int i = 0; i < n_pheno; ++i) {
+
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLMM_SC p_glmm_sc(X, pheno_data.sc_data.col(i), offset, std::move(poisson), ns);
+            p_glmm_sc.fit();
+
+            Y.col(i) = p_glmm_sc.y_out;
+            W.row(i) = p_glmm_sc.mu_out;
+            XtWX_inv_vec.push_back(p_glmm_sc.XtWX_inv);
+            Xty_res_vec.push_back(p_glmm_sc.Xty_res);
+            XtWZ_vec.push_back(p_glmm_sc.XtWZ);
+
+            tr.push_back(p_glmm_sc.r_approx);
+            glmm_converged.push_back(p_glmm_sc.glmm_converged);
+        }
+        std::cout << "Null single-cell Poisson GLMMs fitted." << std::endl;
+
+    } else if (params.model == "lmm") {
 
         std::cout << "\nPerforming eigen decomposition of GRM..." << std::endl;
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(grm.mat);
@@ -197,6 +240,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.W = W;
     model_fit.phi = phi;
     model_fit.tr = tr;
+    model_fit.XtWX_inv_vec = XtWX_inv_vec;
+    model_fit.Xty_res_vec = Xty_res_vec;
+    model_fit.XtWZ_vec = XtWZ_vec;
 
     model_fit.phi_converged = phi_converged;
     model_fit.glm_converged = glm_converged;

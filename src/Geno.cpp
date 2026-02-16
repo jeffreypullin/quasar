@@ -207,7 +207,7 @@ void GenoData::compute_maf() {
         double maf_value = std::min(af, 1.0 - af);
         maf.push_back(maf_value);
     }
-    std::cout << "MAF computed.\n" << std::endl;
+    std::cout << "MAF computed." << std::endl;
 }
 
 void GenoData::compute_maf_problems() {

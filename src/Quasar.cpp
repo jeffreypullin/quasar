@@ -36,6 +36,8 @@ int main(int argc, char* argv[]) {
         // Data arguments.
         ("p,plink", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.plink_prefix))
         ("b,bed", "Bed file holding phenotype informaton", cxxopts::value<std::string>(params.bed_file)->default_value("no-bed"))
+        ("sc_pheno", "File holding single-cell level phenotype data", cxxopts::value<std::string>(params.sc_pheno_file))
+        ("anno", "File holding feature annotation", cxxopts::value<std::string>(params.anno_file))
         ("c,cov", "Covariate file", cxxopts::value<std::string>(params.cov_file))
         ("r,resid", "Residualised phenotype bed file", cxxopts::value<std::string>(params.resid_file)->default_value("no-resid"))
         ("f,fit", "Model fit file", cxxopts::value<std::string>(params.fit_file)->default_value("no-fit"))
@@ -75,9 +77,11 @@ int main(int argc, char* argv[]) {
         params.model != "p_glm" && 
         params.model != "nb_glm" && 
         params.model != "p_glmm_id" &&
+        params.model != "p_glmm_sc" &&
         params.model != "p_glmm_grm" &&
         params.model != "nb_glmm") {
-        std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'p_glm', 'nb_glm', 'p_glmm', 'p_glmm_id', 'p_glmm_grm' or 'nb_glmm'." << std::endl;
+        std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'p_glm', 'nb_glm', 'p_glmm', "
+                  << "'p_glmm_id', 'p_glmm_sc', 'p_glmm_grm' or 'nb_glmm'." << std::endl;
         exit(1);
     }
 
@@ -86,16 +90,31 @@ int main(int argc, char* argv[]) {
         std::cerr << "Invalid mode specified. Please use one of 'cis', 'trans', 'gwas', 'residualise'" << std::endl;
         exit(1);
     }
+
+    if (!params.sc_pheno_file.empty()) {
+        params.data_type = "single-cell";
+        if (params.anno_file.empty()) {
+            std::cerr << "Error: feature annotation file (--anno) must also be specified for single-cell data." << std::endl;
+            exit(1);
+        }
+        if (params.model != "p_glmm_sc") {
+            std::cerr << "Error: only the `p_glmm_sc` model is compatible with single-cell data." << std::endl;
+            exit(1);
+        }
+    } else {
+        params.data_type = "bulk";
+    }
     
-    std::cout << "\nmode: " << params.mode << std::endl;
-    std::cout << "model: " << params.model << std::endl;
+    std::cout << "\nMode: " << params.mode << std::endl;
+    std::cout << "Model: " << params.model << std::endl;
+    std::cout << "Data type: " << params.data_type << std::endl;
 
     if (params.model == "p_glm") {
-        std::cout << "Warning: using the Poisson GLM is not recommended due to its high rate of false positives." << std::endl;
+        std::cout << "\nWarning: using the Poisson GLM is not recommended due to its high rate of false positives." << std::endl;
     }
 
     if (params.model == "nb_glmm") {
-        std::cout << "Warning: using the NB-GLMM is not recommended, use the Poisson GLMM instead." << std::endl;
+        std::cout << "\nWarning: using the NB-GLMM is not recommended, use the Poisson GLMM instead." << std::endl;
     }
 
     bool mixed_model = params.model == "lmm" || params.model == "p_glmm" || params.model == "nb_glmm";
@@ -115,20 +134,57 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    std::cout << "\nReading non-genotype data..." << std::endl;
+    std::cout << "\nReading genotype data information..." << std::endl;
+    GenoData geno_data(params.plink_prefix);
+    geno_data.read_fam_file();
+    geno_data.read_bim_file();
 
+    bool one_chrom = false;
+    if (params.mode == "cis" || params.mode == "residualise") {
+        std::vector<int> g_chrom = geno_data.chrom;
+        one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());
+        if (one_chrom) {
+            std::cout << "\nOnly one chromosome detected in genotype data." << std::endl;
+        }
+    }
+
+    std::cout << "\nReading non-genotype data..." << std::endl;
     std::string pheno_file;
     if (params.mode == "cis" || params.mode == "residualise") {
-        pheno_file = params.bed_file;
+        if (params.data_type == "single-cell") {
+            pheno_file = params.sc_pheno_file;
+        } else {
+            pheno_file = params.bed_file;
+        }
     } else {
         pheno_file = params.resid_file;
     }
-    PhenoData pheno_data(pheno_file);
-    pheno_data.read_pheno_data();
+
+    PhenoData pheno_data(pheno_file, params.data_type);
+    if (params.data_type == "single-cell") {
+        pheno_data.prepare_sc_pheno_data();
+        pheno_data.read_anno_data(params.anno_file);
+        if (params.mode == "cis") {
+            if (one_chrom) {
+                pheno_data.filter_pheno_ids(geno_data.chrom.front());
+            } 
+            pheno_data.read_sc_pheno_data();
+        } else {
+            std::cerr << "Error: non-cis modes are not currently supported for single-cell data." << std::endl;
+            exit(1);
+        }
+    } else {
+        pheno_data.read_pheno_data();
+    }
     
     CovData cov_data(params.cov_file);
-    cov_data.read_cov_data();
-    
+    cov_data.check_cov_data_type();
+    if (cov_data.cov_data_type == "single-cell") {
+        cov_data.read_sc_cov_data();
+    } else {
+        cov_data.read_cov_data();
+    }
+
     GRM grm(params.grm_file);
     if (mixed_model) {
         if (params.grm_file == "no-grm") {
@@ -137,10 +193,6 @@ int main(int argc, char* argv[]) {
         }
         grm.read_grm();
     }
-    
-    GenoData geno_data(params.plink_prefix);
-    geno_data.read_fam_file();
-    geno_data.read_bim_file();
 
     std::cout << "\nComputing sample intersection and filtering data..." << std::endl;
     std::vector<std::vector<std::string>> sample_ids_vecs = {
@@ -158,14 +210,27 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    pheno_data.slice_samples(int_sample_ids);
-    cov_data.slice_samples(int_sample_ids);
+    if (params.data_type == "single-cell") {
+        pheno_data.slice_sc_samples(int_sample_ids);
+    } else {
+        pheno_data.slice_samples(int_sample_ids);
+    }
+
+    if (cov_data.cov_data_type == "single-cell") {
+        cov_data.slice_sc_samples(int_sample_ids);
+    } else {
+        cov_data.slice_samples(int_sample_ids);
+    }
+
+    if (params.data_type == "single-cell" && cov_data.cov_data_type == "single-cell") {
+        align_sc_cell_ids(pheno_data, cov_data);
+    }
     if (mixed_model) {
         grm.slice_samples(int_sample_ids);
     }
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs." << std::endl;
 
-    if (params.mode == "cis" || params.mode == "residualise") {
+    if (params.data_type == "bulk" && (params.mode == "cis" || params.mode == "residualise")) {
         std::vector<int> g_chrom = geno_data.chrom;
         bool one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());
         if (one_chrom) {

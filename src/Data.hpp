@@ -24,11 +24,21 @@ class PhenoData {
 
     public:
       std::string pheno_file;
+      std::string data_type;
+      
       size_t n_pheno;
       size_t n_samples;
+      size_t n_cells;
+
       std::vector<std::string> pheno_ids;
+      std::vector<size_t> pheno_inds;
       std::vector<std::string> sample_ids;
+      std::vector<std::string> cell_ids;
+      std::vector<int> cell_counts;
+
       Eigen::MatrixXd data;
+      Eigen::MatrixXd sc_data;
+      Eigen::VectorXd offset;
 
       std::vector<int> chrom;
       std::vector<int> start;
@@ -37,32 +47,57 @@ class PhenoData {
       std::vector<int> window_end;
       std::vector<int> window_n;
 
-      PhenoData(std::string pheno_file) {
+      PhenoData(std::string pheno_file, std::string data_type) {
         this->pheno_file = pheno_file;
+        this->data_type = data_type;
       }
+
       void read_pheno_data();
       void write_pheno_data(std::string out_file);
-
+      
       void construct_windows(GenoData& geno_data, int window_size, bool verbose); 
 
       void slice_chromosome(int chrom_id);
       void slice_samples(std::vector<std::string>& sample_ids);
+
+      // Single-cell specific.
+      void prepare_sc_pheno_data();
+      void filter_pheno_ids(int filt_chrom);
+      void read_sc_pheno_data();
+      void slice_sc_samples(std::vector<std::string>& sample_ids);
+      void read_anno_data(std::string anno_file);
 };
 
 class CovData {
 
     public:
       std::string cov_file;
+      std::string data_type;
+      std::string cov_data_type;
+
       size_t n_cov;
       size_t n_samples;
+      size_t n_cells;
+
       std::vector<std::string> cov_ids;
       std::vector<std::string> sample_ids;
+      std::vector<std::string> cell_ids;
+      std::vector<int> cell_counts;
       Eigen::MatrixXd data;
+      Eigen::MatrixXd sc_data;
+
       CovData(std::string cov_file) {
         this->cov_file = cov_file;
       }
+    
+      void check_cov_data_type();
       void read_cov_data();
+      void read_sc_cov_data();
+      void expand_cov_data(std::vector<int> cell_counts);
+      void collapse_cov_data();
+
       void slice_samples(std::vector<std::string>& sample_ids);
+      void slice_sc_samples(std::vector<std::string>& sample_ids);
 };
 
 class GRM {
@@ -78,5 +113,7 @@ class GRM {
     void slice_samples(std::vector<std::string>& sample_ids);
     void read_grm();
 };
+
+size_t align_sc_cell_ids(PhenoData& pheno_data, CovData& cov_data);
 
 #endif

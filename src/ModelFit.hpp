@@ -41,6 +41,9 @@ class ModelFit {
     
     std::vector<double> phi;
     std::vector<double> tr;
+    std::vector<Eigen::MatrixXd> XtWX_inv_vec;
+    std::vector<Eigen::VectorXd> Xty_res_vec;
+    std::vector<Eigen::MatrixXd> XtWZ_vec;
     
     std::vector<bool> phi_converged;
     std::vector<bool> glm_converged;

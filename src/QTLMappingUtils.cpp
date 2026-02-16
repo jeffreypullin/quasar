@@ -139,7 +139,10 @@ std::string make_variant_header_line(std::string& model) {
         line = line + "\tglm_converged";
     } else if (model == "nb_glm") {
         line = line + "\tglm_converged\tphi\tphi_converged";
-    } else if (model == "p_glmm") {
+    } else if (model == "p_glmm" || 
+               model == "p_glmm_grm" || 
+               model == "p_glmm_id" || 
+               model == "p_glmm_sc") {
         line = line + "\tglmm_converged";
     } else if (model == "nb_glmm") {
         line = line + "\tglmm_converged\tphi\tphi_converged";

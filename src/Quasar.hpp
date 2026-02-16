@@ -37,11 +37,14 @@ struct Params {
     std::string grm_file;
     std::string cov_file;
     std::string bed_file;
+    std::string sc_pheno_file;
+    std::string anno_file;
     std::string resid_file;
     std::string fit_file;
 
     std::string mode; 
     std::string model;
+    std::string data_type;
     int window_size = 1000000;
     bool use_apl;
 

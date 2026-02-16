@@ -29,6 +29,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     std::string mode = params.mode;
 
     Eigen::MatrixXd& G = geno_data.genotype_matrix;
+    // This X is only used in the case of bulk data.
     Eigen::MatrixXd& X = cov_data.data;
     Eigen::MatrixXd& Y = pheno_data.data;
 
@@ -86,16 +87,23 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
         double sigma2 = Y.col(i).squaredNorm() / (n_samples - n_cov);
         Eigen::VectorXd w;
-        if (model == "p_glm" || model == "nb_glm" || model == "p_glmm" || model == "nb_glmm") {
+        if (model == "p_glm" || 
+            model == "nb_glm" || 
+            model == "p_glmm" || 
+            model == "p_glmm_grm" || 
+            model == "p_glmm_sc" || 
+            model == "p_glmm_id" || 
+            model == "nb_glmm") {
             w = model_fit.W.row(i);
         } else {
             w = Eigen::VectorXd::Ones(n_samples);
         }
 
-        // Pre-calculate matrices used in covariate adjustment.
         Eigen::MatrixXd XtWX_inv, Xt;
-        XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-        Xt = X.transpose();
+        if (params.data_type != "single-cell") {
+            XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
+            Xt = X.transpose();
+        }
 
         Eigen::VectorXd g_s(n_samples);
         Eigen::VectorXd g(n_samples);
@@ -115,16 +123,30 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             }
 
             g = G_slice.col(slice_ind); 
-            g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
-            
-            u = g_s.cwiseProduct(w).dot(Y.col(i));
-            gtg = g_s.cwiseProduct(w).dot(g_s);
+            if (params.data_type == "bulk") {
+                g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
+                u = g_s.cwiseProduct(w).dot(Y.col(i));
+                gtg = g_s.cwiseProduct(w).dot(g_s);
+            } else {
+                Eigen::MatrixXd XtWZ = model_fit.XtWZ_vec[i]; 
+                Eigen::MatrixXd XtWX_inv = model_fit.XtWX_inv_vec[i]; 
+                Eigen::VectorXd Xty_res = model_fit.Xty_res_vec[i]; 
+                Eigen::VectorXd t;
+
+                t = XtWZ * g;
+                u = g.dot(Y.col(i)) - t.dot(XtWX_inv * Xty_res);
+                gtg = g.cwiseProduct(w).dot(g) - t.dot(XtWX_inv * t);
+            }
             v = gtg;
 
             if (model == "lmm") {
                 v *= sigma2;
             }
-            if (model == "p_glmm" || model == "nb_glmm") {
+            if (model == "p_glmm" || 
+                model == "p_glmm_grm" || 
+                model == "p_glmm_sc" || 
+                model == "p_glmm_id" || 
+                model == "nb_glmm") {
                 v *= model_fit.tr[i];
             }
             beta = u / v;
@@ -161,7 +183,10 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 variant_line << "\t" << model_fit.glm_converged[i] <<
                     "\t" << model_fit.phi[i] <<
                     "\t" << model_fit.phi_converged[i];
-            } else if (model == "p_glmm") {
+            } else if (model == "p_glmm" || 
+                       model == "p_glmm_grm" || 
+                       model == "p_glmm_sc" || 
+                       model == "p_glmm_id") {
                 variant_line << "\t" << model_fit.glmm_converged[i];
             } else if (model == "nb_glmm") {
                 variant_line << "\t" << model_fit.glmm_converged[i] << 
