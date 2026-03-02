@@ -229,6 +229,9 @@ class GLMM_ID {
 
                 iter += 1;
             }
+            if (std::isnan(sigma2) || (beta.hasNaN())) {
+                glmm_converged = false;
+            }
             P = Eigen::MatrixXd(Sigma_diag_inv.asDiagonal()) - Sigma_invX * XtSigma_invX_inv * Sigma_invX.transpose();
         }
 };

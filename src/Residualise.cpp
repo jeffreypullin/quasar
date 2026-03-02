@@ -69,6 +69,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
 
     std::vector<double> tr;
     std::vector<double> phi;
+    std::vector<double> sigma2;
 
     std::vector<bool> glm_converged;
     std::vector<bool> phi_converged;
@@ -99,6 +100,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
 
             tr.push_back(p_glmm_sc.r_approx);
             glmm_converged.push_back(p_glmm_sc.glmm_converged);
+            sigma2.push_back(p_glmm_sc.sigma2);
         }
         std::cout << "Null single-cell Poisson GLMMs fitted." << std::endl;
 
@@ -161,6 +163,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             Eigen::VectorXd w = p_glmm_grm.mu;
             tr.push_back(compute_r_approx(P, w, X));
             glmm_converged.push_back(p_glmm_grm.glmm_converged);
+            sigma2.push_back(p_glmm_grm.sigma2);
         }
         std::cout << "Null Poisson GLMMs fitted." << std::endl;
 
@@ -179,6 +182,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             Eigen::VectorXd w = p_glmm_id.mu;
             tr.push_back(compute_r_approx(P, w, X));
             glmm_converged.push_back(p_glmm_id.glmm_converged);
+            sigma2.push_back(p_glmm_id.sigma2);
         }
         std::cout << "Null Poisson GLMMs fitted." << std::endl;
 
@@ -232,6 +236,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             phi.push_back(nb_glmm.phi);
             phi_converged.push_back(nb_glmm.phi_converged);
             glmm_converged.push_back(nb_glmm.glmm_converged);
+            sigma2.push_back(nb_glmm.sigma2);
         }
         std::cout << "Null NB GLMMs fitted." << std::endl;
     
@@ -240,6 +245,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.W = W;
     model_fit.phi = phi;
     model_fit.tr = tr;
+    model_fit.sigma2 = sigma2;
     model_fit.XtWX_inv_vec = XtWX_inv_vec;
     model_fit.Xty_res_vec = Xty_res_vec;
     model_fit.XtWZ_vec = XtWZ_vec;

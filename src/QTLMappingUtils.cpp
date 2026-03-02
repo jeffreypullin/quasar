@@ -143,9 +143,9 @@ std::string make_variant_header_line(std::string& model) {
                model == "p_glmm_grm" || 
                model == "p_glmm_id" || 
                model == "p_glmm_sc") {
-        line = line + "\tglmm_converged";
+        line = line + "\tglmm_converged\tsigma2";
     } else if (model == "nb_glmm") {
-        line = line + "\tglmm_converged\tphi\tphi_converged";
+        line = line + "\tglmm_converged\tsigma2\tphi\tphi_converged";
     }
 
     line = line + "\n";

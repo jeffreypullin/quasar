@@ -430,6 +430,9 @@ class GLMM_SC {
                 update_step_size();
                 iter += 1;
             }
+            if (std::isnan(sigma2) || (beta.hasNaN())) {
+                glmm_converged = false;
+            }
             compute_r_approx();
             compute_output();
         }

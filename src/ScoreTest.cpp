@@ -187,9 +187,11 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                        model == "p_glmm_grm" || 
                        model == "p_glmm_sc" || 
                        model == "p_glmm_id") {
-                variant_line << "\t" << model_fit.glmm_converged[i];
+                variant_line << "\t" << model_fit.glmm_converged[i] <<
+                    "\t" << model_fit.sigma2[i];
             } else if (model == "nb_glmm") {
                 variant_line << "\t" << model_fit.glmm_converged[i] << 
+                    "\t" << model_fit.phi[i] <<
                     "\t" << model_fit.phi[i] <<
                     "\t" << model_fit.phi_converged[i];
             }
