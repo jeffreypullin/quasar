@@ -44,6 +44,7 @@ struct Params {
     std::string model;
     int window_size = 1000000;
     bool use_apl;
+    bool use_quant_res;
 
     std::string out;
     bool verbose = false;
