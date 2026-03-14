@@ -42,6 +42,9 @@ struct Params {
     std::string resid_file;
     std::string fit_file;
 
+    std::string interaction_cov;
+    bool do_interaction = false;
+
     std::string mode; 
     std::string model;
     std::string data_type;

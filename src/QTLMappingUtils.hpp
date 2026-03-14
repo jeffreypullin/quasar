@@ -39,6 +39,6 @@ double qnorm(double p, bool lower);
 double qcauchy(double p, bool lower);
 double pcauchy(double x, bool lower);
 
-std::string make_variant_header_line(std::string& model);
+std::string make_variant_header_line(const Params& params);
 
 #endif

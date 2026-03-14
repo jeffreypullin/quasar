@@ -38,20 +38,34 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     size_t n_snps = geno_data.n_snps;
 
     std::ofstream variant_file(params.out + "-quasar-" + mode + "-variant.txt");
-    std::string variant_header_line = make_variant_header_line(model);
+    std::string variant_header_line = make_variant_header_line(params);
     variant_file << variant_header_line;
 
     std::ofstream region_file;
     if (mode == "cis") {
         region_file.open(params.out + "-quasar-cis-region.txt");
-        std::string region_header_line = "feature_id\tchrom\tstart\tend\tpvalue\n";
+        std::string region_header_line = "feature_id\tchrom\tstart\tend\t";
+        if (params.do_interaction) {
+            region_header_line += "main_acat_pvalue\tint_acat_pvalue";
+        } else {
+            region_header_line += "pvalue";
+        }
+        region_header_line += "\n";
         region_file << region_header_line;
     }
+
+    bool is_glmm_model = 
+        model == "p_glmm" || 
+        model == "p_glmm_grm" || 
+        model == "p_glmm_sc" || 
+        model == "p_glmm_id" || 
+        model == "nb_glmm";
 
     // Iterate over features.
     for (size_t i = 0; i < pheno_data.n_pheno; ++i) {
 
-        std::vector<double> pvals;
+        std::vector<double> main_pvals;
+        std::vector<double> int_pvals;
 
         int window_start, window_end, window_n;
         int cis_window_start = pheno_data.window_start[i];
@@ -107,6 +121,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
         Eigen::VectorXd g_s(n_samples);
         Eigen::VectorXd g(n_samples);
+        Eigen::VectorXd z(n_samples);
+        Eigen::VectorXd z_s(n_samples);
         
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
@@ -115,54 +131,100 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             int slice_ind = k - window_start; 
 
             std::stringstream variant_line;
-            double beta, se, u, v, gtg, zscore, pval_esnp;
+            double u, v, gtg;
+            double main_beta, main_se, main_zscore, main_pval_snp;
+            double int_beta, int_se, int_zscore, int_pval_snp;
 
             // Exclude variants in the cis window when in trans mode.
             if (mode_trans && chrom == geno_data.chrom[k] && k < cis_window_end && k > cis_window_start) {
                 continue;
             }
 
+            bool model_converged = false;
+            if (is_glmm_model) {
+                model_converged = model_fit.glmm_converged[i];
+            } else if (model == "p_glm" || model == "nb_glm") {
+                model_converged = model_fit.glm_converged[i];
+            } else {
+                model_converged = true;
+            }
+
             g = G_slice.col(slice_ind); 
-            if (params.data_type == "bulk") {
-                g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
-                u = g_s.cwiseProduct(w).dot(Y.col(i));
-                gtg = g_s.cwiseProduct(w).dot(g_s);
-            } else {
-                Eigen::MatrixXd XtWZ = model_fit.XtWZ_vec[i]; 
-                Eigen::MatrixXd XtWX_inv = model_fit.XtWX_inv_vec[i]; 
-                Eigen::VectorXd Xty_res = model_fit.Xty_res_vec[i]; 
-                Eigen::VectorXd t;
+            if (std::abs(geno_data.maf[k]) < 1e-8 || !model_converged) {
 
-                t = XtWZ * g;
-                u = g.dot(Y.col(i)) - t.dot(XtWX_inv * Xty_res);
-                gtg = g.cwiseProduct(w).dot(g) - t.dot(XtWX_inv * t);
-            }
-            v = gtg;
+                main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
+                int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();
 
-            if (model == "lmm") {
-                v *= sigma2;
-            }
-            if (model == "p_glmm" || 
-                model == "p_glmm_grm" || 
-                model == "p_glmm_sc" || 
-                model == "p_glmm_id" || 
-                model == "nb_glmm") {
-                v *= model_fit.tr[i];
-            }
-            beta = u / v;
-            se = 1 / std::sqrt(v);
-            if (v > 0) {
-                zscore = beta / se;
-                pval_esnp = 2 * pnorm(std::abs(zscore), true);
+            } else if (!params.do_interaction) {
+
+                if (params.data_type == "bulk") {
+                    g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
+                    u = g_s.cwiseProduct(w).dot(Y.col(i));
+                    gtg = g_s.cwiseProduct(w).dot(g_s);
+                } else {
+                    Eigen::MatrixXd XtWZ = model_fit.XtWZ_vec[i]; 
+                    Eigen::MatrixXd XtWX_inv = model_fit.XtWX_inv_vec[i]; 
+                    Eigen::VectorXd Xty_res = model_fit.Xty_res_vec[i]; 
+                    Eigen::VectorXd t = XtWZ * g;
+
+                    u = g.dot(Y.col(i)) - t.dot(XtWX_inv * Xty_res);
+                    gtg = g.cwiseProduct(w).dot(g) - t.dot(XtWX_inv * t);
+                }
+                v = gtg;
+
+                if (model == "lmm") {
+                    v *= sigma2;
+                } else if (is_glmm_model) {
+                    v *= model_fit.tr[i];
+                }
+
+                main_beta = u / v;
+                main_se = 1 / std::sqrt(v);
+                main_zscore = main_beta / main_se;
+                main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
+
+                if (mode == "cis") {
+                    main_pvals.push_back(main_pval_snp);
+                }
+
             } else {
-                zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
-            }
-            // MAF == 0 case.
-            if (std::abs(geno_data.maf[k]) < 1e-8) {
-                beta = se = zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
-            }
-            if (mode == "cis") {
-                pvals.push_back(pval_esnp);
+                if (params.data_type == "single-cell") {
+                    std::cerr << "Error: Interaction testing is not implemented for single-cell mode." << std::endl;
+                    exit(1);
+                }
+                if (params.model != "lm" || params.model != "nb_glm") {
+                    std::cerr << "Error: Interaction testing is only implemented for the LM and NB-GLM models." << std::endl;
+                    exit(1);
+                }
+
+                Eigen::VectorXd x_int = X.col(cov_data.interaction_ind);
+                Eigen::VectorXd g_main = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
+
+                Eigen::VectorXd g_int_raw = x_int.cwiseProduct(g);
+                Eigen::VectorXd g_int = g_int_raw - X * (XtWX_inv * (Xt * g_int_raw.cwiseProduct(w)));
+
+                Eigen::MatrixXd Z(g.size(), 2);
+                Z.col(0) = g_main;
+                Z.col(1) = g_int;
+               
+                Eigen::Matrix2d ZtWZ = Z.transpose() * w.asDiagonal() * Z;
+                Eigen::Vector2d ZtWY = Z.transpose() * w.asDiagonal() * Y.col(i);
+                Eigen::Vector2d beta = ZtWZ.ldlt().solve(ZtWY);
+                Eigen::Matrix2d cov_mat = ZtWZ.inverse();
+
+                main_beta = beta(0);   
+                int_beta = beta(1);   
+                main_se = std::sqrt(cov_mat(0, 0));
+                int_se = std::sqrt(cov_mat(1, 1));
+                main_zscore = main_beta / main_se;
+                int_zscore = int_beta / int_se;
+                main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
+                int_pval_snp = 2 * pnorm(std::abs(int_zscore), true);
+
+                if (mode == "cis") {
+                    main_pvals.push_back(main_pval_snp);
+                    int_pvals.push_back(int_pval_snp);
+                }
             }
 
             variant_line << 
@@ -173,9 +235,9 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 geno_data.alt[k] << "\t" <<
                 geno_data.ref[k] << "\t" <<
                 geno_data.maf[k] << "\t" <<
-                beta << "\t" << 
-                se << "\t" <<
-                pval_esnp;
+                main_beta << "\t" << 
+                main_se << "\t" <<
+                main_pval_snp;
 
             if (model == "p_glm") {
                 variant_line << "\t" << model_fit.glm_converged[i];
@@ -196,6 +258,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     "\t" << model_fit.phi_converged[i];
             }
 
+            if (params.do_interaction) {
+                variant_line << "\t" <<
+                    int_beta << "\t" << 
+                    int_se << "\t" <<
+                    int_pval_snp;
+            }
+
             variant_line << "\n";
             variant_file << variant_line.str();
         }
@@ -208,7 +277,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 pheno_data.chrom[i] << "\t" <<
                 pheno_data.start[i] << "\t" <<
                 pheno_data.end[i] << "\t" <<
-                ACAT(pvals) << "\n";
+                ACAT(main_pvals);
+
+            if (params.do_interaction) {
+                region_line << "\t" << ACAT(int_pvals);
+            } 
+                
+            region_line << "\n";
             region_file << region_line.str();
         }
     }

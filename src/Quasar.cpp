@@ -42,6 +42,7 @@ int main(int argc, char* argv[]) {
         ("r,resid", "Residualised phenotype bed file", cxxopts::value<std::string>(params.resid_file)->default_value("no-resid"))
         ("f,fit", "Model fit file", cxxopts::value<std::string>(params.fit_file)->default_value("no-fit"))
         ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file)->default_value("no-grm"))
+        ("i,interaction", "Covariate column name for GxE interaction testing", cxxopts::value<std::string>(params.interaction_cov))
         // Execution arguments.
         ("mode", "Mode to run quasar in (residualise, cis, trans, gwas)", cxxopts::value<std::string>(params.mode))
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
@@ -68,6 +69,7 @@ int main(int argc, char* argv[]) {
     if (params.out == "") {
         params.out = "quasar_output";
     }
+    params.do_interaction = !params.interaction_cov.empty();
 
     std::cout << "\nquasar execution started." << std::endl;
 
@@ -117,6 +119,10 @@ int main(int argc, char* argv[]) {
     std::cout << "\nMode: " << params.mode << std::endl;
     std::cout << "Model: " << params.model << std::endl;
     std::cout << "Data type: " << params.data_type << std::endl;
+    if (params.do_interaction) {
+        std::cout << "\nPerforming interaction testing" << std::endl;
+        std::cout << "Interaction covariate: " << params.interaction_cov << std::endl;
+    }
 
     if (params.model == "p_glm") {
         std::cout << "\nWarning: using the Poisson GLM is not recommended due to its high rate of false positives." << std::endl;
@@ -194,6 +200,15 @@ int main(int argc, char* argv[]) {
         cov_data.read_cov_data();
     }
 
+    if (params.do_interaction) {
+        auto it = std::find(cov_data.cov_ids.begin(), cov_data.cov_ids.end(), params.interaction_cov);
+        if (it == cov_data.cov_ids.end()) {
+            std::cerr << "Error: interaction covariate '" << params.interaction_cov
+                      << "' not found in covariate file columns." << std::endl;
+            exit(1);
+        }
+    }
+
     GRM grm(params.grm_file);
     if (mixed_model) {
         if (params.grm_file == "no-grm") {
@@ -238,6 +253,18 @@ int main(int argc, char* argv[]) {
         grm.slice_samples(int_sample_ids);
     }
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs." << std::endl;
+
+    if (params.do_interaction) {
+        cov_data.interaction_id = params.interaction_cov;
+        cov_data.interaction_ind = std::distance(
+            cov_data.cov_ids.begin(),
+            std::find(
+                cov_data.cov_ids.begin(),
+                cov_data.cov_ids.end(),
+                params.interaction_cov
+            )
+        );
+    }
 
     if (params.data_type == "bulk" && (params.mode == "cis" || params.mode == "residualise")) {
         std::vector<int> g_chrom = geno_data.chrom;

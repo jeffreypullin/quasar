@@ -86,6 +86,9 @@ class CovData {
       Eigen::MatrixXd data;
       Eigen::MatrixXd sc_data;
 
+      int interaction_ind;
+      std::string interaction_id;
+
       CovData(std::string cov_file) {
         this->cov_file = cov_file;
       }

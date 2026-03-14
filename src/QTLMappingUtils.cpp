@@ -131,21 +131,50 @@ double ACAT(const std::vector<double>& pvals) {
     return pcauchy(sum, true);
 }
 
-std::string make_variant_header_line(std::string& model) {
+std::string make_variant_header_line(const Params& params) {
 
-    std::string line = "feature_id\tsnp_id\tchrom\tpos\talt\tref\tmaf\tbeta\tse\tpvalue";
+    const std::string& model = params.model;
+
+    std::string line = "feature_id\tsnp_id\tchrom\tpos\talt\tref\tmaf";
+    
+    if (params.do_interaction) {
+        line = line + "\tsnp_beta\tsnp_se\tsnp_pvalue";
+    } else {
+        line = line + "\tbeta\tse\tpvalue";
+    }
 
     if (model == "p_glm") {
         line = line + "\tglm_converged";
     } else if (model == "nb_glm") {
         line = line + "\tglm_converged\tphi\tphi_converged";
-    } else if (model == "p_glmm" || 
-               model == "p_glmm_grm" || 
-               model == "p_glmm_id" || 
+    } else if (model == "p_glmm" ||
+               model == "p_glmm_grm" ||
+               model == "p_glmm_id" ||
                model == "p_glmm_sc") {
         line = line + "\tglmm_converged\tsigma2";
     } else if (model == "nb_glmm") {
         line = line + "\tglmm_converged\tsigma2\tphi\tphi_converged";
+    }
+
+    if (params.do_interaction) {
+        std::string interaction_id = params.interaction_cov;
+
+        std::string snake_case_id;
+        snake_case_id.reserve(interaction_id.size());
+        for (unsigned char c : interaction_id) {
+            if (std::isalnum(c)) {
+                snake_case_id.push_back(static_cast<char>(std::tolower(c)));
+            } else if (!snake_case_id.empty() && snake_case_id.back() != '_') {
+                snake_case_id.push_back('_');
+            }
+        }
+        if (!snake_case_id.empty() && snake_case_id.back() == '_') {
+            snake_case_id.pop_back();
+        }
+
+        line += "\tsnp_x_" + snake_case_id + "_beta";
+        line += "\tsnp_x_" + snake_case_id + "_se";
+        line += "\tsnp_x_" + snake_case_id + "_pvalue";
     }
 
     line = line + "\n";
