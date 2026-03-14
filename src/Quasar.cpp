@@ -47,6 +47,7 @@ int main(int argc, char* argv[]) {
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
         ("use-apl", "Use adjusted profile likelihood to estimate NB dispersion", cxxopts::value<bool>(params.use_apl))
+        ("use-quant-res", "Use randomised quantile residuals to compute score tests with NB-GLM model", cxxopts::value<bool>(params.use_quant_res))
         // Output arguments.
         ("o,out", "Output file prefix", cxxopts::value<std::string>(params.out))
         ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
@@ -70,7 +71,6 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\nquasar execution started." << std::endl;
 
-    // Check model.
     if (params.model != "lmm" && 
         params.model != "p_glmm" && 
         params.model != "lm" && 
@@ -85,9 +85,18 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    // Check mode.
     if (params.mode != "cis" && params.mode != "trans" && params.mode != "gwas" && params.mode != "residualise") {
         std::cerr << "Invalid mode specified. Please use one of 'cis', 'trans', 'gwas', 'residualise'" << std::endl;
+        exit(1);
+    }
+
+    if (params.model != "nb_glm" && (params.use_apl)) {
+        std::cerr << "Error: The --use-apl flagged is only applicable when usisng the NB-GLM model." << std::endl;
+        exit(1);
+    }
+    
+    if (params.model != "nb_glm" && (params.use_quant_res)) {
+        std::cerr << "Error: The --use-quant-res flagged is only applicable when usisng the NB-GLM model." << std::endl;
         exit(1);
     }
 

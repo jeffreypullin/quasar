@@ -34,6 +34,9 @@
 #include <vector>
 #include <string>
 #include <numeric>
+#include <algorithm>
+#include <random>
+#include <boost/math/special_functions/beta.hpp>
 
 void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm) {
 
@@ -50,6 +53,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     Eigen::MatrixXd& X = (params.data_type == "single-cell") ? cov_data.sc_data : cov_data.data;
 
     int n_pheno = pheno_data.n_pheno;
+    std::mt19937_64 rng(std::random_device{}());
 
     if (params.model == "lmm" || params.model == "lm") {
         std::cout << "\nPerforming rank normalization..." << std::endl;
@@ -194,9 +198,34 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             bool use_apl = params.use_apl;
             NBGLM nb_glm(X, Y.col(i), offset, use_apl);
             nb_glm.fit();
-
-            Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta + offset).array().exp()) / nb_glm.mu.array();
-            W.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
+            
+            if (!params.use_quant_res) {
+                Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta + offset).array().exp()) / nb_glm.mu.array();
+                W.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
+            } else {
+                const double size = 1.0 / nb_glm.phi;
+                for (size_t j = 0; j < pheno_data.n_samples; ++j) {
+                    const double y_raw = Y(j, i);
+                    const double y = std::round(y_raw);
+                    const double mu = nb_glm.mu(j);
+                    const double p = size / (mu + size);
+                    double a = 0.0;
+                    if (y > 0.0) {
+                        a = boost::math::ibeta(size, std::max(y, 1.0), p);
+                    }
+                    double b = boost::math::ibeta(size, y + 1.0, p);
+                    a = std::max(0.0, std::min(a, 1.0));
+                    b = std::max(a,   std::min(b, 1.0));
+                    double u = a;
+                    if (b > a) {
+                        std::uniform_real_distribution<double> unif(a, b);
+                        u = unif(rng);
+                    }
+                    u = std::max(1e-12, std::min(u, 1.0 - 1e-12));
+                    Y(j, i) = qnorm(u, false);
+                }
+                W.row(i).setOnes();
+            }
 
             phi.push_back(nb_glm.phi);
             phi_converged.push_back(nb_glm.phi_converged);
