@@ -18,25 +18,43 @@ To see the version of quasar you are using run:
 
 We recommend running quasar to perform cis-eQTL mapping using the negative binomial model and adjusted profile likelihood estimation of the negative binomial dispersion parameter. To run quasar in this mode use the command: 
 
+To run quasar with bulk or pseudobulk data use: 
+
 ```
-./quasar --plink plink_prefix \
+./quasar \
+    --plink plink_prefix \
     --bed phenotype_data.bed \
     --cov covariate_data.tsv \
     --mode cis \
-    --model nb_glm \
+    --model bulk-out \
     --use-apl \
     --out nb_fit
+```
+
+As of quasar 2.0, quasar can take single-cell data as input. To use this functionality run: 
+
+```
+./quasar \
+    --plink plink_prefix \
+    --sc-pheno single-cell-pheno.tsv \
+    --anno annotations.tsv \
+    --cov single_cellcovariate_data.tsv  \
+    --mode cis \
+    --model p_glmm_sc \
+    --out single-cell-out
 ```
 
 ## QTL mapping modes
 
 The quasar software can be run in three modes: `cis`, `trans`, `gwas`. These modes specify which varaints are tested for asscociation with a particular feature. 
 
-In mode `cis` variants within +- the window size of the gene (see phenotype data format for details). By default the window size is set to 1Mb but can be specified using the `--window_size` flag. We refer to this set of variants as the cis-window for that feature. 
+In mode `cis` variants within +- the window size of the gene (see phenotype data format for details). By default the window size is set to 1Mb but can be specified using the `-w/--window` flag. We refer to this set of variants as the cis-window for that feature. 
 
-In mode `trans` all variants except those in the cis window are tested for assoication. In mode `gwas` all variants are are tested for association. 
+In mode `trans` all variants except those in the cis window are tested for assoication. 
 
-Note that during the development of quasar the `cis` mode was tested more extensively than the `trans` and `gwas` modes and that there are methodological issues with trans-eQTL mapping due to reads mapping to multiple locations causing false-positive associations. 
+In mode `gwas` all variants are are tested for association. 
+
+Note that trans-eQTL mapping can be affected by cross-mapping reads and paralogous genes causing spurious associations.
 
 ## Statistical models
 
@@ -48,6 +66,7 @@ The quasar software package supports a wide range of statistical models used to 
 * `p_glmm`: Poisson generalised linear mixed model (GLMM)
 * `p_glm`: Poisson GLM (**not recommended** due to producing a very high rate of false positives)
 * `nb_glmm`: negative binomial GLMM (**not generally recommended** due to producing highly similar results to the Poisson GLMM while being slower, can be used if there is known to be high relatedness between samples)
+* `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data.
 
 When the model is a mixed model i.e. is specified to be any of `lmm`, `p_glmm`, `nb_glmm` the --grm flag (see below) must be used to specify a genetic relatedness matrix used in the covarariance matrix of the random effects. 
 
@@ -74,9 +93,11 @@ If using --make-bed with PLINK 1.9 or earlier, add the --keep-allele-order flag.
 
 ### Phenotype data
 
+#### Bulk/pseudobulk bed file 
+
 --bed/-b
 
-The phenotype data is a tab-seperated file with where rows are features and the first four
+The phenotype data  a tab-seperated file with where rows are features and the first four
 columns give feature information and the rest are sample ids are the sample ids. For example, 
 
 ```
@@ -89,17 +110,59 @@ The start and end values are used to specify the centre of the cis-window. To sp
 
 For the count based models (i.e. `nb_glm`, `p_glm`, `p_glmm` and `nb_glmm`) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. `lm` and `lmm`) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.
 
+#### Single-cell phenotype data
+
+--sc-pheno
+
+The single-cell phenotype data is provided as tab-seperated files, where each row is one cell and all columns except the first two are different genes. The first two column hold the sample_id and (unique) cell_id of each cell.
+
+```
+sample_id     cell_id     gene_1     gene_2    gene_3    ...
+ sample_1      cell_1          0          1         0    ... 
+ sample_1      cell_2          0          0         0    ... 
+ sample_2      cell_3          2          0         0    ... 
+ sample_2      cell_4          0          0         1    ... 
+     ...
+```
+
 ### Covariate data
 
 --cov/-c
 
-The covariate data is a tab-separated file with rows as samples and first column `sample_id` and other columns containing the covariates. For example,
+The covariate data can be specified in bulk or single-cell formats. Both bulk and single-cell foramts can be used with single-cell data (although the bulk format cannot hold single-cell resolution covariates) but only the bulk format can be used with bulk/pseudobulk data.
+
+In bulk format, the covariate data is a tab-separated file with rows as samples and first column `sample_id` and other columns containing the covariates. For example,
 
 ```
 sample_id   covariate_1     covariate_2 ...
  sample_1             1             5.4 ...
  sample_2             1             3.1 ...
       ...
+```
+
+In single-cell format, the covariate data is a tab-separated file where rows are cells, the first column is `sample_id`, the second column is `cell_id` and other columns contain the covariates. For example, 
+
+```
+sample_id   cell_id    covariate_1     covariate_2 ...
+ sample_1    cell_1              1             5.4 ...
+ sample_1    cell_2              1             3.1 ...
+ sample_2    cell_3              1             2.7 ...
+ sample_2    cell_4              1             1.0 ...
+      ...
+```
+
+If an intercept is not present in the covariate data it will be added automatically as of quasar 1.1
+
+### Annotation data
+
+--anno
+
+In single-cell mode an annotation file containing information about features/genes must be passed to as this information is not stored in the phenotype file, as in bulk data. The annotation file should be a tab-seperated bed file with columns #chr, start, end and phenotype_id. For example,
+
+```
+#chr      start         end      phenotype_id      ...
+   1  113871759   113813811   ENSG00000134242      ...
+ ...
 ```
 
 ### Genetic relatedness matrix
@@ -117,14 +180,14 @@ sample_id sample_1 sample_2 sample_3 sample_4 ...
        ...
 ```
 
-To construct the GRM we recommend using the plink2 --make-king command after pruning variants.
+To construct the GRM we recommend using the plink2 --make-king command after pruning variants. The resulting matrix will then need to be multiplied by 2, and possibly slightly altered, for example by setting negative eigenvalues to 0, to ensure it is positive definite. Other methods for constructing the GRM should work but have not been evaluated.
 
 ## Output
 
 quasar produces two files:
 
 * {out-prefix}-quasar-variant.txt which contains variant information
-* {out-prefix}-quasar-cis-gene.txt which contains gene information
+* {out-prefix}-quasar-cis-region.txt which contains gene information
 
 This files are written into the directory which quasar is run in.
 
@@ -134,11 +197,13 @@ This files are written into the directory which quasar is run in.
 |--------|-------|------|----|
 |`--plink` | FILE | Required | Plink files prefix, assumes that `{prefix}.bed`, `{prefix}.bim`, `{prefix}.fam` exist |
 |`--cov` | FILE | Required | Covariate data file |
-|`--bed` | FILE | Required | Phenotype bed file |
+|`--bed` | FILE | Required (bulk/pseduobulk) | Phenotype bed file |
+|`--sc-pheno` | FILE | Required (single-cell) | Single-cell phenotype file |
+|`--anno` | FILE | Required (single-cell) | Annotation file |
 |`--grm` | FILE | Optional | A (dense) genetic relatedness matrix |
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |
-|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm` or `nb_glmm`. |
+|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_sc`. |
 |`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
 |`--verbose` | FLAG | Optional | Write additional information to the console |
