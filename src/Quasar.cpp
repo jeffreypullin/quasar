@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
         ("use-apl", "Use adjusted profile likelihood to estimate NB dispersion", cxxopts::value<bool>(params.use_apl))
         ("use-quant-res", "Use randomised quantile residuals to compute score tests with NB-GLM model", cxxopts::value<bool>(params.use_quant_res))
+        ("pheno-chr", "Only map QTLs for genes on this chromosome", cxxopts::value<int>(params.pheno_chr))
         // Output arguments.
         ("o,out", "Output file prefix", cxxopts::value<std::string>(params.out))
         ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
@@ -102,6 +103,13 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
+    if (result.count("pheno-chr")) {
+        if (params.pheno_chr < 1 || params.pheno_chr > 22) {
+            std::cerr << "Error: --pheno-chr argument must integer between 1 and 22." << std::endl;
+            exit(1);
+        }
+    }
+
     if (!params.sc_pheno_file.empty()) {
         params.data_type = "single-cell";
         if (params.anno_file.empty()) {
@@ -137,13 +145,6 @@ int main(int argc, char* argv[]) {
        std::cout << "\nA GRM is not needed when using the LM, P-GLM or NB-GLM models and will be ignored." << std::endl;
     }
 
-    if (params.mode == "trans" || params.mode == "gwas") {
-        if (params.resid_file == "no-resid" || params.fit_file == "no-fit") {
-           std::cerr << "\nError: the residual and model fit files must be specified for modes 'trans' and 'gwas'." << std::endl; 
-           exit(1);
-        }
-    }
-
     if (params.mode == "residualise" && params.resid_file != "no-resid") {
         std::cerr << "\nError: cannot use residuals as input in mode 'residualise'" << std::endl;
         exit(1);
@@ -165,29 +166,47 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\nReading non-genotype data..." << std::endl;
     std::string pheno_file;
-    if (params.mode == "cis" || params.mode == "residualise") {
-        if (params.data_type == "single-cell") {
-            pheno_file = params.sc_pheno_file;
+
+
+    if (params.data_type == "single-cell") {
+        if (params.sc_pheno_file.empty()) {
+            std::cerr << "Error: --sc_pheno argument must be specified when data type is single-cell." << std::endl;
+            exit(1);
         } else {
-            pheno_file = params.bed_file;
+            pheno_file = params.sc_pheno_file;
         }
-    } else {
-        pheno_file = params.resid_file;
+    }
+
+    bool use_resid = false;
+    if (params.data_type == "bulk") {
+        bool has_bed = !params.bed_file.empty() && params.bed_file != "no-bed";
+        bool has_resid = !params.resid_file.empty() && params.resid_file != "no-resid";
+        if (has_bed && has_resid) {
+            std::cerr << "Error: Only one of --bed or --resid can be specified for bulk data type." << std::endl;
+            exit(1);
+        }
+        if (!has_bed && !has_resid) {
+            std::cerr << "Error: One of --bed or --resid must be specified for bulk data type." << std::endl;
+            exit(1);
+        }
+        if (has_bed) {
+            pheno_file = params.bed_file;
+        } else if (has_resid) {
+            pheno_file = params.resid_file;
+            use_resid = true;
+        }
     }
 
     PhenoData pheno_data(pheno_file, params.data_type);
     if (params.data_type == "single-cell") {
         pheno_data.prepare_sc_pheno_data();
         pheno_data.read_anno_data(params.anno_file);
-        if (params.mode == "cis") {
-            if (one_chrom) {
-                pheno_data.filter_pheno_ids(geno_data.chrom.front());
-            } 
-            pheno_data.read_sc_pheno_data();
-        } else {
-            std::cerr << "Error: non-cis modes are not currently supported for single-cell data." << std::endl;
-            exit(1);
+        if (result.count("pheno-chr")) {
+            pheno_data.filter_pheno_ids(params.pheno_chr);
+        } else if (one_chrom && params.mode == "cis") {
+            pheno_data.filter_pheno_ids(geno_data.chrom.front());
         }
+        pheno_data.read_sc_pheno_data();
     } else {
         pheno_data.read_pheno_data();
     }
@@ -266,10 +285,13 @@ int main(int argc, char* argv[]) {
         );
     }
 
-    if (params.data_type == "bulk" && (params.mode == "cis" || params.mode == "residualise")) {
+    if (params.data_type == "bulk") {
         std::vector<int> g_chrom = geno_data.chrom;
         bool one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());
-        if (one_chrom) {
+        if (result.count("pheno-chr")) {
+            std::cout << "Filtering phenotype data to features on chromosome: " << params.pheno_chr << std::endl;
+            pheno_data.slice_chromosome(params.pheno_chr);
+        } else if (one_chrom) {
             std::cout << "\nMode 'cis' and only one chromosome detected." << std::endl;
             std::cout << "Filtering phenotype data to features on chromosome: " << g_chrom.front() << std::endl;
             pheno_data.slice_chromosome(g_chrom.front());
@@ -278,13 +300,16 @@ int main(int argc, char* argv[]) {
     std::cout << "\nRunning analysis for " << format_with_commas(pheno_data.n_pheno) << " phenotypes." << std::endl;
 
     ModelFit model_fit(params.model, params.fit_file, pheno_data);
-    if (params.mode == "cis" || params.mode == "residualise") {
-
+    if (!use_resid) {
+        
         // Check model and data align.
+        // FIXME: Add check for single cell data.
         if (params.model == "p_glmm" ||
             params.model == "p_glm" ||
             params.model == "nb_glm" || 
-            params.model == "nb_glmm") {     
+            params.model == "nb_glmm" ||
+            params.model == "p_glmm_grm"
+        ) {     
             Eigen::VectorXd first_gene = pheno_data.data.col(0).head(10);
             bool has_negative = (first_gene.array() < 0).any();
             bool has_noninteger = ((first_gene.array() - first_gene.array().floor()) > 0).any();

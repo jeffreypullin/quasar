@@ -51,6 +51,7 @@ struct Params {
     int window_size = 1000000;
     bool use_apl;
     bool use_quant_res;
+    int pheno_chr;
 
     std::string out;
     bool verbose = false;
