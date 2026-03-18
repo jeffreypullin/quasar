@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
         // Data arguments.
         ("p,plink", "Prefix to PLINK files (.bed, .bim, .fam)", cxxopts::value<std::string>(params.plink_prefix))
         ("b,bed", "Bed file holding phenotype informaton", cxxopts::value<std::string>(params.bed_file)->default_value("no-bed"))
-        ("sc_pheno", "File holding single-cell level phenotype data", cxxopts::value<std::string>(params.sc_pheno_file))
+        ("sc-pheno", "File holding single-cell level phenotype data", cxxopts::value<std::string>(params.sc_pheno_file))
         ("anno", "File holding feature annotation", cxxopts::value<std::string>(params.anno_file))
         ("c,cov", "Covariate file", cxxopts::value<std::string>(params.cov_file))
         ("r,resid", "Residualised phenotype bed file", cxxopts::value<std::string>(params.resid_file)->default_value("no-resid"))
