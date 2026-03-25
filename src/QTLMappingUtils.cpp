@@ -119,14 +119,24 @@ std::vector<int> rank_vector(const std::vector<double>& v){
 double ACAT(const std::vector<double>& pvals) {
     long double sum = 0.0;
     double n = pvals.size();
+    double nan_count = 0;
     for (const double& p: pvals) {
         if (p >= 1){
             sum += (qcauchy(1 - 1 / n, true) / n);
-        } else if (p <= 0 || std::isnan(p)){
+        } else if (p <= 0 || std::isnan(p)) {
+            // We only want to throw NaN if all the p-values are NaN,
+            // otherwise just calculate the ACAT on the non-NaN p-values.
+            // This is because NaN's either arise for all variants
+            // due to gene-level non-convergence or for single-variants
+            // due to MAF/MAC issues.
+            nan_count += 1;
             continue;
         } else {
             sum += (qcauchy(p, true) / n);
         }
+    }
+    if (std::abs(nan_count - n) < 1e-8) {
+        return std::numeric_limits<double>::quiet_NaN();
     }
     return pcauchy(sum, true);
 }
