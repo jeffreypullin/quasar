@@ -31,8 +31,8 @@ class NBGLM {
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
         const Eigen::Ref<Eigen::VectorXd> offset;
-        double tol = 1e-5;
-        int max_iter = 25;
+        double tol = 1e-3;
+        int max_iter = 100;
 
     public:
 
