@@ -192,9 +192,23 @@ columns give feature information and the rest are sample ids are the sample ids.
 <p>quasar produces two files:</p>
 <ul>
 <li>{out-prefix}-quasar-variant.txt which contains variant information</li>
-<li>{out-prefix}-quasar-cis-gene.txt which contains gene information</li>
+<li>{out-prefix}-quasar-cis-region.txt which contains gene information</li>
 </ul>
-<p>This files are written into the directory which quasar is run in.</p>
+<h3 id="variant-output">Variant output</h3>
+<p>The variant level output of quasar has the following basic format:</p>
+<pre><code>     feature_id            snp_id     chrom       pos      alt     ref     maf     beta     se     pvalue
+ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39    0.012  0.038     0.7385
+           ...
+</code></pre>
+<p>In the output the <code>alt</code> allele is the effect allele. Other columns including <code>glm_converged</code>, <code>glmm_converged</code>, <code>phi</code>, <code>phi_converged</code> encode information about the gene-level models fit to the expression data and are included depending on the type of model used.</p>
+<h3 id="region-level-output">Region level output</h3>
+<pre><code>     feature_id     chrom       start       end     pvalue
+ENSG00000100181        22    17082776  17082777   0.796123
+ENSG00000069998        22    17646176  17646177  0.0388123
+            ...
+</code></pre>
+<p>In this output, the pvalue is computed by applying the Aggregated Cauchy Association Test to the variant-level pvalues in the region.</p>
+<p>These files are written into the directory which quasar is run in.</p>
 <h2 id="option-list">Option list</h2>
 <table>
 <thead>
