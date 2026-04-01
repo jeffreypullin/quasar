@@ -226,6 +226,8 @@ int main(int argc, char* argv[]) {
                       << "' not found in covariate file columns." << std::endl;
             exit(1);
         }
+        cov_data.interaction_id = params.interaction_cov;
+        cov_data.interaction_ind = std::distance(cov_data.cov_ids.begin(), it);
     }
 
     GRM grm(params.grm_file);
@@ -274,16 +276,23 @@ int main(int argc, char* argv[]) {
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs." << std::endl;
 
     if (params.do_interaction) {
-        cov_data.interaction_id = params.interaction_cov;
-        cov_data.interaction_ind = std::distance(
-            cov_data.cov_ids.begin(),
-            std::find(
-                cov_data.cov_ids.begin(),
-                cov_data.cov_ids.end(),
-                params.interaction_cov
-            )
-        );
+        bool interaction_is_categorical = cov_data.is_covariate_categorical();
+        if (interaction_is_categorical) {
+            std::cout << "Interaction covariate '" << params.interaction_cov
+                      << "' treated as categorical (<=10 unique finite values); "
+                      << "not adding squared nuisance covariate." << std::endl;
+        } else {
+            std::string squared_covariate_id = params.interaction_cov + "_sq";
+            cov_data.add_squared_covariate();
+            std::cout << "Interaction covariate '" << params.interaction_cov
+                      << "' treated as continuous (>10 unique finite values); "
+                      << "added squared nuisance covariate '" << squared_covariate_id
+                      << "'." << std::endl;
+        }
     }
+
+    std::cout << "Centring and scaling covariate data..." << std::endl;
+    cov_data.standardisze_data();
 
     if (params.data_type == "bulk") {
         std::vector<int> g_chrom = geno_data.chrom;

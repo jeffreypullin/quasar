@@ -134,7 +134,11 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             lmm.fit();
 
             Eigen::DiagonalMatrix<double, Eigen::Dynamic> D_inv = lmm.D_inv;
-            Y.col(i) = (Q * D_inv * (QtY.col(i) - QtX * lmm.beta)) / lmm.sigma2;
+            if (params.do_interaction) {
+                Y.col(i) = Q * D_inv * (QtY.col(i) - QtX * lmm.beta) / std::sqrt(lmm.sigma2);
+            } else {
+                Y.col(i) = (Q * D_inv * (QtY.col(i) - QtX * lmm.beta)) / lmm.sigma2;
+            }
         
         }
         std::cout << "Null LMMs fitted." << std::endl;

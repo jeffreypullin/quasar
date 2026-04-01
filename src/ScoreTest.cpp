@@ -22,6 +22,7 @@
 #include <vector>
 #include <string>
 #include <numeric>
+#include <Eigen/Eigenvalues>
 
 void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoData& pheno_data, CovData& cov_data) {
 
@@ -113,9 +114,10 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             w = Eigen::VectorXd::Ones(n_samples);
         }
 
-        Eigen::MatrixXd XtWX_inv, Xt;
+        Eigen::MatrixXd XtWX_inv, Xt, XtX_inv;
         if (params.data_type != "single-cell") {
             XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
+            XtX_inv = (X.transpose() * X).inverse();
             Xt = X.transpose();
         }
 
@@ -198,19 +200,26 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 }
 
                 Eigen::VectorXd x_int = X.col(cov_data.interaction_ind);
-                Eigen::VectorXd g_main = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
+                Eigen::VectorXd g_main = g - X * (XtX_inv * (Xt * g));
 
                 Eigen::VectorXd g_int_raw = x_int.cwiseProduct(g);
-                Eigen::VectorXd g_int = g_int_raw - X * (XtWX_inv * (Xt * g_int_raw.cwiseProduct(w)));
+                Eigen::VectorXd g_int = g_int_raw - X * (XtX_inv * (Xt * g_int_raw));
 
                 Eigen::MatrixXd Z(g.size(), 2);
                 Z.col(0) = g_main;
                 Z.col(1) = g_int;
                
-                Eigen::Matrix2d ZtWZ = Z.transpose() * w.asDiagonal() * Z;
-                Eigen::Vector2d ZtWY = Z.transpose() * w.asDiagonal() * Y.col(i);
-                Eigen::Vector2d beta = ZtWZ.ldlt().solve(ZtWY);
-                Eigen::Matrix2d cov_mat = ZtWZ.inverse();
+                Eigen::MatrixXd ZtZ = Z.transpose() * Z;
+                Eigen::VectorXd ZtY = Z.transpose() * Y.col(i);
+                Eigen::VectorXd beta = ZtZ.ldlt().solve(ZtY);
+                Eigen::MatrixXd ZtZ_inv = ZtZ.ldlt().solve(
+                    Eigen::MatrixXd::Identity(Z.cols(), Z.cols())
+                );
+
+                Eigen::MatrixXd cov_mat = ZtZ_inv;
+                double full_rss = (Y.col(i) - Z * beta).squaredNorm();
+                double sigma_hat = full_rss / static_cast<double>(Y.rows() - Z.cols());
+                cov_mat *= sigma_hat;
 
                 main_beta = beta(0);   
                 int_beta = beta(1);   
@@ -218,6 +227,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 int_se = std::sqrt(cov_mat(1, 1));
                 main_zscore = main_beta / main_se;
                 int_zscore = int_beta / int_se;
+
                 main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
                 int_pval_snp = 2 * pnorm(std::abs(int_zscore), true);
 

@@ -27,6 +27,8 @@
 #include <numeric>
 #include <cstdlib>
 #include <iomanip>
+#include <set>
+#include <cmath>
 
 void PhenoData::read_pheno_data() {
 
@@ -661,6 +663,71 @@ void CovData::check_cov_data_type() {
     }
     file.close();
 
+}
+
+bool CovData::is_covariate_categorical() {
+    static const size_t max_unique_values = 10;
+    
+    const Eigen::MatrixXd* active_cov_data = &data;
+    if (cov_data_type == "single-cell" && sc_data.size() > 0) {
+        active_cov_data = &sc_data;
+    }
+
+    std::set<double> unique_values;
+    for (Eigen::Index i = 0; i < active_cov_data->rows(); ++i) {
+        double x = (*active_cov_data)(i, interaction_ind);
+        unique_values.insert(x);
+        if (unique_values.size() > max_unique_values) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void CovData::add_squared_covariate() {
+    std::string sq_covariate_id = interaction_id + "_sq";
+
+    if (cov_data_type == "single-cell" && sc_data.size() > 0) {
+        Eigen::MatrixXd updated_sc_data(sc_data.rows(), sc_data.cols() + 1);
+        updated_sc_data.leftCols(sc_data.cols()) = sc_data;
+        updated_sc_data.col(sc_data.cols()) = sc_data.col(interaction_ind).array().square().matrix();
+        sc_data = updated_sc_data;
+    } else {
+        Eigen::MatrixXd updated_data(data.rows(), data.cols() + 1);
+        updated_data.leftCols(data.cols()) = data;
+        updated_data.col(data.cols()) = data.col(interaction_ind).array().square().matrix();
+        data = updated_data;
+    }
+
+    cov_ids.push_back(sq_covariate_id);
+    n_cov++;
+}
+
+void CovData::standardisze_data() {
+    Eigen::MatrixXd* matrix = &data;
+    if (cov_data_type == "single-cell") {
+        matrix = (sc_data.size() > 0) ? &sc_data : &data;
+    } else if (sc_data.size() > 0) {
+        matrix = &sc_data;
+    }
+
+    if (matrix->size() == 0) {
+        return;
+    }
+
+    for (Eigen::Index col = 0; col < matrix->cols(); ++col) {
+        if (static_cast<size_t>(col) < cov_ids.size() && cov_ids[col] == "intercept") {
+            continue;
+        }
+
+        double mean = matrix->col(col).mean();
+        Eigen::ArrayXd centered = matrix->col(col).array() - mean;
+        double var = centered.square().mean();
+        matrix->col(col).array() = centered;
+        if (var > 0.0) {
+            matrix->col(col).array() /= std::sqrt(var);
+        }
+    }
 }
 
 void CovData::read_sc_cov_data() {

@@ -20,6 +20,8 @@ We recommend running quasar to perform cis-eQTL mapping using the negative binom
 
 To run quasar with bulk or pseudobulk data use: 
 
+### Bulk/pseduobulk data
+
 ```
 ./quasar \
     --plink plink_prefix \
@@ -30,6 +32,8 @@ To run quasar with bulk or pseudobulk data use:
     --use-apl \
     --out nb_fit
 ```
+
+### Single-cell resolution data
 
 As of quasar 2.0, quasar can take single-cell data as input. To use this functionality run: 
 
@@ -43,6 +47,31 @@ As of quasar 2.0, quasar can take single-cell data as input. To use this functio
     --model p_glmm_sc \
     --out single-cell-out
 ```
+
+Single-cell data requires different formatted data to bulk/pseudobulk data, for more information see below.
+
+### Interaction QTLs
+
+As of quasar 2.0, quasar can compute interaction-QTLs. To use this functioanlly, simply specify which covariate the interaction should be tested for
+
+```
+./quasar \
+    --plink plink_prefix \
+    --bed phenotype_data.bed \
+    --cov covariate_data.tsv \
+    --mode cis \
+    --interaction sex \
+    --model sex-int-out \
+    --use-apl \
+    --out nb_fit
+```
+
+Interaction testing be performed for bulk/pseudobulk data with the linear mixed model, linear model and Negative Binomial GLM and with single-cell resolution data.
+
+When interaction testing is enabled, quasar inspects the interaction covariate values and automatically augments the nuisance covariates as follows:
+
+* if the interaction covariate has `<=5` unique finite values, it is treated as categorical and no squared nuisance term is added;
+* if it has `>5` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which holds the square of the value
 
 ## QTL mapping modes
 
@@ -184,12 +213,49 @@ To construct the GRM we recommend using the plink2 --make-king command after pru
 
 ## Output
 
-quasar produces two files:
+In cis mode, quasar produces two files:
 
 * {out-prefix}-quasar-variant.txt which contains variant information
 * {out-prefix}-quasar-cis-region.txt which contains gene information
 
-This files are written into the directory which quasar is run in.
+### Variant output
+
+The variant level output of quasar has the following basic format:
+
+```
+     feature_id            snp_id     chrom       pos      alt     ref     maf     beta     se     pvalue
+ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39    0.012  0.038     0.7385
+           ...
+```
+
+In the output the `alt` allele is the effect allele. Other columns including `glm_converged`, `glmm_converged`, `phi`, `phi_converged` encode information about the gene-level models fit to the expression data and are included depending on the type of model used.
+
+### Region level output
+
+In cis mode, quasar produces a summary 
+
+```
+     feature_id     chrom       start       end     pvalue
+ENSG00000100181        22    17082776  17082777   0.796123
+ENSG00000069998        22    17646176  17646177  0.0388123
+            ...
+```
+
+#### Interaction testing output
+
+For variant level output of interaction testing quasar produces two effect sizes, standard errors and pvalues for each variant. These correspond to the estimates of $\beta$ and $\gamma$ in the model
+
+$$
+y = g $\beta + (g x x) \gamma
+$$ 
+
+where $g$ is the vector of genotypes and $x$ is the vector of interaction covariate. These two values for each variant are denoted as `snp_*` and `snp_x_{interaction covariate}` respectively. For example if the interaction covariate was `sex` the output would be of the form:
+
+```
+     feature_id            snp_id     chrom       pos      alt     ref     maf     snp_beta     snp_se     snp_pvalue    snp_x_sex_beta    snp_x_sex_se     snp_x_pvalue
+ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39        0.012      0.038         0.7385              0.02            0.03              0.5
+           ...
+```
 
 ## Option list
 
@@ -203,6 +269,7 @@ This files are written into the directory which quasar is run in.
 |`--grm` | FILE | Optional | A (dense) genetic relatedness matrix |
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |
+|`--interaction` | STRING | Optional | The covariate to perform interaction-QTL testing with. Must be a column header in the covariate data. |
 |`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_sc`. |
 |`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
