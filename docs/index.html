@@ -136,7 +136,7 @@
 <p>In mode <code>cis</code>, variants within +- the window size of the gene (see phenotype data format for details). By default the window size is set to 1Mb but can be specified using the <code>--window_size</code> flag. We refer to this set of variants as the cis-window for that feature. </p>
 <p>In mode <code>trans</code>, all variants except those in the cis window are tested for assoication. </p>
 <p>In mode <code>gwas</code>, all variants are are tested for association. </p>
-<p>In mode <code>resiudualise</code>, only the first step of quasar's algorithm is performed where gene's expression values are residulised -- the effect of the provided nuisance covariate is removed. The residualised data is then output in the same format as the inpu phenotype data. The residualised expression values are useful for plotting example eQTLs identified by quasar.</p>
+<p>In mode <code>residualise</code>, only the first step of quasar's algorithm is performed where gene's expression values are residulised -- the effect of the provided nuisance covariate is removed. The residualised data is then output in the same format as the inpu phenotype data. The residualised expression values are useful for plotting example eQTLs identified by quasar.</p>
 <p>Note that during the development of quasar the <code>cis</code> mode was tested more extensively than the <code>trans</code> and <code>gwas</code> modes and that there are methodological issues with trans-eQTL mapping due to reads mapping to multiple locations causing false-positive associations. </p>
 <h2 id="statistical-models">Statistical models</h2>
 <p>The quasar software package supports a wide range of statistical models used to resiudalise the expression values. The supported models are:</p>
