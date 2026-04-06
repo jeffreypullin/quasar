@@ -66,12 +66,12 @@ As of quasar 2.0, quasar can compute interaction-QTLs. To use this functioanlly,
     --out nb_fit
 ```
 
-Interaction testing be performed for bulk/pseudobulk data with the linear mixed model, linear model and Negative Binomial GLM and with single-cell resolution data.
+Interaction testing be performed for bulk/pseudobulk data with the linear mixed model, linear model and Negative Binomial GLM models.
 
 When interaction testing is enabled, quasar inspects the interaction covariate values and automatically augments the nuisance covariates as follows:
 
-* if the interaction covariate has `<=5` unique finite values, it is treated as categorical and no squared nuisance term is added;
-* if it has `>5` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which holds the square of the value
+* if the interaction covariate has `<=10` unique finite values, it is treated as categorical and no squared nuisance term is added;
+* if it has `>10` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which contains the square of the covariate
 
 ## QTL mapping modes
 

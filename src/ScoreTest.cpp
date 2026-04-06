@@ -194,7 +194,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     std::cerr << "Error: Interaction testing is not implemented for single-cell mode." << std::endl;
                     exit(1);
                 }
-                if (params.model != "lm" && params.model != "nb_glm") {
+                if (params.model != "lm" && params.model != "nb_glm" && params.model != "lmm") {
                     std::cerr << "Error: Interaction testing is only implemented for the LM and NB-GLM models." << std::endl;
                     exit(1);
                 }
