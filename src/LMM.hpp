@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2024-25 Jeffrey Pullin
+  Copyright (C) 2024-26 Jeffrey Pullin
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
