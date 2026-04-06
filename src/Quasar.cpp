@@ -123,6 +123,11 @@ int main(int argc, char* argv[]) {
     } else {
         params.data_type = "bulk";
     }
+
+    if (params.data_type == "bulk" && params.model == "p_glmm_sc") {
+        std::cerr << "Error: model `p_glmm_sc` is only compatible with single-cell data." << std::endl;
+        exit(1);
+    }
     
     std::cout << "\nMode: " << params.mode << std::endl;
     std::cout << "Model: " << params.model << std::endl;
