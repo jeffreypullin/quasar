@@ -61,9 +61,9 @@ As of quasar 2.0, quasar can compute interaction-QTLs. To use this functioanlly,
     --cov covariate_data.tsv \
     --mode cis \
     --interaction sex \
-    --model sex-int-out \
+    --model lm \
     --use-apl \
-    --out nb_fit
+    --out sex-int-out
 ```
 
 Interaction testing be performed for bulk/pseudobulk data with the linear mixed model, linear model and Negative Binomial GLM models.
