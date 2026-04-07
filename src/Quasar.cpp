@@ -137,7 +137,8 @@ int main(int argc, char* argv[]) {
 
     bool mixed_model = params.model == "lmm" || params.model == "p_glmm" || params.model == "nb_glmm";
     if (!mixed_model && params.grm_file != "no-grm") {
-       std::cout << "\nA GRM is not needed when using the LM, P-GLM or NB-GLM models and will be ignored." << std::endl;
+       std::cout << "\nA GRM is not needed when using the LM, P-GLM or NB-GLM models." << std::endl;
+       exit(1);
     }
 
     if (params.mode == "residualise" && params.resid_file != "no-resid") {
