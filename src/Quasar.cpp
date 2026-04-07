@@ -93,16 +93,6 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    if (params.model != "nb_glm" && (params.use_apl)) {
-        std::cerr << "Error: The --use-apl flagged is only applicable when usisng the NB-GLM model." << std::endl;
-        exit(1);
-    }
-    
-    if (params.model != "nb_glm" && (params.use_quant_res)) {
-        std::cerr << "Error: The --use-quant-res flagged is only applicable when usisng the NB-GLM model." << std::endl;
-        exit(1);
-    }
-
     if (result.count("pheno-chr")) {
         if (params.pheno_chr < 1 || params.pheno_chr > 22) {
             std::cerr << "Error: --pheno-chr argument must integer between 1 and 22." << std::endl;
