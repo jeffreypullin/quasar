@@ -79,12 +79,11 @@ int main(int argc, char* argv[]) {
         params.model != "lm" && 
         params.model != "p_glm" && 
         params.model != "nb_glm" && 
-        params.model != "p_glmm_id" &&
         params.model != "p_glmm_sc" &&
         params.model != "p_glmm_grm" &&
         params.model != "nb_glmm") {
         std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'p_glm', 'nb_glm', 'p_glmm', "
-                  << "'p_glmm_id', 'p_glmm_sc', 'p_glmm_grm' or 'nb_glmm'." << std::endl;
+                  << "'p_glmm_sc', 'p_glmm_grm' or 'nb_glmm'." << std::endl;
         exit(1);
     }
 

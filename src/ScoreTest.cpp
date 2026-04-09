@@ -59,7 +59,6 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         model == "p_glmm" || 
         model == "p_glmm_grm" || 
         model == "p_glmm_sc" || 
-        model == "p_glmm_id" || 
         model == "nb_glmm";
 
     // Iterate over features.
@@ -107,7 +106,6 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             model == "p_glmm" || 
             model == "p_glmm_grm" || 
             model == "p_glmm_sc" || 
-            model == "p_glmm_id" || 
             model == "nb_glmm") {
             w = model_fit.W.row(i);
         } else {
@@ -257,8 +255,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     "\t" << model_fit.phi_converged[i];
             } else if (model == "p_glmm" || 
                        model == "p_glmm_grm" || 
-                       model == "p_glmm_sc" || 
-                       model == "p_glmm_id") {
+                       model == "p_glmm_sc") {
                 variant_line << "\t" << model_fit.glmm_converged[i] <<
                     "\t" << model_fit.sigma2[i];
             } else if (model == "nb_glmm") {

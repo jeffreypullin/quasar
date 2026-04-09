@@ -24,7 +24,6 @@
 #include "LMM.hpp"
 #include "NBGLM.hpp"
 #include "GLMM_GRM.hpp"
-#include "GLMM_ID.hpp"
 #include "GLMM_SC.hpp"
 #include "NBGLMM.hpp"
 #include "Phi.hpp"
@@ -172,25 +171,6 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             tr.push_back(compute_r_approx(P, w, X));
             glmm_converged.push_back(p_glmm_grm.glmm_converged);
             sigma2.push_back(p_glmm_grm.sigma2);
-        }
-        std::cout << "Null Poisson GLMMs fitted." << std::endl;
-
-    } else if (params.model == "p_glmm_id") {
-        
-        std::cout << "\nFitting null Poisson identity GLMMs..." << std::endl;
-        for (int i = 0; i < n_pheno; ++i) {
-            auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM_ID p_glmm_id(X, Y.col(i), offset, std::move(poisson));
-            p_glmm_id.fit();
-            
-            Y.col(i) = (Y.col(i).array() - p_glmm_id.mu.array()) / p_glmm_id.mu.array();
-            W.row(i) = p_glmm_id.mu.array();
-
-            Eigen::MatrixXd P = p_glmm_id.P;
-            Eigen::VectorXd w = p_glmm_id.mu;
-            tr.push_back(compute_r_approx(P, w, X));
-            glmm_converged.push_back(p_glmm_id.glmm_converged);
-            sigma2.push_back(p_glmm_id.sigma2);
         }
         std::cout << "Null Poisson GLMMs fitted." << std::endl;
 
