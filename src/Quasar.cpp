@@ -100,13 +100,6 @@ int main(int argc, char* argv[]) {
        std::cout << "\nA GRM is not needed when using the LM, P-GLM or NB-GLM models and will be ignored." << std::endl;
     }
 
-    if (params.mode == "trans" || params.mode == "gwas") {
-        if (params.resid_file == "no-resid" || params.fit_file == "no-fit") {
-           std::cerr << "\nError: the residual and model fit files must be specified for modes 'trans' and 'gwas'." << std::endl; 
-           exit(1);
-        }
-    }
-
     if (params.mode == "residualise" && params.resid_file != "no-resid") {
         std::cerr << "\nError: cannot use residuals as input in mode 'residualise'" << std::endl;
         exit(1);
@@ -114,11 +107,12 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\nReading non-genotype data..." << std::endl;
 
+    bool use_resid = params.resid_file != "no-resid";
     std::string pheno_file;
-    if (params.mode == "cis" || params.mode == "residualise") {
-        pheno_file = params.bed_file;
-    } else {
+    if (use_resid) {
         pheno_file = params.resid_file;
+    } else {
+        pheno_file = params.bed_file;
     }
     PhenoData pheno_data(pheno_file);
     pheno_data.read_pheno_data();
@@ -174,7 +168,7 @@ int main(int argc, char* argv[]) {
     std::cout << "\nRunning analysis for " << format_with_commas(pheno_data.n_pheno) << " phenotypes." << std::endl;
 
     ModelFit model_fit(params.model, params.fit_file, pheno_data);
-    if (params.mode == "cis" || params.mode == "residualise") {
+    if (!use_resid) {
 
         // Check model and data align.
         if (params.model == "p_glmm" ||
