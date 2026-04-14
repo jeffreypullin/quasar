@@ -32,15 +32,13 @@ We recommend running quasar to perform cis-eQTL mapping using the negative binom
 
 The quasar software can be run in four model modes: `cis`, `trans`, `gwas` and `residualise`. The first three modes specify which varaints are tested for asscociation with a particular feature, while the fourth outputs residualised expression values for all genes.
 
-In mode `cis`, variants within +- the window size of the gene (see phenotype data format for details). By default the window size is set to 1Mb but can be specified using the `--window_size` flag. We refer to this set of variants as the cis-window for that feature. 
+In mode `cis`, variants within +- the window size of the gene (see phenotype data format for details). By default the window size is set to 1Mb but can be specified using the `--window` flag. We refer to this set of variants as the cis-window for that feature. 
 
 In mode `trans`, all variants except those in the cis window are tested for assoication. 
 
 In mode `gwas`, all variants are are tested for association. 
 
-In mode `residualise`, only the first step of quasar's algorithm is performed where gene's expression values are residulised -- the effect of the provided nuisance covariate is removed. The residualised data is then output in the same format as the inpu phenotype data. The residualised expression values are useful for plotting example eQTLs identified by quasar.
-
-Note that during the development of quasar the `cis` mode was tested more extensively than the `trans` and `gwas` modes and that there are methodological issues with trans-eQTL mapping due to reads mapping to multiple locations causing false-positive associations. 
+In mode `residualise`, only the first step of quasar's algorithm is performed where gene's expression values are residulised -- the effect of the provided nuisance covariate is removed. The residualised data is then output in the same format as the input phenotype data. The residualised expression values are useful for plotting example eQTLs identified by quasar.
 
 ## Statistical models
 
@@ -166,6 +164,6 @@ These files are written into the directory which quasar is run in.
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas` or `residualise`. |
 |`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm` or `nb_glmm`. |
-|`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
+|`--window` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
 |`--verbose` | FLAG | Optional | Write additional information to the console |
