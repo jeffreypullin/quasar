@@ -24,6 +24,7 @@ We recommend running quasar to perform cis-eQTL mapping using the negative binom
     --cov covariate_data.tsv \
     --mode cis \
     --model nb_glm \
+    --use-quant-res
     --use-apl \
     --out nb_fit
 ```
@@ -166,4 +167,5 @@ These files are written into the directory which quasar is run in.
 |`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm` or `nb_glmm`. |
 |`--window` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
+| `--use-quant-res` | FLAG | Optional | Use randomized quantile residuals in the Negative Binomial model |
 |`--verbose` | FLAG | Optional | Write additional information to the console |

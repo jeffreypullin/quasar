@@ -46,6 +46,7 @@ The following invocation runs quasar with our recommended settings for cis-eQTL 
     --cov covariate_data.tsv \
     --mode cis \
     --model nb_glm \
+    --use-quant-res \
     --use-apl \
     --out nb_fit
 ```
