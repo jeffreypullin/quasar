@@ -226,8 +226,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 main_zscore = main_beta / main_se;
                 int_zscore = int_beta / int_se;
 
-                main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
-                int_pval_snp = 2 * pnorm(std::abs(int_zscore), true);
+                if (main_se < 0 || int_se < 0) {
+                    main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
+                    int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();
+                } else {
+                    main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
+                    int_pval_snp = 2 * pnorm(std::abs(int_zscore), true);
+                }
 
                 if (mode == "cis") {
                     main_pvals.push_back(main_pval_snp);
