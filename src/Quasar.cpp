@@ -43,6 +43,7 @@ int main(int argc, char* argv[]) {
         ("f,fit", "Model fit file", cxxopts::value<std::string>(params.fit_file)->default_value("no-fit"))
         ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file)->default_value("no-grm"))
         ("i,interaction", "Covariate column name for GxE interaction testing", cxxopts::value<std::string>(params.interaction_cov))
+        ("cell-groups", "File with `group` and `cell_id` columns assigning each cell to a group (single-cell only)", cxxopts::value<std::string>(params.cell_groups_file)->default_value("no-cell-groups"))
         // Execution arguments.
         ("mode", "Mode to run quasar in (residualise, cis, trans, gwas)", cxxopts::value<std::string>(params.mode))
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
@@ -117,6 +118,18 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error: model `p_glmm_sc` is only compatible with single-cell data." << std::endl;
         exit(1);
     }
+
+    bool use_cell_groups = params.cell_groups_file != "no-cell-groups";
+    if (use_cell_groups) {
+        if (params.data_type != "single-cell") {
+            std::cerr << "Error: --cell-groups is only supported with single-cell data." << std::endl;
+            exit(1);
+        }
+        if (params.do_interaction) {
+            std::cerr << "Error: --cell-groups cannot be combined with --interaction." << std::endl;
+            exit(1);
+        }
+    }
     
     std::cout << "\nMode: " << params.mode << std::endl;
     std::cout << "Model: " << params.model << std::endl;
@@ -161,7 +174,6 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\nReading non-genotype data..." << std::endl;
     std::string pheno_file;
-
 
     if (params.data_type == "single-cell") {
         if (params.sc_pheno_file.empty()) {
@@ -265,28 +277,39 @@ int main(int argc, char* argv[]) {
     if (params.data_type == "single-cell" && cov_data.cov_data_type == "single-cell") {
         align_sc_cell_ids(pheno_data, cov_data);
     }
+
+    CellGroups cell_groups(params.cell_groups_file);
+    if (use_cell_groups) {
+        std::cout << "\nReading cell groups..." << std::endl;
+        cell_groups.read_cell_groups();
+        cell_groups.align_to_cells(pheno_data.cell_ids);
+    }
+
     if (mixed_model) {
         grm.slice_samples(int_sample_ids);
     }
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs." << std::endl;
 
     if (params.do_interaction) {
+        if (cov_data.cov_data_type == "single-cell") {
+            cov_data.add_bw_covariates();
+            std::cout << "\nInteraction covariate '" << params.interaction_cov << "' is single-cell level." << std::endl;
+            std::cout << "Converted to between-sample ('" << params.interaction_cov << "_b') and within-sample ('" <<
+                params.interaction_cov << "_w') covariates." << std::endl;
+        }
         bool interaction_is_categorical = cov_data.is_covariate_categorical();
         if (interaction_is_categorical) {
-            std::cout << "Interaction covariate '" << params.interaction_cov
-                      << "' treated as categorical (<=10 unique finite values); "
-                      << "not adding squared nuisance covariate." << std::endl;
+            std::cout << "\nInteraction covariate '" << cov_data.interaction_id << "' treated as categorical (<=10 unique finite values)." << std::endl;
+            std::cout << "Not adding squared nuisance covariate." << std::endl;
         } else {
-            std::string squared_covariate_id = params.interaction_cov + "_sq";
+            std::string squared_covariate_id = cov_data.interaction_id + "_sq";
             cov_data.add_squared_covariate();
-            std::cout << "Interaction covariate '" << params.interaction_cov
-                      << "' treated as continuous (>10 unique finite values); "
-                      << "added squared nuisance covariate '" << squared_covariate_id
-                      << "'." << std::endl;
+            std::cout << "\nInteraction covariate '" << cov_data.interaction_id << "' treated as continuous (>10 unique finite values)." << std::endl;
+            std::cout << "Added squared nuisance covariate '" << squared_covariate_id << "'." << std::endl;
         }
     }
 
-    std::cout << "Centring and scaling covariate data..." << std::endl;
+    std::cout << "\nCentring and scaling covariate data..." << std::endl;
     cov_data.standardisze_data();
 
     if (params.data_type == "bulk") {
@@ -325,7 +348,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::cout << "\nResidualising data..." << std::endl;
-        residualise(params, model_fit, cov_data, pheno_data, grm);
+        residualise(params, model_fit, cov_data, pheno_data, grm, cell_groups);
         std::cout << "\nResidualisation finished." << std::endl;
     } else {
         model_fit.read_model_fit();
@@ -357,7 +380,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Cis-windows constructed." << std::endl;
 
     std::cout << "\nPerforming variant score tests..." << std::endl;
-    score_test(params, model_fit, geno_data, pheno_data, cov_data);
+    score_test(params, model_fit, geno_data, pheno_data, cov_data, cell_groups);
     std::cout << "Variant score tests finished." << std::endl;
 
     std::cout << "\nquasar execution finished." << std::endl;

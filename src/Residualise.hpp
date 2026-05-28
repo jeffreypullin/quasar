@@ -24,7 +24,7 @@
 
 typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalXd;
 
-void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm);
+void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm, CellGroups& cell_groups);
 double compute_r_approx(const Eigen::MatrixXd& P, const Eigen::VectorXd& w, const Eigen::MatrixXd& X);
 
 #endif

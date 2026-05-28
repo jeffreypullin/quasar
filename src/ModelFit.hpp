@@ -41,14 +41,33 @@ class ModelFit {
     
     std::vector<double> phi;
     std::vector<double> tr;
+    std::vector<double> tr_int;
     std::vector<double> sigma2;
     std::vector<Eigen::MatrixXd> XtWX_inv_vec;
     std::vector<Eigen::VectorXd> Xty_res_vec;
     std::vector<Eigen::MatrixXd> XtWZ_vec;
+    std::vector<Eigen::VectorXd> ZtDy_res_vec;
+    std::vector<Eigen::VectorXd> Zty_res_vec;
+    std::vector<Eigen::MatrixXd> XtWDZ_vec;
+    std::vector<Eigen::VectorXd> d_out_vec;
+    std::vector<Eigen::VectorXd> dw_out_vec;
+    std::vector<Eigen::VectorXd> dwd_out_vec;
     
     std::vector<bool> phi_converged;
     std::vector<bool> glm_converged;
     std::vector<bool> glmm_converged;
+
+    // Per-group quantities for single-cell --cell-groups score tests.
+    size_t n_groups = 0;
+    std::vector<std::string> group_ids;
+    std::vector<std::vector<Eigen::MatrixXd>> XtWX_inv_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> Xty_res_g_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> XtWZ_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> y_out_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> mu_out_g_vec;
+    std::vector<std::vector<double>> tr_g_vec;
+    std::vector<std::vector<double>> sigma2_g_vec;
+    std::vector<std::vector<bool>> glmm_converged_g_vec;
 
     ModelFit(std::string model, std::string fit_file, PhenoData& pheno_data) {
       this->model = model;

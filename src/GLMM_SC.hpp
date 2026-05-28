@@ -304,7 +304,8 @@ class GLMM_SC {
         double compute_trPOmegaWPwOmega() {
             double a = 0;
             double b = 0;
-            double c = 0;
+            double c1 = 0;
+            double c2 = 0;
 
             for (size_t i = 0; i < n; ++i) {
                 double tau = 1 / sigma2;
@@ -312,16 +313,20 @@ class GLMM_SC {
                 a += pow(wis_sum, 2) - (pow(wis_sum, 3) / (tau + wis_sum));
             }
 
-            Eigen::MatrixXd tmp;
-            tmp = (XtSigma_invX_inv) * ZtSigma_invX.transpose();
+            Eigen::MatrixXd tmp = (XtSigma_invX_inv) * ZtSigma_invX.transpose();
             b = (ZtSigma_invX * tmp * collapse_vec(w).asDiagonal()).trace();
 
-            Eigen::MatrixXd WX = w.asDiagonal() * X;
             Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::MatrixXd XtWOmegaWX = WX.transpose() * Omega_X(WX);
-            c = (XtWOmegaWX * XtWX_inv).trace();
+            Eigen::MatrixXd OmegaWX = Omega_X(w.asDiagonal() * X);
+            Eigen::MatrixXd Sigma_invOmegaWX = Sigma_inv_X(OmegaWX);
+            Eigen::MatrixXd tmp1 = OmegaWX.transpose() * Sigma_invOmegaWX;
+            c1 = (tmp1 * XtWX_inv).trace();
 
-            return a - b - c;
+            Eigen::MatrixXd XtSigma_invOmegaWX = X.transpose() * Sigma_invOmegaWX;
+            Eigen::MatrixXd tmp2 = XtSigma_invOmegaWX.transpose() * (XtSigma_invX_inv * XtSigma_invOmegaWX);
+            c2 = (tmp2 * XtWX_inv).trace();
+
+            return a - b - (c1 - c2);
         }
 
         double compute_trWPwOmegaWPwOmega() {

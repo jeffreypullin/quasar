@@ -25,6 +25,7 @@
 #include "NBGLM.hpp"
 #include "GLMM_GRM.hpp"
 #include "GLMM_SC.hpp"
+#include "GLMM_SC_INT.hpp"
 #include "NBGLMM.hpp"
 #include "Phi.hpp"
 
@@ -34,10 +35,11 @@
 #include <string>
 #include <numeric>
 #include <algorithm>
+#include <limits>
 #include <random>
 #include <boost/math/special_functions/beta.hpp>
 
-void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm) {
+void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm, CellGroups& cell_groups) {
 
     Eigen::MatrixXd& Y = pheno_data.data;
     if (params.data_type == "single-cell") {
@@ -71,6 +73,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     Eigen::MatrixXd W(n_pheno, pheno_data.n_samples);
 
     std::vector<double> tr;
+    std::vector<double> tr_int;
     std::vector<double> phi;
     std::vector<double> sigma2;
 
@@ -80,14 +83,42 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<Eigen::MatrixXd> XtWX_inv_vec;
     std::vector<Eigen::VectorXd> Xty_res_vec;
     std::vector<Eigen::MatrixXd> XtWZ_vec;
-
+    std::vector<Eigen::VectorXd> ZtDy_res_vec;
+    std::vector<Eigen::MatrixXd> XtWDZ_vec;
+    std::vector<Eigen::VectorXd> Zty_res_vec;
+    std::vector<Eigen::VectorXd> d_out_vec;
+    std::vector<Eigen::VectorXd> dw_out_vec;
+    std::vector<Eigen::VectorXd> dwd_out_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> XtWX_inv_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> Xty_res_g_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> XtWZ_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> y_out_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> w_g_donor_vec;
+    std::vector<std::vector<double>> tr_g_vec;
+    std::vector<std::vector<double>> sigma2_g_vec;
+    std::vector<std::vector<bool>> glmm_converged_g_vec;
     Eigen::VectorXd ns(pheno_data.cell_counts.size());
     for (size_t idx = 0; idx < pheno_data.cell_counts.size(); ++idx) {
         ns(idx) = static_cast<double>(pheno_data.cell_counts[idx]);
     }
 
-    if (params.model == "p_glmm_sc") {
-        
+    if ((params.model == "p_glmm_sc") & !params.do_interaction) {
+
+        const size_t N_sc = static_cast<size_t>(X.rows());
+        const size_t c_sc = static_cast<size_t>(X.cols());
+        const size_t n_donors_sc = static_cast<size_t>(ns.size());
+        std::vector<size_t> cum_ns_sc;
+        if (cell_groups.n_groups > 0) {
+            if (cell_groups.cell_to_group.size() != N_sc) {
+                std::cerr << "Error: cell_to_group size does not match number of cells when fitting per-group GLMMs." << std::endl;
+                std::exit(1);
+            }
+            cum_ns_sc.assign(n_donors_sc, 0);
+            for (size_t d = 1; d < n_donors_sc; ++d) {
+                cum_ns_sc[d] = cum_ns_sc[d - 1] + static_cast<size_t>(ns(static_cast<Eigen::Index>(d - 1)));
+            }
+        }
+
         std::cout <<"\nFitting single-cell Poisson GLMMs..." << std::endl; 
         for (int i = 0; i < n_pheno; ++i) {
 
@@ -101,11 +132,133 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             Xty_res_vec.push_back(p_glmm_sc.Xty_res);
             XtWZ_vec.push_back(p_glmm_sc.XtWZ);
 
+            if (cell_groups.n_groups > 0) {
+                
+                const double nan_val = std::numeric_limits<double>::quiet_NaN();
+                std::vector<Eigen::MatrixXd> XtWX_inv_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(c_sc, c_sc));
+                std::vector<Eigen::VectorXd> Xty_res_g(cell_groups.n_groups, Eigen::VectorXd::Zero(c_sc));
+                std::vector<Eigen::MatrixXd> XtWZ_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(c_sc, n_donors_sc));
+                std::vector<Eigen::VectorXd> y_out_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
+                std::vector<Eigen::VectorXd> mu_out_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
+                std::vector<double> tr_g(cell_groups.n_groups, nan_val);
+                std::vector<double> sigma2_g(cell_groups.n_groups, nan_val);
+                std::vector<bool> converged_g(cell_groups.n_groups, false);
+
+                Eigen::VectorXd y_col = pheno_data.sc_data.col(i);
+
+                for (size_t gi = 0; gi < cell_groups.n_groups; ++gi) {
+                    std::vector<size_t> cell_inds_g;
+                    cell_inds_g.reserve(N_sc);
+                    std::vector<size_t> donor_keep_g;
+                    std::vector<int> ns_g_kept;
+                    donor_keep_g.reserve(n_donors_sc);
+                    ns_g_kept.reserve(n_donors_sc);
+
+                    for (size_t d = 0; d < n_donors_sc; ++d) {
+                        const size_t start = cum_ns_sc[d];
+                        const size_t end = start + static_cast<size_t>(ns(static_cast<Eigen::Index>(d)));
+                        int n_cells_d_g = 0;
+                        for (size_t k = start; k < end; ++k) {
+                            if (cell_groups.cell_to_group[k] == static_cast<int>(gi)) {
+                                cell_inds_g.push_back(k);
+                                n_cells_d_g++;
+                            }
+                        }
+                        if (n_cells_d_g > 0) {
+                            donor_keep_g.push_back(d);
+                            ns_g_kept.push_back(n_cells_d_g);
+                        }
+                    }
+
+                    const size_t cells_g = cell_inds_g.size();
+                    const size_t n_donors_g = donor_keep_g.size();
+
+                    Eigen::MatrixXd X_g(cells_g, c_sc);
+                    Eigen::VectorXd y_g(cells_g);
+                    Eigen::VectorXd offset_g(cells_g);
+                    for (size_t k = 0; k < cells_g; ++k) {
+                        const Eigen::Index src = static_cast<Eigen::Index>(cell_inds_g[k]);
+                        const Eigen::Index dst = static_cast<Eigen::Index>(k);
+                        X_g.row(dst) = X.row(src);
+                        y_g(dst) = y_col(src);
+                        offset_g(dst) = offset(src);
+                    }
+                    Eigen::VectorXd ns_g(static_cast<Eigen::Index>(n_donors_g));
+                    for (size_t d = 0; d < n_donors_g; ++d) {
+                        ns_g(static_cast<Eigen::Index>(d)) = static_cast<double>(ns_g_kept[d]);
+                    }
+
+                    auto poisson_g = std::unique_ptr<Family>(new Poisson());
+                    GLMM_SC fit_g(X_g, y_g, offset_g, std::move(poisson_g), ns_g);
+                    fit_g.fit();
+
+                    if (!fit_g.glmm_converged) {
+                        XtWX_inv_g[gi].setConstant(nan_val);
+                        Xty_res_g[gi].setConstant(nan_val);
+                        XtWZ_g[gi].setConstant(nan_val);
+                        y_out_g[gi].setConstant(nan_val);
+                        mu_out_g[gi].setConstant(nan_val);
+                        converged_g[gi] = false;
+                        continue;
+                    }
+
+                    XtWX_inv_g[gi] = fit_g.XtWX_inv;
+                    Xty_res_g[gi] = fit_g.Xty_res;
+                    for (size_t d = 0; d < n_donors_g; ++d) {
+                        const Eigen::Index full_d = static_cast<Eigen::Index>(donor_keep_g[d]);
+                        const Eigen::Index kept_d = static_cast<Eigen::Index>(d);
+                        y_out_g[gi](full_d) = fit_g.y_out(kept_d);
+                        mu_out_g[gi](full_d) = fit_g.mu_out(kept_d);
+                        XtWZ_g[gi].col(full_d) = fit_g.XtWZ.col(kept_d);
+                    }
+                    tr_g[gi] = fit_g.r_approx;
+                    sigma2_g[gi] = fit_g.sigma2;
+                    converged_g[gi] = fit_g.glmm_converged;
+                }
+
+                XtWX_inv_g_vec.push_back(XtWX_inv_g);
+                Xty_res_g_vec.push_back(Xty_res_g);
+                XtWZ_g_vec.push_back(XtWZ_g);
+                y_out_g_vec.push_back(y_out_g);
+                w_g_donor_vec.push_back(mu_out_g);
+                tr_g_vec.push_back(tr_g);
+                sigma2_g_vec.push_back(sigma2_g);
+                glmm_converged_g_vec.push_back(converged_g);
+            }
+
             tr.push_back(p_glmm_sc.r_approx);
             glmm_converged.push_back(p_glmm_sc.glmm_converged);
             sigma2.push_back(p_glmm_sc.sigma2);
         }
         std::cout << "Null single-cell Poisson GLMMs fitted." << std::endl;
+
+    } else if ((params.model == "p_glmm_sc") & params.do_interaction) {
+
+        std::cout <<"\nFitting null random slope single-cell Poisson GLMMs..." << std::endl; 
+        for (int i = 0; i < n_pheno; ++i) {
+
+            Eigen::VectorXd x = cov_data.sc_data.col(cov_data.interaction_ind);
+            Eigen::VectorXd y = pheno_data.sc_data.col(i);
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            GLMM_SC_INT nb_glmm(X, y, x, offset, std::move(poisson), ns);
+            nb_glmm.fit();
+
+            Y.col(i) = nb_glmm.y_out;
+            W.row(i) = nb_glmm.mu_out;
+            XtWX_inv_vec.push_back(nb_glmm.XtWX_inv);
+            Xty_res_vec.push_back(nb_glmm.Xty_res);
+            XtWZ_vec.push_back(nb_glmm.XtWZ);
+            ZtDy_res_vec.push_back(nb_glmm.ZtDy_res);
+            XtWDZ_vec.push_back(nb_glmm.XtWDZ);
+            Zty_res_vec.push_back(nb_glmm.Zty_res);
+            d_out_vec.push_back(nb_glmm.d_out);
+            dw_out_vec.push_back(nb_glmm.dw_out);
+            dwd_out_vec.push_back(nb_glmm.dwd_out);
+            tr.push_back(nb_glmm.r_approx);
+            tr_int.push_back(nb_glmm.r_approx_int);
+            glmm_converged.push_back(nb_glmm.glmm_converged);
+        }
+        std::cout << "Null random-slope single-cell Poisson GLMMs fitted." << std::endl;
 
     } else if (params.model == "lmm") {
 
@@ -258,14 +411,34 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.W = W;
     model_fit.phi = phi;
     model_fit.tr = tr;
+    model_fit.tr_int = tr_int;
     model_fit.sigma2 = sigma2;
     model_fit.XtWX_inv_vec = XtWX_inv_vec;
     model_fit.Xty_res_vec = Xty_res_vec;
     model_fit.XtWZ_vec = XtWZ_vec;
+    model_fit.ZtDy_res_vec = ZtDy_res_vec;
+    model_fit.XtWDZ_vec = XtWDZ_vec;
+    model_fit.Zty_res_vec = Zty_res_vec;
+    model_fit.d_out_vec = d_out_vec;
+    model_fit.dw_out_vec = dw_out_vec;
+    model_fit.dwd_out_vec = dwd_out_vec;
 
     model_fit.phi_converged = phi_converged;
     model_fit.glm_converged = glm_converged;
     model_fit.glmm_converged = glmm_converged;
+
+    if (cell_groups.n_groups > 0) {
+        model_fit.n_groups = cell_groups.n_groups;
+        model_fit.group_ids = cell_groups.group_ids;
+        model_fit.XtWX_inv_g_vec = XtWX_inv_g_vec;
+        model_fit.Xty_res_g_vec = Xty_res_g_vec;
+        model_fit.XtWZ_g_vec = XtWZ_g_vec;
+        model_fit.y_out_g_vec = y_out_g_vec;
+        model_fit.mu_out_g_vec = w_g_donor_vec;
+        model_fit.tr_g_vec = tr_g_vec;
+        model_fit.sigma2_g_vec = sigma2_g_vec;
+        model_fit.glmm_converged_g_vec = glmm_converged_g_vec;
+    }
 
     pheno_data.data = Y;
 }

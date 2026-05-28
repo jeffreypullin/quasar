@@ -20,6 +20,7 @@
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/cauchy.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
+#include <cmath>
 #include <vector>
 #include <iostream>
 #include <numeric>
@@ -141,7 +142,100 @@ double ACAT(const std::vector<double>& pvals) {
     return pcauchy(sum, true);
 }
 
-std::string make_variant_header_line(const Params& params) {
+CochranQResult compute_cochran_q(const std::vector<double>& beta, const std::vector<double>& se) {
+
+    CochranQResult res{std::numeric_limits<double>::quiet_NaN(),
+                       std::numeric_limits<double>::quiet_NaN(),
+                       0};
+
+    if (beta.size() != se.size()) {
+        return res;
+    }
+
+    double sum_w = 0.0;
+    double sum_wb = 0.0;
+    int k = 0;
+    for (size_t i = 0; i < beta.size(); ++i) {
+        if (std::isnan(beta[i]) || std::isnan(se[i]) || se[i] <= 0.0) {
+            continue;
+        }
+        double w = 1.0 / (se[i] * se[i]);
+        sum_w  += w;
+        sum_wb += w * beta[i];
+        k++;
+    }
+
+    if (k < 2 || sum_w <= 0.0) {
+        return res;
+    }
+
+    double beta_fe = sum_wb / sum_w;
+    double Q = 0.0;
+    for (size_t i = 0; i < beta.size(); ++i) {
+        if (std::isnan(beta[i]) || std::isnan(se[i]) || se[i] <= 0.0) {
+            continue;
+        }
+        double w = 1.0 / (se[i] * se[i]);
+        double d = beta[i] - beta_fe;
+        Q += w * d * d;
+    }
+
+    res.q = Q;
+    res.df = k - 1;
+    boost::math::chi_squared chi(static_cast<double>(res.df));
+    res.pvalue = boost::math::cdf(boost::math::complement(chi, Q));
+    return res;
+}
+
+WeightedTrendResult compute_weighted_trend(
+    const std::vector<double>& beta,
+    const std::vector<double>& se,
+    const std::vector<double>& score
+) {
+    WeightedTrendResult res{std::numeric_limits<double>::quiet_NaN(),
+                            std::numeric_limits<double>::quiet_NaN(),
+                            std::numeric_limits<double>::quiet_NaN()};
+
+    if (beta.size() != se.size() || beta.size() != score.size()) {
+        return res;
+    }
+
+    double s0 = 0.0;
+    double s1 = 0.0;
+    double s2 = 0.0;
+    double sy = 0.0;
+    double sxy = 0.0;
+    int k = 0;
+
+    for (size_t i = 0; i < beta.size(); ++i) {
+        if (std::isnan(beta[i]) || std::isnan(se[i]) || std::isnan(score[i]) || se[i] <= 0.0) {
+            continue;
+        }
+        double w = 1.0 / (se[i] * se[i]);
+        s0 += w;
+        s1 += w * score[i];
+        s2 += w * score[i] * score[i];
+        sy += w * beta[i];
+        sxy += w * score[i] * beta[i];
+        k++;
+    }
+
+    double det = s0 * s2 - s1 * s1;
+    if (k < 2 || det <= 0.0 || std::isnan(det)) {
+        return res;
+    }
+
+    res.beta = (s0 * sxy - s1 * sy) / det;
+    res.se = std::sqrt(s0 / det);
+    double z = res.beta / res.se;
+    if (res.se <= 0.0 || std::isnan(z)) {
+        return res;
+    }
+    res.pvalue = 2 * pnorm(std::abs(z), true);
+    return res;
+}
+
+std::string make_variant_header_line(const Params& params, const std::vector<std::string>& group_ids) {
 
     const std::string& model = params.model;
 
@@ -159,8 +253,10 @@ std::string make_variant_header_line(const Params& params) {
         line = line + "\tglm_converged\tphi\tphi_converged";
     } else if (model == "p_glmm" ||
                model == "p_glmm_grm" ||
-               model == "p_glmm_sc") {
+               ((model == "p_glmm_sc") & !params.do_interaction)) {
         line = line + "\tglmm_converged\tsigma2";
+    } else if ((model == "p_glmm_sc") & params.do_interaction) {
+        line = line + "\tglmm_converged";
     } else if (model == "nb_glmm") {
         line = line + "\tglmm_converged\tsigma2\tphi\tphi_converged";
     }
@@ -184,6 +280,18 @@ std::string make_variant_header_line(const Params& params) {
         line += "\tsnp_x_" + snake_case_id + "_beta";
         line += "\tsnp_x_" + snake_case_id + "_se";
         line += "\tsnp_x_" + snake_case_id + "_pvalue";
+    }
+
+    if (!group_ids.empty()) {
+        for (const auto& gid : group_ids) {
+            line += "\t" + gid + "_beta";
+            line += "\t" + gid + "_se";
+            line += "\t" + gid + "_pvalue";
+        }
+        line += "\tgroup_het_q\tgroup_het_pvalue";
+        line += "\tgroup_linear_beta\tgroup_linear_se\tgroup_linear_pvalue";
+        line += "\tgroup_quadratic_beta\tgroup_quadratic_se\tgroup_quadratic_pvalue";
+        line += "\tgroup_acat_pvalue";
     }
 
     line = line + "\n";

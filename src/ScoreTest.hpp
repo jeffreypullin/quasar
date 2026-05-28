@@ -23,6 +23,6 @@
 #include "Data.hpp"
 #include "Geno.hpp"
 
-void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoData& pheno_data, CovData& cov_data);
+void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoData& pheno_data, CovData& cov_data, CellGroups& cell_groups);
 
 #endif

@@ -18,6 +18,8 @@
 #ifndef DATA_H
 #define DATA_H
 
+#include <unordered_map>
+
 #include "Quasar.hpp"
 
 class PhenoData {
@@ -100,6 +102,7 @@ class CovData {
       void collapse_cov_data();
       bool is_covariate_categorical();
       void add_squared_covariate();
+      void add_bw_covariates();
       void standardisze_data();
 
       void slice_samples(std::vector<std::string>& sample_ids);
@@ -121,5 +124,25 @@ class GRM {
 };
 
 size_t align_sc_cell_ids(PhenoData& pheno_data, CovData& cov_data);
+
+class CellGroups {
+
+  public:
+    std::string file;
+    size_t n_groups = 0;
+    std::vector<std::string> group_ids;
+    std::vector<int> cell_to_group;
+    std::vector<std::vector<size_t>> cells_per_group;
+
+    CellGroups(std::string file) {
+      this->file = file;
+    }
+
+    void read_cell_groups();
+    void align_to_cells(const std::vector<std::string>& cell_ids);
+
+  private:
+    std::unordered_map<std::string, int> cell_id_to_group_idx_;
+};
 
 #endif

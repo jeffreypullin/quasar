@@ -703,6 +703,41 @@ void CovData::add_squared_covariate() {
     n_cov++;
 }
 
+void CovData::add_bw_covariates() {
+    Eigen::VectorXd int_col = sc_data.col(interaction_ind);
+    int n_cells_total = sc_data.rows();
+    int old_ncols = static_cast<int>(sc_data.cols());
+
+    Eigen::VectorXd b_col = Eigen::VectorXd::Zero(n_cells_total);
+    int row = 0;
+    for (size_t i = 0; i < cell_counts.size(); ++i) {
+        int nc = cell_counts[i];
+        double mean_i = int_col.segment(row, nc).mean();
+        b_col.segment(row, nc).setConstant(mean_i);
+        row += nc;
+    }
+    Eigen::VectorXd w_col = int_col - b_col;
+
+    // Drop the original interaction column and append the between/within replacements.
+    Eigen::MatrixXd updated(n_cells_total, old_ncols - 1 + 2);
+    int dest = 0;
+    for (int j = 0; j < old_ncols; ++j) {
+        if (j == interaction_ind) continue;
+        updated.col(dest++) = sc_data.col(j);
+    }
+    updated.col(dest)     = b_col;
+    updated.col(dest + 1) = w_col;
+    sc_data = updated;
+
+    cov_ids.erase(cov_ids.begin() + interaction_ind);
+    cov_ids.push_back(interaction_id + "_b");
+    cov_ids.push_back(interaction_id + "_w");
+    n_cov += 1;
+
+    interaction_id  = interaction_id + "_w";
+    interaction_ind = static_cast<int>(sc_data.cols()) - 1;
+}
+
 void CovData::standardisze_data() {
     Eigen::MatrixXd* matrix = &data;
     if (cov_data_type == "single-cell") {
@@ -1063,6 +1098,118 @@ size_t align_sc_cell_ids(PhenoData& pheno_data, CovData& cov_data) {
     std::cout << std::defaultfloat << std::setprecision(6);
 
     return kept_total;
+}
+
+void CellGroups::read_cell_groups() {
+
+    std::ifstream f(file);
+    if (!f.is_open()) {
+        std::cerr << "Error: Unable to open cell groups file: " << file << std::endl;
+        exit(1);
+    }
+
+    std::string line;
+    std::vector<std::string> tokens;
+
+    if (!std::getline(f, line)) {
+        std::cerr << "Error: cell groups file is empty: " << file << std::endl;
+        exit(1);
+    }
+    remove_carriage_return(line);
+    tokens = string_split(line, ",\t ");
+    if (tokens.size() < 2 || tokens[0] != "group" || tokens[1] != "cell_id") {
+        std::cerr << "Error: Invalid header in cell groups file. Expected 'group' and 'cell_id' as the first two columns." << std::endl;
+        exit(1);
+    }
+
+    std::unordered_map<std::string, int> group_id_to_idx;
+    cell_id_to_group_idx_.clear();
+    group_ids.clear();
+
+    size_t row = 1;
+    while (std::getline(f, line)) {
+        row++;
+        remove_carriage_return(line);
+        if (line.empty()) {
+            continue;
+        }
+        tokens = string_split(line, ",\t ");
+        if (tokens.size() < 2) {
+            std::cerr << "Error: Cell groups file at line " << row << " has fewer than 2 columns." << std::endl;
+            exit(1);
+        }
+        const std::string& group = tokens[0];
+        const std::string& cell_id = tokens[1];
+
+        auto inserted = cell_id_to_group_idx_.emplace(cell_id, -1);
+        if (!inserted.second) {
+            std::cerr << "Error: Duplicate cell_id '" << cell_id
+                      << "' in cell groups file at line " << row << "." << std::endl;
+            exit(1);
+        }
+
+        auto git = group_id_to_idx.find(group);
+        int gi;
+        if (git == group_id_to_idx.end()) {
+            gi = static_cast<int>(group_ids.size());
+            group_id_to_idx.emplace(group, gi);
+            group_ids.push_back(group);
+        } else {
+            gi = git->second;
+        }
+        inserted.first->second = gi;
+    }
+
+    n_groups = group_ids.size();
+    f.close();
+
+    if (n_groups == 0) {
+        std::cerr << "Error: No groups found in cell groups file." << std::endl;
+        exit(1);
+    }
+
+    std::cout << "Read " << format_with_commas(cell_id_to_group_idx_.size())
+              << " cell-to-group assignments across " << n_groups
+              << " groups from cell groups file." << std::endl;
+}
+
+void CellGroups::align_to_cells(const std::vector<std::string>& cell_ids) {
+
+    if (n_groups == 0) {
+        std::cerr << "Error: align_to_cells called before read_cell_groups." << std::endl;
+        exit(1);
+    }
+
+    cell_to_group.assign(cell_ids.size(), -1);
+    cells_per_group.assign(n_groups, std::vector<size_t>());
+
+    size_t n_assigned = 0;
+    for (size_t i = 0; i < cell_ids.size(); ++i) {
+        auto it = cell_id_to_group_idx_.find(cell_ids[i]);
+        if (it == cell_id_to_group_idx_.end()) {
+            std::cerr << "Error: cell_id '" << cell_ids[i]
+                      << "' is present in phenotype data but missing from cell groups file." << std::endl;
+            exit(1);
+        }
+        int gi = it->second;
+        cell_to_group[i] = gi;
+        cells_per_group[gi].push_back(i);
+        n_assigned++;
+    }
+
+    if (n_assigned != cell_id_to_group_idx_.size()) {
+        std::cerr << "Warning: " << (cell_id_to_group_idx_.size() - n_assigned)
+                  << " cell_id(s) in cell groups file are not present in phenotype data; ignoring."
+                  << std::endl;
+    }
+
+    for (size_t gi = 0; gi < n_groups; ++gi) {
+        if (cells_per_group[gi].empty()) {
+            std::cerr << "Error: cell group '" << group_ids[gi]
+                      << "' has no cells in the aligned phenotype data." << std::endl;
+            exit(1);
+        }
+    }
 }
 
 void GRM::read_grm() {

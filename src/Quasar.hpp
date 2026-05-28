@@ -41,6 +41,7 @@ struct Params {
     std::string anno_file;
     std::string resid_file;
     std::string fit_file;
+    std::string cell_groups_file;
 
     std::string interaction_cov;
     bool do_interaction = false;
@@ -52,6 +53,7 @@ struct Params {
     bool use_apl;
     bool use_quant_res;
     int pheno_chr;
+    std::string pheno_ids_file;
 
     std::string out;
     bool verbose = false;
