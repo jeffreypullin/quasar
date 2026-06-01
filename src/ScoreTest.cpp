@@ -24,40 +24,6 @@
 #include <numeric>
 #include <Eigen/Eigenvalues>
 
-static std::vector<double> make_group_linear_scores(size_t n_groups) {
-    std::vector<double> scores(n_groups);
-    double mean = (static_cast<double>(n_groups) + 1.0) / 2.0;
-    for (size_t i = 0; i < n_groups; ++i) {
-        scores[i] = static_cast<double>(i + 1) - mean;
-    }
-    return scores;
-}
-
-static std::vector<double> make_group_quadratic_scores(const std::vector<double>& linear_scores) {
-    std::vector<double> scores(linear_scores.size());
-    double mean = 0.0;
-    for (size_t i = 0; i < linear_scores.size(); ++i) {
-        scores[i] = linear_scores[i] * linear_scores[i];
-        mean += scores[i];
-    }
-    mean /= static_cast<double>(scores.size());
-    for (double& score : scores) {
-        score -= mean;
-    }
-
-    double lin_quad = 0.0;
-    double lin_lin = 0.0;
-    for (size_t i = 0; i < linear_scores.size(); ++i) {
-        lin_quad += linear_scores[i] * scores[i];
-        lin_lin += linear_scores[i] * linear_scores[i];
-    }
-    double slope = lin_lin > 0.0 ? lin_quad / lin_lin : 0.0;
-    for (size_t i = 0; i < scores.size(); ++i) {
-        scores[i] -= slope * linear_scores[i];
-    }
-    return scores;
-}
-
 void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoData& pheno_data, CovData& cov_data, CellGroups& cell_groups) {
 
     std::string model = params.model;
@@ -75,13 +41,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     bool use_cell_groups = cell_groups.n_groups > 0;
     std::vector<double> group_linear_scores;
     std::vector<double> group_quadratic_scores;
-    if (use_cell_groups) {
-        group_linear_scores = make_group_linear_scores(cell_groups.n_groups);
+    if (use_cell_groups && cell_groups.has_values) {
+        group_linear_scores = make_group_linear_scores_values(cell_groups.group_values);
         group_quadratic_scores = make_group_quadratic_scores(group_linear_scores);
     }
 
     std::ofstream variant_file(params.out + "-quasar-" + mode + "-variant.txt");
-    std::string variant_header_line = make_variant_header_line(params, use_cell_groups ? cell_groups.group_ids : std::vector<std::string>{});
+    std::string variant_header_line = make_variant_header_line(params, use_cell_groups ? cell_groups.group_ids : std::vector<std::string>{}, use_cell_groups && cell_groups.has_values);
     variant_file << variant_header_line;
 
     std::ofstream region_file;
@@ -296,13 +262,15 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                         }
                     }
                     het_result = compute_cochran_q(group_betas, group_ses);
-                    group_linear_result = compute_weighted_trend(group_betas, group_ses, group_linear_scores);
-                    group_quadratic_result = compute_weighted_trend(group_betas, group_ses, group_quadratic_scores);
-                    group_acat_pvalue = ACAT({
-                        group_linear_result.pvalue,
-                        group_quadratic_result.pvalue,
-                        het_result.pvalue
-                    });
+                    if (cell_groups.has_values) {
+                        group_linear_result = compute_weighted_trend(group_betas, group_ses, group_linear_scores);
+                        group_quadratic_result = compute_weighted_trend(group_betas, group_ses, group_quadratic_scores);
+                        group_acat_pvalue = ACAT({
+                            group_linear_result.pvalue,
+                            group_quadratic_result.pvalue,
+                            het_result.pvalue
+                        });
+                    }
                 }
 
             } else {
@@ -453,19 +421,24 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
             if (use_cell_groups) {
                 for (size_t gi = 0; gi < cell_groups.n_groups; ++gi) {
+                    if (cell_groups.has_values) {
+                        variant_line << "\t" << cell_groups.group_values[gi];
+                    }
                     variant_line << "\t" << group_betas[gi]
                                  << "\t" << group_ses[gi]
                                  << "\t" << group_pvals[gi];
                 }
                 variant_line << "\t" << het_result.q
-                             << "\t" << het_result.pvalue
-                             << "\t" << group_linear_result.beta
-                             << "\t" << group_linear_result.se
-                             << "\t" << group_linear_result.pvalue
-                             << "\t" << group_quadratic_result.beta
-                             << "\t" << group_quadratic_result.se
-                             << "\t" << group_quadratic_result.pvalue
-                             << "\t" << group_acat_pvalue;
+                             << "\t" << het_result.pvalue;
+                if (cell_groups.has_values) {
+                    variant_line << "\t" << group_linear_result.beta
+                                 << "\t" << group_linear_result.se
+                                 << "\t" << group_linear_result.pvalue
+                                 << "\t" << group_quadratic_result.beta
+                                 << "\t" << group_quadratic_result.se
+                                 << "\t" << group_quadratic_result.pvalue
+                                 << "\t" << group_acat_pvalue;
+                }
             }
 
             variant_line << "\n";

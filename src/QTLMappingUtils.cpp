@@ -235,7 +235,43 @@ WeightedTrendResult compute_weighted_trend(
     return res;
 }
 
-std::string make_variant_header_line(const Params& params, const std::vector<std::string>& group_ids) {
+std::vector<double> make_group_linear_scores_values(const std::vector<double>& values) {
+    std::vector<double> scores(values.size());
+    double mean = 0.0;
+    for (double v : values) mean += v;
+    mean /= static_cast<double>(values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        scores[i] = values[i] - mean;
+    }
+    return scores;
+}
+
+std::vector<double> make_group_quadratic_scores(const std::vector<double>& linear_scores) {
+    std::vector<double> scores(linear_scores.size());
+    double mean = 0.0;
+    for (size_t i = 0; i < linear_scores.size(); ++i) {
+        scores[i] = linear_scores[i] * linear_scores[i];
+        mean += scores[i];
+    }
+    mean /= static_cast<double>(scores.size());
+    for (double& score : scores) {
+        score -= mean;
+    }
+
+    double lin_quad = 0.0;
+    double lin_lin = 0.0;
+    for (size_t i = 0; i < linear_scores.size(); ++i) {
+        lin_quad += linear_scores[i] * scores[i];
+        lin_lin += linear_scores[i] * linear_scores[i];
+    }
+    double slope = lin_lin > 0.0 ? lin_quad / lin_lin : 0.0;
+    for (size_t i = 0; i < scores.size(); ++i) {
+        scores[i] -= slope * linear_scores[i];
+    }
+    return scores;
+}
+
+std::string make_variant_header_line(const Params& params, const std::vector<std::string>& group_ids, bool has_group_values) {
 
     const std::string& model = params.model;
 
@@ -284,14 +320,17 @@ std::string make_variant_header_line(const Params& params, const std::vector<std
 
     if (!group_ids.empty()) {
         for (const auto& gid : group_ids) {
+            if (has_group_values) line += "\t" + gid + "_value";
             line += "\t" + gid + "_beta";
             line += "\t" + gid + "_se";
             line += "\t" + gid + "_pvalue";
         }
         line += "\tgroup_het_q\tgroup_het_pvalue";
-        line += "\tgroup_linear_beta\tgroup_linear_se\tgroup_linear_pvalue";
-        line += "\tgroup_quadratic_beta\tgroup_quadratic_se\tgroup_quadratic_pvalue";
-        line += "\tgroup_acat_pvalue";
+        if (has_group_values) {
+            line += "\tgroup_linear_beta\tgroup_linear_se\tgroup_linear_pvalue";
+            line += "\tgroup_quadratic_beta\tgroup_quadratic_se\tgroup_quadratic_pvalue";
+            line += "\tgroup_acat_pvalue";
+        }
     }
 
     line = line + "\n";

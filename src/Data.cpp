@@ -27,7 +27,9 @@
 #include <numeric>
 #include <cstdlib>
 #include <iomanip>
+#include <limits>
 #include <set>
+#include <algorithm>
 #include <cmath>
 
 void PhenoData::read_pheno_data() {
@@ -1121,9 +1123,11 @@ void CellGroups::read_cell_groups() {
         std::cerr << "Error: Invalid header in cell groups file. Expected 'group' and 'cell_id' as the first two columns." << std::endl;
         exit(1);
     }
+    has_values = (tokens.size() >= 3 && tokens[2] == "value");
 
     std::unordered_map<std::string, int> group_id_to_idx;
     cell_id_to_group_idx_.clear();
+    cell_id_to_value_.clear();
     group_ids.clear();
 
     size_t row = 1;
@@ -1146,6 +1150,19 @@ void CellGroups::read_cell_groups() {
             std::cerr << "Error: Duplicate cell_id '" << cell_id
                       << "' in cell groups file at line " << row << "." << std::endl;
             exit(1);
+        }
+
+        if (has_values) {
+            if (tokens.size() < 3) {
+                std::cerr << "Error: Cell groups file at line " << row << " is missing the 'value' column." << std::endl;
+                exit(1);
+            }
+            try {
+                cell_id_to_value_[cell_id] = std::stod(tokens[2]);
+            } catch (...) {
+                std::cerr << "Error: Cell groups file at line " << row << " has a non-numeric value '" << tokens[2] << "'." << std::endl;
+                exit(1);
+            }
         }
 
         auto git = group_id_to_idx.find(group);
@@ -1209,6 +1226,31 @@ void CellGroups::align_to_cells(const std::vector<std::string>& cell_ids) {
                       << "' has no cells in the aligned phenotype data." << std::endl;
             exit(1);
         }
+    }
+
+    if (has_values) {
+        group_values.resize(n_groups);
+        for (size_t gi = 0; gi < n_groups; ++gi) {
+            std::vector<double> vals;
+            vals.reserve(cells_per_group[gi].size());
+            for (size_t cell_idx : cells_per_group[gi]) {
+                const std::string& cid = cell_ids[cell_idx];
+                auto vit = cell_id_to_value_.find(cid);
+                if (vit != cell_id_to_value_.end()) {
+                    vals.push_back(vit->second);
+                }
+            }
+            if (vals.empty()) {
+                group_values[gi] = std::numeric_limits<double>::quiet_NaN();
+            } else {
+                std::sort(vals.begin(), vals.end());
+                size_t mid = vals.size() / 2;
+                group_values[gi] = (vals.size() % 2 == 0)
+                    ? (vals[mid - 1] + vals[mid]) / 2.0
+                    : vals[mid];
+            }
+        }
+        cell_id_to_value_.clear();
     }
 }
 

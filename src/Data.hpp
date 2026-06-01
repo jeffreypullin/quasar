@@ -133,6 +133,8 @@ class CellGroups {
     std::vector<std::string> group_ids;
     std::vector<int> cell_to_group;
     std::vector<std::vector<size_t>> cells_per_group;
+    bool has_values = false;
+    std::vector<double> group_values;
 
     CellGroups(std::string file) {
       this->file = file;
@@ -143,6 +145,7 @@ class CellGroups {
 
   private:
     std::unordered_map<std::string, int> cell_id_to_group_idx_;
+    std::unordered_map<std::string, double> cell_id_to_value_;
 };
 
 #endif

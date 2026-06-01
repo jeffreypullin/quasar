@@ -59,6 +59,9 @@ WeightedTrendResult compute_weighted_trend(
     const std::vector<double>& score
 );
 
-std::string make_variant_header_line(const Params& params, const std::vector<std::string>& group_ids = {});
+std::vector<double> make_group_linear_scores_values(const std::vector<double>& values);
+std::vector<double> make_group_quadratic_scores(const std::vector<double>& linear_scores);
+
+std::string make_variant_header_line(const Params& params, const std::vector<std::string>& group_ids = {}, bool has_group_values = false);
 
 #endif
