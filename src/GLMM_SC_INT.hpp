@@ -522,7 +522,7 @@ class GLMM_SC_INT {
             double a = w.cwiseProduct(x).cwiseProduct(x).sum();
             Eigen::MatrixXd EWX = w.cwiseProduct(x).asDiagonal() * X;
             Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::MatrixXd XtWEOmegaEWX = EWX.transpose() * Omega_X(WX);
+            Eigen::MatrixXd XtWEOmegaEWX = EWX.transpose() * Omega_X(EWX);
             double b = (XtWEOmegaEWX * XtWX_inv).trace();
             return a - b;
         }
