@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <cmath>
 
-void PhenoData::read_pheno_data() {
+void PhenoData::read_pheno_data(const std::string& mode) {
 
     std::ifstream file(pheno_file);
     if (!file.is_open()) {
@@ -42,15 +42,42 @@ void PhenoData::read_pheno_data() {
     std::string line;
     std::vector<std::string> tokens;
 
+    size_t n_info_cols = 4;
+    size_t id_col = 3;
+
     if (std::getline(file, line)) {
         remove_carriage_return(line);
         tokens = string_split(line, ",\t ");
-        if (tokens[0] != "#chr" || tokens[1] != "start" || 
-            tokens[2] != "end" || tokens[3] != "phenotype_id") {
-            std::cerr << "Error: Invalid header in phenotype file. Expected '#chr', 'start', 'end' and 'phenotype_id' as the first column names." << std::endl;
-            exit(1);
+
+        const bool header_has_coords =
+            tokens.size() >= 4 &&
+            tokens[0] == "#chr" && tokens[1] == "start" &&
+            tokens[2] == "end" && tokens[3] == "phenotype_id";
+        const bool header_id_only =
+            tokens.size() >= 1 && tokens[0] == "phenotype_id";
+
+        if (mode == "gwas") {
+            if (header_has_coords) {
+                has_genomic_coords = true;
+            } else if (header_id_only) {
+                has_genomic_coords = false;
+                n_info_cols = 1;
+                id_col = 0;
+            } else {
+                std::cerr << "Error: Invalid header in phenotype file. In mode 'gwas', expected either "
+                          << "'#chr', 'start', 'end', 'phenotype_id' or 'phenotype_id' as the leading column names."
+                          << std::endl;
+                exit(1);
+            }
+        } else {
+            has_genomic_coords = true;
+            if (!header_has_coords) {
+                std::cerr << "Error: Invalid header in phenotype file. Expected '#chr', 'start', 'end' and 'phenotype_id' as the first column names." << std::endl;
+                exit(1);
+            }
         }
-        sample_ids = std::vector<std::string>(tokens.begin() + 4, tokens.end());
+
+        sample_ids = std::vector<std::string>(tokens.begin() + n_info_cols, tokens.end());
         n_samples = sample_ids.size();
     }
 
@@ -68,31 +95,35 @@ void PhenoData::read_pheno_data() {
     
     data = Eigen::MatrixXd(n_pheno, n_samples);
     pheno_ids.reserve(n_pheno);
-    chrom.reserve(n_pheno);
-    start.reserve(n_pheno);
-    end.reserve(n_pheno);
+    if (has_genomic_coords) {
+        chrom.reserve(n_pheno);
+        start.reserve(n_pheno);
+        end.reserve(n_pheno);
+    }
 
     size_t row = 0;
     while (std::getline(file, line) && row < n_pheno) {
         remove_carriage_return(line);
         tokens = string_split(line, ",\t ");
-        if (tokens.size() != n_samples + 4) {
+        if (tokens.size() != n_samples + n_info_cols) {
             std::cerr << "Error: Inconsistent number of columns in phenotype file." << std::endl;
             exit(1);
         }
-        try {
-            chrom.push_back(std::stoi(tokens[0]));
-            start.push_back(std::stoi(tokens[1]));
-            end.push_back(std::stoi(tokens[2]));
-        } catch (const std::exception& e) {
-            std::cerr << "Error: Failed to parse coordinates at row " << row + 1 
-                      << " (chrom='" << tokens[0] << "', start='" << tokens[1] 
-                      << "', end='" << tokens[2] << "')" << std::endl;
-            exit(1);
+        if (has_genomic_coords) {
+            try {
+                chrom.push_back(std::stoi(tokens[0]));
+                start.push_back(std::stoi(tokens[1]));
+                end.push_back(std::stoi(tokens[2]));
+            } catch (const std::exception& e) {
+                std::cerr << "Error: Failed to parse coordinates at row " << row + 1 
+                          << " (chrom='" << tokens[0] << "', start='" << tokens[1] 
+                          << "', end='" << tokens[2] << "')" << std::endl;
+                exit(1);
+            }
         }
-        pheno_ids.push_back(tokens[3]);
+        pheno_ids.push_back(tokens[id_col]);
         for (size_t col = 0; col < n_samples; ++col) {
-            data(row, col) = std::stod(tokens[col + 4]);
+            data(row, col) = std::stod(tokens[col + n_info_cols]);
         }
         row++;
     }
@@ -102,7 +133,11 @@ void PhenoData::read_pheno_data() {
     file.close();
 
     std::cout << "Read " << format_with_commas(n_pheno) << " features for " 
-              << format_with_commas(n_samples) << " samples from phenotype file." << std::endl;
+              << format_with_commas(n_samples) << " samples from phenotype file.";
+    if (mode == "gwas") {
+        std::cout << " (genomic coordinates " << (has_genomic_coords ? "present" : "not provided") << ")";
+    }
+    std::cout << std::endl;
 }
 
 void PhenoData::prepare_sc_pheno_data() {
@@ -363,8 +398,12 @@ void PhenoData::read_sc_pheno_data() {
 
 void PhenoData::write_pheno_data(std::string out_file) {
     std::ofstream file(out_file);
-    
-    file << "#chr\tstart\tend\tphenotype_id";
+
+    if (has_genomic_coords) {
+        file << "#chr\tstart\tend\tphenotype_id";
+    } else {
+        file << "phenotype_id";
+    }
     for (const auto& sample_id : sample_ids) {
         file << "\t" << sample_id;
     }
@@ -373,7 +412,11 @@ void PhenoData::write_pheno_data(std::string out_file) {
     Eigen::MatrixXd transposed_data = data.transpose();
 
     for (size_t i = 0; i < n_pheno; ++i) {
-        file << chrom[i] << "\t" << start[i] << "\t" << end[i] << "\t" << pheno_ids[i];
+        if (has_genomic_coords) {
+            file << chrom[i] << "\t" << start[i] << "\t" << end[i] << "\t" << pheno_ids[i];
+        } else {
+            file << pheno_ids[i];
+        }
         for (size_t j = 0; j < n_samples; ++j) {
             file << "\t" << transposed_data(i, j);
         }

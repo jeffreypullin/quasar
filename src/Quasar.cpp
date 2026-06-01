@@ -215,7 +215,7 @@ int main(int argc, char* argv[]) {
         }
         pheno_data.read_sc_pheno_data();
     } else {
-        pheno_data.read_pheno_data();
+        pheno_data.read_pheno_data(params.mode);
     }
     
     CovData cov_data(params.cov_file);
@@ -312,17 +312,20 @@ int main(int argc, char* argv[]) {
     std::cout << "\nCentring and scaling covariate data..." << std::endl;
     cov_data.standardisze_data();
 
-    if (params.data_type == "bulk") {
+    if (params.data_type == "bulk" && pheno_data.has_genomic_coords) {
         std::vector<int> g_chrom = geno_data.chrom;
         bool one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());
         if (result.count("pheno-chr")) {
             std::cout << "Filtering phenotype data to features on chromosome: " << params.pheno_chr << std::endl;
             pheno_data.slice_chromosome(params.pheno_chr);
-        } else if (one_chrom) {
+        } else if (one_chrom && params.mode == "cis") {
             std::cout << "\nMode 'cis' and only one chromosome detected." << std::endl;
             std::cout << "Filtering phenotype data to features on chromosome: " << g_chrom.front() << std::endl;
             pheno_data.slice_chromosome(g_chrom.front());
         }
+    } else if (params.data_type == "bulk" && result.count("pheno-chr")) {
+        std::cerr << "Error: --pheno-chr requires phenotype coordinates (#chr, start, end) in the bed file." << std::endl;
+        exit(1);
     }
     std::cout << "\nRunning analysis for " << format_with_commas(pheno_data.n_pheno) << " phenotypes." << std::endl;
 
@@ -375,9 +378,11 @@ int main(int argc, char* argv[]) {
     geno_data.compute_maf();
     geno_data.compute_maf_problems();
 
-    std::cout << "\nConstructing cis-windows..." << std::endl;
-    pheno_data.construct_windows(geno_data, params.window_size, params.verbose);
-    std::cout << "Cis-windows constructed." << std::endl;
+    if (params.mode != "gwas") {
+        std::cout << "\nConstructing cis-windows..." << std::endl;
+        pheno_data.construct_windows(geno_data, params.window_size, params.verbose);
+        std::cout << "Cis-windows constructed." << std::endl;
+    }
 
     std::cout << "\nPerforming variant score tests..." << std::endl;
     score_test(params, model_fit, geno_data, pheno_data, cov_data, cell_groups);

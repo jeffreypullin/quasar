@@ -75,18 +75,22 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         std::vector<double> main_pvals;
         std::vector<double> int_pvals;
 
-        int window_start, window_end, window_n;
-        int cis_window_start = pheno_data.window_start[i];
-        int cis_window_end = pheno_data.window_end[i];
-        int cis_window_n = pheno_data.window_n[i];
-        int chrom = pheno_data.chrom[i];
-
         bool mode_trans = mode == "trans";
 
+        int cis_window_start = 0;
+        int cis_window_end = 0;
+        int chrom = 0;
+        if (mode == "cis" || mode_trans) {
+            cis_window_start = pheno_data.window_start[i];
+            cis_window_end = pheno_data.window_end[i];
+            chrom = pheno_data.chrom[i];
+        }
+
+        int window_start, window_end, window_n;
         if (mode == "cis") {
             window_start = cis_window_start;
             window_end = cis_window_end; 
-            window_n = cis_window_n;
+            window_n = pheno_data.window_n[i];
         } else {
             window_start = 0;
             window_end = n_snps;

@@ -137,6 +137,15 @@ columns give feature information and the rest are sample ids are the sample ids.
 
 The start and end values are used to specify the centre of the cis-window. To specify the gene TSS as the centre of the window, set TSS = start, end = start + 1, so that the cis-window is [TSS - window, TSS + window + 1] or alternatively set the start and end values to the start and end of the gene so that the cis-window is [start - window, end + window].
 
+In mode `gwas`, genomic coordinates are optional. The bed file may use either the standard header above or a header with only `phenotype_id` followed by sample columns:
+
+```
+phenotype_id  sample_1   sample_2   sample_3 ...
+ENSG00000134242      39         43         45 ...
+```
+
+When coordinates are omitted, all variants are tested and residual output (`{out-prefix}-resids.bed`) is written without `#chr`, `start`, or `end` columns. When coordinates are provided in `gwas` mode they are read and written back but are not used to define cis-windows. Modes `cis`, `trans`, and `residualise` require the four-column annotation format.
+
 For the count based models (i.e. `nb_glm`, `p_glm`, `p_glmm` and `nb_glmm`) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. `lm` and `lmm`) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.
 
 #### Single-cell phenotype data

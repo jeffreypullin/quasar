@@ -49,12 +49,14 @@ class PhenoData {
       std::vector<int> window_end;
       std::vector<int> window_n;
 
+      bool has_genomic_coords = true;
+
       PhenoData(std::string pheno_file, std::string data_type) {
         this->pheno_file = pheno_file;
         this->data_type = data_type;
       }
 
-      void read_pheno_data();
+      void read_pheno_data(const std::string& mode);
       void write_pheno_data(std::string out_file);
       
       void construct_windows(GenoData& geno_data, int window_size, bool verbose); 
