@@ -544,7 +544,7 @@ void PhenoData::slice_chromosome(int chrom_id) {
         Eigen::MatrixXd new_data(data.rows(), col_inds.size());
         for (size_t i = 0; i < col_inds.size(); ++i) {
             if (col_inds[i] >= data.cols()) {
-                std::cerr << "Error: Invalid row index " << col_inds[i] << std::endl;
+                std::cerr << "Error: Invalid column index " << col_inds[i] << std::endl;
                 exit(1);
             }
             new_data.col(i) = data.col(col_inds[i]);

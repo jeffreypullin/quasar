@@ -21,7 +21,6 @@
 #include <Eigen/Dense>
 #include <brent_fmin.hpp>
 
-// Speclised to use the FastLMM algorithm.
 class LMM {
 
     private:

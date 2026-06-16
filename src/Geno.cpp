@@ -240,7 +240,7 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
         if (it != this->sample_ids.end()) {
             rows(i) = std::distance(this->sample_ids.begin(), it);
         } else {
-            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in phenotype data." << std::endl;
+            std::cerr << "Error: Sample ID " << sample_ids[i] << " not found in genotype data." << std::endl;
             exit(1);
         }
     }
