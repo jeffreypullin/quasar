@@ -54,11 +54,13 @@ class NBGLMM {
         NBGLMM(const Eigen::Ref<Eigen::MatrixXd> X_, 
                const Eigen::Ref<Eigen::VectorXd> y_,
                const Eigen::Ref<Eigen::VectorXd> offset_,
-               const Eigen::Ref<Eigen::MatrixXd> grm_) : 
+               const Eigen::Ref<Eigen::MatrixXd> grm_, 
+               bool use_apl_) : 
                X(X_),
                y(y_),
                offset(offset_),
-               grm(grm_)
+               grm(grm_),
+               use_apl(use_apl_)
         {
             beta = Eigen::VectorXd::Zero(X.cols());
             mu = y.array() + 0.1;

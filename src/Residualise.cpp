@@ -390,7 +390,8 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         std::cout << "\nFitting null NB GLMMs..." << std::endl;
         for (int i = 0; i < n_pheno; ++i) {
 
-            NBGLMM nb_glmm(X, Y.col(i), offset, grm.mat);
+            bool use_apl = params.use_apl;
+            NBGLMM nb_glmm(X, Y.col(i), offset, grm.mat, use_apl);
             nb_glmm.fit();
 
             Y.col(i) = (Y.col(i).array() - nb_glmm.mu.array()) / nb_glmm.mu.array();
