@@ -5,7 +5,7 @@ quasar is a C++ software package for performing expression quantitative trait lo
 Compared to other eQTL mapping software, quasar: 
 
 * implements a much wider range of models, including both count distribution models and mixed models,
-* implements the Cox-Reid adjusted profile likelihood for estimating the negative bimomial dispersion,
+* implements the Cox-Reid adjusted profile likelihood for estimating the negative binomial dispersion,
 * implements a novel trace-based approximation of the mixed-model score test variance, and 
 * is generally faster.
 
