@@ -796,17 +796,13 @@ void CovData::standardisze_data() {
     }
 
     for (Eigen::Index col = 0; col < matrix->cols(); ++col) {
-        if (static_cast<size_t>(col) < cov_ids.size() && cov_ids[col] == "intercept") {
-            continue;
-        }
-
         double mean = matrix->col(col).mean();
         Eigen::ArrayXd centered = matrix->col(col).array() - mean;
         double var = centered.square().mean();
-        matrix->col(col).array() = centered;
-        if (var > 0.0) {
-            matrix->col(col).array() /= std::sqrt(var);
+        if (var <= 1e-8) {
+            continue;
         }
+        matrix->col(col).array() = centered / std::sqrt(var);
     }
 }
 
