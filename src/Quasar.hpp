@@ -50,6 +50,7 @@ struct Params {
     std::string model;
     std::string data_type;
     int window_size = 1000000;
+    int min_mac = 1;
     bool use_apl;
     bool use_quant_res;
     int pheno_chr;

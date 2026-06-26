@@ -44,6 +44,7 @@ class GenoData {
     std::vector<std::string> snp_id;
     std::vector<size_t> index;
     std::vector<double> maf;
+    std::vector<int> mac;
 
     GenoData(std::string bed_prefix) {
       this->bed_prefix = bed_prefix;

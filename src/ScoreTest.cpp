@@ -192,7 +192,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 model_converged = true;
             }
 
-            if (std::abs(geno_data.maf[k]) < 1e-8 || !model_converged) {
+            if (geno_data.mac[k] < params.min_mac || !model_converged) {
 
                 main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
                 int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();

@@ -48,6 +48,7 @@ int main(int argc, char* argv[]) {
         ("mode", "Mode to run quasar in (residualise, cis, trans, gwas)", cxxopts::value<std::string>(params.mode))
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
+        ("min-mac", "Minimum minor allele count required for variant score test", cxxopts::value<int>(params.min_mac)->default_value("1"))
         ("use-apl", "Use adjusted profile likelihood to estimate NB dispersion", cxxopts::value<bool>(params.use_apl))
         ("use-quant-res", "Use randomised quantile residuals to compute score tests with NB-GLM model", cxxopts::value<bool>(params.use_quant_res))
         ("pheno-chr", "Only map QTLs for genes on this chromosome", cxxopts::value<int>(params.pheno_chr))
@@ -90,6 +91,11 @@ int main(int argc, char* argv[]) {
 
     if (params.mode != "cis" && params.mode != "trans" && params.mode != "gwas" && params.mode != "residualise") {
         std::cerr << "Invalid mode specified. Please use one of 'cis', 'trans', 'gwas', 'residualise'" << std::endl;
+        exit(1);
+    }
+
+    if (params.min_mac < 0) {
+        std::cerr << "Error: --min-mac argument must be non-negative." << std::endl;
         exit(1);
     }
 

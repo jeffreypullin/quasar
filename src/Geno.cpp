@@ -22,6 +22,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cmath>
 
 void GenoData::read_bim_file() {
 
@@ -199,13 +200,17 @@ void GenoData::run_mean_imputation() {
 
 void GenoData::compute_maf() {
     maf.clear();
+    mac.clear();
     maf.reserve(n_snps);
+    mac.reserve(n_snps);
     for (size_t i = 0; i < n_snps; ++i) {
         const auto col = genotype_matrix.col(i);
-        double sum = col.sum();
-        double af = sum / (2 * n_samples);
+        double alt_count = col.sum();
+        double af = alt_count / (2 * n_samples);
         double maf_value = std::min(af, 1.0 - af);
+        double mac_value = std::min(alt_count, 2.0 * static_cast<double>(n_samples) - alt_count);
         maf.push_back(maf_value);
+        mac.push_back(static_cast<int>(std::round(mac_value)));
     }
     std::cout << "MAF computed." << std::endl;
 }
