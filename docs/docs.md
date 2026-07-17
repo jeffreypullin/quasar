@@ -52,7 +52,9 @@ Single-cell data requires different formatted data to bulk/pseudobulk data, for 
 
 ### Interaction QTLs
 
-As of quasar 2.0, quasar can compute interaction-QTLs. To use this functioanlly, simply specify which covariate the interaction should be tested for
+As of quasar 2.0, quasar can compute interaction-QTLs. To use this functionality, simply specify which covariate the interaction should be tested for.
+
+#### Bulk/pseudobulk interaction QTLs
 
 ```
 ./quasar \
@@ -66,7 +68,23 @@ As of quasar 2.0, quasar can compute interaction-QTLs. To use this functioanlly,
     --out sex-int-out
 ```
 
-Interaction testing be performed for bulk/pseudobulk data with the linear mixed model, linear model and Negative Binomial GLM models.
+#### Single-cell interaction QTLs
+
+```
+./quasar \
+    --plink plink_prefix \
+    --sc-pheno single-cell-pheno.tsv \
+    --anno annotations.tsv \
+    --cov single_cell_covariate_data.tsv \
+    --mode cis \
+    --model p_glmm_sc \
+    --interaction pseudotime \
+    --out sc-int-out
+```
+
+Interaction testing can be performed for bulk/pseudobulk data with the linear mixed model (`lmm`), linear model (`lm`) and Negative Binomial GLM (`nb_glm`) models, and for single-cell data with the Poisson GLMM (`p_glmm_sc`).
+
+For single-cell data, interaction testing requires `--model p_glmm_sc`, which fits a random-slope null model (a per-donor random intercept and random slope on the interaction covariate). When covariates are provided in single-cell (cell-level) format, quasar splits the interaction covariate into between-donor (`{interaction_cov}_b`) and within-donor (`{interaction_cov}_w`) components and tests the interaction on the within-donor component (`{interaction_cov}_w`). `--interaction` cannot be combined with `--cell-groups.
 
 When interaction testing is enabled, quasar inspects the interaction covariate values and automatically augments the nuisance covariates as follows:
 
@@ -95,7 +113,7 @@ The quasar software package supports a wide range of statistical models used to 
 * `p_glmm`: Poisson generalised linear mixed model (GLMM)
 * `p_glm`: Poisson GLM (**not recommended** due to producing a very high rate of false positives)
 * `nb_glmm`: negative binomial GLMM (**not generally recommended** due to producing highly similar results to the Poisson GLMM while being slower, can be used if there is known to be high relatedness between samples)
-* `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data.
+* `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data. Without `--interaction` this is a random-intercept model; with `--interaction` it fits a per-donor random intercept and random slope on the interaction covariate.
 
 When the model is a mixed model i.e. is specified to be any of `lmm`, `p_glmm`, `nb_glmm` the --grm flag (see below) must be used to specify a genetic relatedness matrix used in the covarariance matrix of the random effects. 
 
