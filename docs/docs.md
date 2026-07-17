@@ -48,6 +48,8 @@ As of quasar 2.0, quasar can take single-cell data as input. To use this functio
     --out single-cell-out
 ```
 
+Alternatively, use `--model lmm_sc` for a single-cell linear mixed model. Unlike `p_glmm_sc`, which expects raw counts, `lmm_sc` requires normalised single-cell expression values (e.g. log-normalised expression) and the input data will be further quantile-normalised by default.
+
 Single-cell data requires different formatted data to bulk/pseudobulk data, for more information see below.
 
 ### Interaction QTLs
@@ -113,7 +115,8 @@ The quasar software package supports a wide range of statistical models used to 
 * `p_glmm`: Poisson generalised linear mixed model (GLMM)
 * `p_glm`: Poisson GLM (**not recommended** due to producing a very high rate of false positives)
 * `nb_glmm`: negative binomial GLMM (**not generally recommended** due to producing highly similar results to the Poisson GLMM while being slower, can be used if there is known to be high relatedness between samples)
-* `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data. Without `--interaction` this is a random-intercept model; with `--interaction` it fits a per-donor random intercept and random slope on the interaction covariate.
+* `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data. Without `--interaction` this is a random-intercept model; with `--interaction` it fits a per-donor random intercept and random slope on the interaction covariate. Expects raw count data.
+* `lmm_sc`: A linear mixed model for single-cell-level data (random intercept per donor) accounting for repeated measures. Requires normalised single-cell expression values as input (e.g. log-normalised expression), not raw counts.
 
 When the model is a mixed model i.e. is specified to be any of `lmm`, `p_glmm`, `nb_glmm` the --grm flag (see below) must be used to specify a genetic relatedness matrix used in the covarariance matrix of the random effects. 
 
@@ -180,6 +183,8 @@ sample_id     cell_id     gene_1     gene_2    gene_3    ...
  sample_2      cell_4          0          0         1    ... 
      ...
 ```
+
+For the count-based single-cell model (`p_glmm_sc`), raw single-cell counts should be passed to quasar. For the linear single-cell model (`lmm_sc`), normalised single-cell expression values (e.g. log-normalised expression) must be passed instead; raw counts are not appropriate for `lmm_sc`.
 
 ### Covariate data
 
@@ -297,7 +302,7 @@ ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39  
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |
 |`--interaction` | STRING | Optional | The covariate to perform interaction-QTL testing with. Must be a column header in the covariate data. |
-|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_sc`. |
+|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_sc`, `lmm_sc`. |
 |`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
 |`--verbose` | FLAG | Optional | Write additional information to the console |

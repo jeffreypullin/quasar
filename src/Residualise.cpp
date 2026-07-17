@@ -22,6 +22,7 @@
 #include "GLM.hpp"
 #include "LM.hpp"
 #include "LMM.hpp"
+#include "LMM_SC.hpp"
 #include "NBGLM.hpp"
 #include "GLMM_GRM.hpp"
 #include "GLMM_SC.hpp"
@@ -102,7 +103,28 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         ns(idx) = static_cast<double>(pheno_data.cell_counts[idx]);
     }
 
-    if ((params.model == "p_glmm_sc") & !params.do_interaction) {
+    if ((params.model == "lmm_sc") & !params.do_interaction) {
+        
+        std::cout <<"\nFitting single-cell LMMs..." << std::endl; 
+        for (int i = 0; i < n_pheno; ++i) {
+
+            Eigen::VectorXd y = pheno_data.sc_data.col(i);
+            rank_normalize_vec(y);
+            LMM_SC lmm_sc(X, y, ns);
+            lmm_sc.fit();
+
+            Y.col(i) = lmm_sc.y_out;
+            W.row(i) = lmm_sc.mu_out;
+            XtWX_inv_vec.push_back(lmm_sc.XtWX_inv);
+            Xty_res_vec.push_back(lmm_sc.Xty_res);
+            XtWZ_vec.push_back(lmm_sc.XtWZ);
+
+            tr.push_back(lmm_sc.r_approx);
+            sigma2.push_back(lmm_sc.sigma2);
+        }
+        std::cout << "Null single-cell LMMs fitted." << std::endl;
+
+    } else if ((params.model == "p_glmm_sc") & !params.do_interaction) {
 
         const size_t N_sc = static_cast<size_t>(X.rows());
         const size_t c_sc = static_cast<size_t>(X.cols());

@@ -100,6 +100,35 @@ void rank_normalize(Eigen::MatrixXd& Y){
     }
 }
 
+void rank_normalize_vec(Eigen::VectorXd& y){
+    double n = y.size();
+
+    std::vector<double> z((int) n);
+
+    double mu = 0;
+    double sd = 0;
+    for (int i = 0; i < n; ++i){
+        z[i] = qnorm(((double)i+1.0) / ((double)n+1.0), true);
+        mu += z[i];
+        sd += z[i] * z[i];
+    }
+    sd = std::sqrt(sd / (n - 1) - mu * mu / (n * (n - 1.0)));
+    mu = mu / n;
+    for (int i = 0; i < n; ++i){
+        z[i] = (z[i] - mu) / sd;
+    }
+
+    std::vector<double> v(n);
+    for (int i = 0; i < n; ++i){
+        v[i] = y(i);
+    }
+
+    std::vector<int> ranks = rank_vector(v);
+    for (int i = 0; i < n; ++i){
+        y(i) = z[ranks[i] - 1];
+    }
+}
+
 std::vector<int> rank_vector(const std::vector<double>& v){
     
     std::vector<size_t> w(v.size());

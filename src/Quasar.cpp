@@ -77,6 +77,7 @@ int main(int argc, char* argv[]) {
     std::cout << "\nquasar execution started." << std::endl;
 
     if (params.model != "lmm" && 
+        params.model != "lmm_sc" &&
         params.model != "p_glmm" && 
         params.model != "lm" && 
         params.model != "p_glm" && 
@@ -112,16 +113,16 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error: feature annotation file (--anno) must also be specified for single-cell data." << std::endl;
             exit(1);
         }
-        if (params.model != "p_glmm_sc") {
-            std::cerr << "Error: only the `p_glmm_sc` model is compatible with single-cell data." << std::endl;
+        if (params.model != "p_glmm_sc" && params.model != "lmm_sc") {
+            std::cerr << "Error: only the `p_glmm_sc` and `lmm_sc` models are compatible with single-cell data." << std::endl;
             exit(1);
         }
     } else {
         params.data_type = "bulk";
     }
 
-    if (params.data_type == "bulk" && params.model == "p_glmm_sc") {
-        std::cerr << "Error: model `p_glmm_sc` is only compatible with single-cell data." << std::endl;
+    if (params.data_type == "bulk" && (params.model == "p_glmm_sc" || params.model == "lmm_sc")) {
+        std::cerr << "Error: models `p_glmm_sc` and `lmm_sc` are only compatible with single-cell data." << std::endl;
         exit(1);
     }
 

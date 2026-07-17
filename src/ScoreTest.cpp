@@ -119,7 +119,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             model == "p_glmm" || 
             model == "p_glmm_grm" || 
             model == "p_glmm_sc" || 
-            model == "nb_glmm") {
+            model == "nb_glmm" ||
+            model == "lmm_sc") {
             w = model_fit.W.row(i);
         } else {
             w = Eigen::VectorXd::Ones(n_samples);
@@ -221,7 +222,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
                 if (model == "lmm") {
                     v *= sigma2;
-                } else if (is_glmm_model) {
+                } else if (is_glmm_model || model == "lmm_sc") {
                     v *= model_fit.tr[i];
                 }
 
