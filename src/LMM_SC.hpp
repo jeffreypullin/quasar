@@ -29,13 +29,14 @@ class LMM_SC {
         const Eigen::Ref<Eigen::MatrixXd> X;
         const Eigen::Ref<Eigen::VectorXd> y;
         const Eigen::Ref<Eigen::VectorXd> ns;
+        const Eigen::Ref<Eigen::MatrixXd> XtX;
+        const Eigen::Ref<Eigen::MatrixXd> X_tilde;
+        const Eigen::Ref<Eigen::MatrixXd> ZtX;
         double df_resid;
 
     public:
 
-        Eigen::MatrixXd X_tilde;
         Eigen::VectorXd y_tilde;
-        Eigen::MatrixXd XtX;
         Eigen::VectorXd Xty;
         double yty;
 
@@ -54,33 +55,31 @@ class LMM_SC {
         Eigen::MatrixXd XtWZ;
         double r_approx;
 
-        LMM_SC(const Eigen::Ref<Eigen::MatrixXd> X_, 
-               const Eigen::Ref<Eigen::VectorXd> y_, 
-               const Eigen::Ref<Eigen::VectorXd> ns_
-        ) : 
+        LMM_SC(const Eigen::Ref<Eigen::MatrixXd> X_,
+               const Eigen::Ref<Eigen::VectorXd> y_,
+               const Eigen::Ref<Eigen::VectorXd> ns_,
+               const Eigen::Ref<Eigen::MatrixXd> XtX_,
+               const Eigen::Ref<Eigen::MatrixXd> X_tilde_,
+               const Eigen::Ref<Eigen::MatrixXd> ZtX_
+        ) :
             X(X_),
             y(y_),
-            ns(ns_)
+            ns(ns_),
+            XtX(XtX_),
+            X_tilde(X_tilde_),
+            ZtX(ZtX_)
         {
             n = static_cast<size_t>(ns.size());
             N = X.rows();
             p = X.cols();
             df_resid = N - p;
-            XtX = X.transpose() * X;
             Xty = X.transpose() * y;
             yty = y.dot(y);
 
             compute_cum_ns();
-
-            X_tilde = Eigen::MatrixXd::Zero(n, p);
-            for (int j = 0; j < X.cols(); ++j) {
-                X_tilde.col(j) = orthogonal_collapse_vec(X.col(j));
-            }
             y_tilde = orthogonal_collapse_vec(y);
-       
         };
 
-        // From GLMM_SC.hpp
         void compute_cum_ns() {
             cum_ns = Eigen::VectorXd::Zero(n);
             cum_ns(0) = 0;
@@ -139,10 +138,6 @@ class LMM_SC {
 
             double a, a1, a2, b;
             double tau = 1.0 / sigma2;
-            Eigen::MatrixXd ZtX = Eigen::MatrixXd::Zero(n, p);
-            for (Eigen::Index j = 0; j < static_cast<Eigen::Index>(p); ++j) {
-                ZtX.col(j) = collapse_vec(X.col(j));
-            }
 
             Eigen::VectorXd psi_vals = delta * ns.array() / (delta * ns.array() + 1.0);
             Eigen::MatrixXd XtPsiX = X_tilde.transpose() * psi_vals.asDiagonal() * X_tilde;
@@ -161,7 +156,7 @@ class LMM_SC {
 
         void fit() {
 
-            std::function<double(double)> f = [this](double x) { 
+            std::function<double(double)> f = [this](double x) {
                 return neg_ll_reml(x);
             };
             delta = Brent_fmin(0.00, 10000, f, 2e-5);
@@ -170,7 +165,7 @@ class LMM_SC {
             Eigen::VectorXd XtPsiy = X_tilde.transpose() * psi_vals.asDiagonal() * y_tilde;
             Eigen::MatrixXd XtVX = XtX - XtPsiX;
             Eigen::VectorXd XtVy = Xty - XtPsiy;
-            
+
             beta = XtVX.colPivHouseholderQr().solve(XtVy);
             double ytPsiy = y_tilde.dot(psi_vals.asDiagonal() * y_tilde);
             sigma2 = ((yty - ytPsiy) - XtVy.dot(beta)) / df_resid;
@@ -185,14 +180,9 @@ class LMM_SC {
             mu_out = ns;
             XtWX_inv = XtX.inverse();
             Xty_res = X.transpose() * y_res;
-
-            Eigen::MatrixXd X_collapsed = Eigen::MatrixXd::Zero(n, p);
-            for (Eigen::Index j = 0; j < static_cast<Eigen::Index>(p); ++j) {
-                X_collapsed.col(j) = collapse_vec(X.col(j));
-            }
-            XtWZ = X_collapsed.transpose();
+            XtWZ = ZtX.transpose();
             compute_r_approx();
-       
+
             return;
         }
 };

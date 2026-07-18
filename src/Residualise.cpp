@@ -105,12 +105,30 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
 
     if ((params.model == "lmm_sc") & !params.do_interaction) {
         
-        std::cout <<"\nFitting single-cell LMMs..." << std::endl; 
+        std::cout <<"\nFitting single-cell LMMs..." << std::endl;
+
+        const int n_donors = ns.size();
+        const int p = X.cols();
+        Eigen::VectorXd cum_ns = Eigen::VectorXd::Zero(n_donors);
+        for (int i = 1; i < n_donors; ++i) {
+            cum_ns(i) = cum_ns(i - 1) + ns(i - 1);
+        }
+        Eigen::MatrixXd XtX = X.transpose() * X;
+        Eigen::MatrixXd X_tilde = Eigen::MatrixXd::Zero(n_donors, p);
+        Eigen::MatrixXd ZtX = Eigen::MatrixXd::Zero(n_donors, p);
+        for (int j = 0; j < p; ++j) {
+            for (int i = 0; i < n_donors; ++i) {
+                const double sum = X.col(j).segment(cum_ns(i), ns(i)).sum();
+                ZtX(i, j) = sum;
+                X_tilde(i, j) = sum / std::sqrt(ns(i));
+            }
+        }
+
         for (int i = 0; i < n_pheno; ++i) {
 
             Eigen::VectorXd y = pheno_data.sc_data.col(i);
             rank_normalize_vec(y);
-            LMM_SC lmm_sc(X, y, ns);
+            LMM_SC lmm_sc(X, y, ns, XtX, X_tilde, ZtX);
             lmm_sc.fit();
 
             Y.col(i) = lmm_sc.y_out;
