@@ -26,4 +26,9 @@ void remove_carriage_return(std::string& str);
 std::vector<std::string> intersection(std::vector<std::vector<std::string>> &vecs);
 std::string format_with_commas(size_t number);
 
+// Walk delimited fields in-place without allocating per-token strings.
+bool next_field(const char*& p, const char* end, const char* delims,
+                const char*& field_begin, const char*& field_end);
+double parse_double_field(const char* begin, const char* end);
+
 #endif

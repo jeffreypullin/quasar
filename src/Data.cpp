@@ -149,10 +149,11 @@ void PhenoData::prepare_sc_pheno_data() {
     }
     std::string line;
     std::vector<std::string> tokens;
+    const char* delims = ",\t ";
 
     std::getline(file, line);
     remove_carriage_return(line);
-    tokens = string_split(line, ",\t ");
+    tokens = string_split(line, delims);
     if (!(tokens[0] == "sample_id" && tokens[1] == "cell_id")) {
         std::cerr << "Error: Invalid header in phenotype file. Expected 'sample_id' and 'cell_id' as the first column names." << std::endl;
         exit(1);
@@ -181,14 +182,26 @@ void PhenoData::prepare_sc_pheno_data() {
         if (line.empty()) {
             continue;
         }
-        tokens = string_split(line, ",\t ");
-        if (tokens.size() != n_pheno + 2) {
-            std::cerr << "Error: Inconsistent number of columns in phenotype file at line "
-                      << n_cells + 2 << std::endl;
+
+        const char* p = line.data();
+        const char* end = line.data() + line.size();
+        const char* field_begin = nullptr;
+        const char* field_end = nullptr;
+
+        if (!next_field(p, end, delims, field_begin, field_end)) {
+            std::cerr << "Error: Missing sample_id at line " << n_cells + 2
+                      << " in phenotype file." << std::endl;
             exit(1);
         }
+        std::string sample_id(field_begin, field_end);
 
-        const std::string& sample_id = tokens[0];
+        if (!next_field(p, end, delims, field_begin, field_end)) {
+            std::cerr << "Error: Missing cell_id at line " << n_cells + 2
+                      << " in phenotype file." << std::endl;
+            exit(1);
+        }
+        std::string cell_id(field_begin, field_end);
+
         if (has_prev && sample_id != prev_sample && seen_samples.count(sample_id) > 0) {
             std::cerr << "Error: Sample IDs are not contiguous in phenotype file." << std::endl;
             exit(1);
@@ -209,7 +222,7 @@ void PhenoData::prepare_sc_pheno_data() {
 
         current_count++;
         n_cells++;
-        cell_ids.push_back(tokens[1]);
+        cell_ids.push_back(std::move(cell_id));
     }
 
     if (has_prev) {
@@ -346,7 +359,7 @@ void PhenoData::filter_pheno_ids(int filt_chrom) {
     std::cout << "Filtered to " << format_with_commas(n_pheno) << " phenotypes on chromosome " << filt_chrom << "." << std::endl;
 }
 
-void PhenoData::read_sc_pheno_data() {
+void PhenoData::read_sc_pheno_data(bool compute_offset) {
 
     std::ifstream file(pheno_file);
     if (!file.is_open()) {
@@ -354,15 +367,49 @@ void PhenoData::read_sc_pheno_data() {
         exit(1);
     }
     std::string line;
-    std::vector<std::string> tokens;
+    const char* delims = ",\t ";
 
     std::getline(file, line);
     remove_carriage_return(line);
-    tokens = string_split(line, ",\t ");
+    std::vector<std::string> tokens = string_split(line, delims);
     size_t total_pheno_cols = tokens.size() - 2;
 
     sc_data = Eigen::MatrixXd(n_cells, n_pheno);
-    offset.resize(n_cells);
+    if (compute_offset) {
+        offset.resize(n_cells);
+    }
+
+    std::vector<int> out_col(total_pheno_cols, -1);
+    if (pheno_inds.empty()) {
+        if (n_pheno > total_pheno_cols) {
+            std::cerr << "Error: Number of phenotypes exceeds columns in phenotype file." << std::endl;
+            exit(1);
+        }
+        for (size_t j = 0; j < n_pheno; ++j) {
+            out_col[j] = static_cast<int>(j);
+        }
+    } else {
+        for (size_t j = 0; j < pheno_inds.size(); ++j) {
+            size_t pheno_idx = pheno_inds[j];
+            if (pheno_idx >= total_pheno_cols) {
+                std::cerr << "Error: Invalid phenotype index " << pheno_idx
+                          << " while reading single-cell phenotype data." << std::endl;
+                exit(1);
+            }
+            out_col[pheno_idx] = static_cast<int>(j);
+        }
+    }
+
+    // When offset is not needed, stop after the last selected column.
+    size_t last_needed_col = total_pheno_cols;
+    if (!compute_offset) {
+        last_needed_col = 0;
+        for (size_t j = 0; j < total_pheno_cols; ++j) {
+            if (out_col[j] >= 0) {
+                last_needed_col = j + 1;
+            }
+        }
+    }
 
     size_t row = 0;
     while (std::getline(file, line)) {
@@ -370,22 +417,48 @@ void PhenoData::read_sc_pheno_data() {
         if (line.empty()) {
             continue;
         }
-        tokens = string_split(line, ",\t ");
+
+        const char* p = line.data();
+        const char* end = line.data() + line.size();
+        const char* field_begin = nullptr;
+        const char* field_end = nullptr;
+
+        // Skip sample_id and cell_id.
+        if (!next_field(p, end, delims, field_begin, field_end) ||
+            !next_field(p, end, delims, field_begin, field_end)) {
+            std::cerr << "Error: Inconsistent number of columns in phenotype file at line "
+                      << row + 2 << std::endl;
+            exit(1);
+        }
 
         double sum = 0.0;
-        for (size_t i = 2; i < total_pheno_cols + 2; ++i) {
-            sum += std::stod(tokens[i]);
+        size_t pheno_col = 0;
+        while (pheno_col < last_needed_col &&
+               next_field(p, end, delims, field_begin, field_end)) {
+            int dest = out_col[pheno_col];
+            if (compute_offset || dest >= 0) {
+                double value = parse_double_field(field_begin, field_end);
+                if (compute_offset) {
+                    sum += value;
+                }
+                if (dest >= 0) {
+                    sc_data(static_cast<Eigen::Index>(row), static_cast<Eigen::Index>(dest)) = value;
+                }
+            }
+            ++pheno_col;
         }
-        if (sum <= 0.0) {
-            offset(static_cast<Eigen::Index>(row)) = 0.0;
-        } else {
-            offset(static_cast<Eigen::Index>(row)) = std::log(sum);
+        if (pheno_col != last_needed_col) {
+            std::cerr << "Error: Inconsistent number of columns in phenotype file at line "
+                      << row + 2 << std::endl;
+            exit(1);
         }
 
-        for (size_t j = 0; j < pheno_inds.size(); ++j) {
-            size_t col_idx = pheno_inds[j] + 2;
-            sc_data(static_cast<Eigen::Index>(row), static_cast<Eigen::Index>(j)) =
-                std::stod(tokens[col_idx]);
+        if (compute_offset) {
+            if (sum <= 0.0) {
+                offset(static_cast<Eigen::Index>(row)) = 0.0;
+            } else {
+                offset(static_cast<Eigen::Index>(row)) = std::log(sum);
+            }
         }
         row++;
     }
@@ -479,7 +552,11 @@ void PhenoData::slice_sc_samples(std::vector<std::string>& sample_ids) {
     }
 
     Eigen::MatrixXd new_sc_data(new_n_cells, n_pheno);
-    Eigen::VectorXd new_offset(new_n_cells);
+    const bool has_offset = offset.size() > 0;
+    Eigen::VectorXd new_offset;
+    if (has_offset) {
+        new_offset.resize(static_cast<Eigen::Index>(new_n_cells));
+    }
     std::vector<std::string> new_cell_ids;
     new_cell_ids.reserve(new_n_cells);
 
@@ -490,7 +567,9 @@ void PhenoData::slice_sc_samples(std::vector<std::string>& sample_ids) {
         int count = this->cell_counts[idx];
         if (count > 0) {
             new_sc_data.block(out_row, 0, count, n_pheno) = sc_data.block(start, 0, count, n_pheno);
-            new_offset.segment(out_row, count) = offset.segment(start, count);
+            if (has_offset) {
+                new_offset.segment(out_row, count) = offset.segment(start, count);
+            }
             if (!cell_ids.empty()) {
                 new_cell_ids.insert(new_cell_ids.end(),
                                     cell_ids.begin() + start,
@@ -815,9 +894,10 @@ void CovData::read_sc_cov_data() {
 
     std::string line;
     std::vector<std::string> tokens;
+    const char* delims = ",\t ";
 
     if (std::getline(file, line)) {
-        tokens = string_split(line, ",\t ");
+        tokens = string_split(line, delims);
         if (tokens.size() < 3 || tokens[0] != "sample_id" || tokens[1] != "cell_id") {
             std::cerr << "Error: Invalid header in covariate file. Expected 'sample_id' and 'cell_id' as the first columns." << std::endl;
             exit(1);
@@ -856,8 +936,26 @@ void CovData::read_sc_cov_data() {
         if (line.empty()) {
             continue;
         }
-        tokens = string_split(line, ",\t ");
-        const std::string& sample_id = tokens[0];
+
+        const char* p = line.data();
+        const char* end = line.data() + line.size();
+        const char* field_begin = nullptr;
+        const char* field_end = nullptr;
+
+        if (!next_field(p, end, delims, field_begin, field_end)) {
+            std::cerr << "Error: Inconsistent number of columns in covariate file at line "
+                      << row + 2 << std::endl;
+            exit(1);
+        }
+        std::string sample_id(field_begin, field_end);
+
+        if (!next_field(p, end, delims, field_begin, field_end)) {
+            std::cerr << "Error: Inconsistent number of columns in covariate file at line "
+                      << row + 2 << std::endl;
+            exit(1);
+        }
+        std::string cell_id(field_begin, field_end);
+
         if (has_prev && sample_id != prev_sample && seen_samples.count(sample_id) > 0) {
             std::cerr << "Error: Sample IDs are not contiguous in covariate file." << std::endl;
             exit(1);
@@ -877,10 +975,20 @@ void CovData::read_sc_cov_data() {
 
         }
 
-        cell_ids.push_back(tokens[1]);
+        cell_ids.push_back(std::move(cell_id));
         current_count++;
         for (size_t col = 0; col < n_cov; ++col) {
-            data(row, col) = std::stod(tokens[col + 2]);
+            if (!next_field(p, end, delims, field_begin, field_end)) {
+                std::cerr << "Error: Inconsistent number of columns in covariate file at line "
+                          << row + 2 << std::endl;
+                exit(1);
+            }
+            data(row, col) = parse_double_field(field_begin, field_end);
+        }
+        if (next_field(p, end, delims, field_begin, field_end)) {
+            std::cerr << "Error: Inconsistent number of columns in covariate file at line "
+                      << row + 2 << std::endl;
+            exit(1);
         }
         row++;
     }
@@ -1081,7 +1189,11 @@ size_t align_sc_cell_ids(PhenoData& pheno_data, CovData& cov_data) {
 
     // Second pass: construct aligned/filtered matrices in phenotype order.
     Eigen::MatrixXd new_pheno_sc(kept_total, pheno_data.n_pheno);
-    Eigen::VectorXd new_offset(kept_total);
+    const bool has_offset = pheno_data.offset.size() > 0;
+    Eigen::VectorXd new_offset;
+    if (has_offset) {
+        new_offset.resize(static_cast<Eigen::Index>(kept_total));
+    }
     Eigen::MatrixXd new_cov(kept_total, cov_data.n_cov);
     std::vector<std::string> new_cell_ids;
     new_cell_ids.reserve(kept_total);
@@ -1109,7 +1221,9 @@ size_t align_sc_cell_ids(PhenoData& pheno_data, CovData& cov_data) {
             const size_t c_row = c_start + static_cast<size_t>(it->second);
 
             new_pheno_sc.row(out) = pheno_data.sc_data.row(static_cast<Eigen::Index>(p_row));
-            new_offset(static_cast<Eigen::Index>(out)) = pheno_data.offset(static_cast<Eigen::Index>(p_row));
+            if (has_offset) {
+                new_offset(static_cast<Eigen::Index>(out)) = pheno_data.offset(static_cast<Eigen::Index>(p_row));
+            }
             new_cov.row(out) = cov_data.sc_data.row(static_cast<Eigen::Index>(c_row));
             new_cell_ids.push_back(cid);
             out++;

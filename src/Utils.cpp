@@ -20,6 +20,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <cstdlib>
 #include <algorithm>
 #include <unordered_set>
 #include <iostream>
@@ -65,6 +66,37 @@ void remove_carriage_return(std::string& str) {
   if (!str.empty() && str.back() == '\r') {
     str.pop_back();
   }
+}
+
+bool next_field(const char*& p, const char* end, const char* delims,
+                const char*& field_begin, const char*& field_end) {
+  if (p >= end) {
+    return false;
+  }
+  field_begin = p;
+  while (p < end && std::strchr(delims, *p) == nullptr) {
+    ++p;
+  }
+  field_end = p;
+  if (p < end) {
+    ++p;  // consume one delimiter
+  }
+  return true;
+}
+
+double parse_double_field(const char* begin, const char* end) {
+  if (begin == end) {
+    std::cerr << "Error: Empty numeric field." << std::endl;
+    exit(1);
+  }
+  char* endptr = nullptr;
+  double value = std::strtod(begin, &endptr);
+  if (endptr != end) {
+    std::cerr << "Error: Failed to parse numeric field '"
+              << std::string(begin, end) << "'." << std::endl;
+    exit(1);
+  }
+  return value;
 }
 
 std::vector<std::string> intersection(std::vector<std::vector<std::string>> &vecs) {

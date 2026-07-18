@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
         } else if (one_chrom && params.mode == "cis") {
             pheno_data.filter_pheno_ids(geno_data.chrom.front());
         }
-        pheno_data.read_sc_pheno_data();
+        pheno_data.read_sc_pheno_data(params.model != "lmm_sc");
     } else {
         pheno_data.read_pheno_data(params.mode);
     }

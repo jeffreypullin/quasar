@@ -67,7 +67,7 @@ class PhenoData {
       // Single-cell specific.
       void prepare_sc_pheno_data();
       void filter_pheno_ids(int filt_chrom);
-      void read_sc_pheno_data();
+      void read_sc_pheno_data(bool compute_offset);
       void slice_sc_samples(std::vector<std::string>& sample_ids);
       void read_anno_data(std::string anno_file);
 };
