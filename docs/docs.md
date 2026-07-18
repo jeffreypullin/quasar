@@ -48,9 +48,39 @@ As of quasar 2.0, quasar can take single-cell data as input. To use this functio
     --out single-cell-out
 ```
 
-Alternatively, use `--model lmm_sc` for a single-cell linear mixed model. Unlike `p_glmm_sc`, which expects raw counts, `lmm_sc` requires normalised single-cell expression values (e.g. log-normalised expression) and the input data will be further quantile-normalised by default.
+Alternatively, use `--model lmm_sc` for a single-cell linear mixed model. Unlike `p_glmm_sc`, which expects raw counts, `lmm_sc` requires normalised single-cell expression values (e.g. log-normalised expression) and the input data will be further quantile-normalised by default. Single-cell data requires different formatted data to bulk/pseudobulk data, for more information see below.
 
-Single-cell data requires different formatted data to bulk/pseudobulk data, for more information see below.
+#### Single-cell GWAS
+
+For genome-wide association with (continuous valued) single-cell phenotypes that lack genomic coordinates, run in `gwas` mode with `lmm_sc` and omit `--anno`:
+
+```
+./quasar \
+    --plink plink_prefix \
+    --sc-pheno gwas-pheno.tsv \
+    --cov sc-cov-data.tsv \
+    --mode gwas \
+    --model lmm_sc \
+    --out sc-gwas-out
+```
+
+### Trans-eQTL mapping
+
+For mapping trans-eQTLs with `p_glmm_sc`, `--anno` is required. Use `--pheno-chr` to restrict to phenotypes on a given chromosome. Use mode `trans` to test only variants outside the cis window, or `gwas` to test all variants. 
+
+```
+./quasar \
+    --plink plink-prefix \
+    --sc-pheno sc-pheno.tsv \
+    --anno annotations.tsv \
+    --cov sc-cov-data.tsv \
+    --mode trans \
+    --model p_glmm_sc \
+    --pheno-chr 1 \
+    --out sc-gwas-pheno-chr1-out
+```
+
+For large datasets, consider only providing genotype data from one chromosome to parallelise variant testing over chromosomes. 
 
 ### Interaction QTLs
 
@@ -218,7 +248,19 @@ If an intercept is not present in the covariate data it will be added automatica
 
 --anno
 
-In single-cell mode an annotation file containing information about features/genes must be passed to as this information is not stored in the phenotype file, as in bulk data. The annotation file should be a tab-seperated bed file with columns #chr, start, end and phenotype_id. For example,
+In single-cell mode an annotation file containing information about features/genes must be passed, as this information is not stored in the phenotype file (unlike bulk data). The exception is mode `gwas` with model `lmm_sc`, where `--anno` may be omitted, as the study phenotypes may not have a genomic coordinate. When omitted, residual output is written without `#chr`, `start`, or `end` columns. For example:
+
+```
+./quasar \
+    --plink plink_prefix \
+    --sc-pheno gwas-pheno.tsv \
+    --cov single_cell_covariate_data.tsv \
+    --mode gwas \
+    --model lmm_sc \
+    --out sc-gwas-out
+```
+
+The annotation file should be a tab-separated bed file with columns #chr, start, end and phenotype_id. For example,
 
 ```
 #chr      start         end      phenotype_id      ...
@@ -297,7 +339,7 @@ ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39  
 |`--cov` | FILE | Required | Covariate data file |
 |`--bed` | FILE | Required (bulk/pseduobulk) | Phenotype bed file |
 |`--sc-pheno` | FILE | Required (single-cell) | Single-cell phenotype file |
-|`--anno` | FILE | Required (single-cell) | Annotation file |
+|`--anno` | FILE | Required (single-cell; optional in `gwas` with `lmm_sc`) | Annotation file |
 |`--grm` | FILE | Optional | A (dense) genetic relatedness matrix |
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |

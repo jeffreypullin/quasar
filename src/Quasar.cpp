@@ -109,8 +109,9 @@ int main(int argc, char* argv[]) {
 
     if (!params.sc_pheno_file.empty()) {
         params.data_type = "single-cell";
-        if (params.anno_file.empty()) {
-            std::cerr << "Error: feature annotation file (--anno) must also be specified for single-cell data." << std::endl;
+        if (params.anno_file.empty() && (params.mode != "gwas" || params.model == "p_glmm_sc")) {
+            std::cerr << "Error: feature annotation file (--anno) must be specified "
+                      << "for single-cell data unless mode is 'gwas' with model 'lmm_sc'." << std::endl;
             exit(1);
         }
         if (params.model != "p_glmm_sc" && params.model != "lmm_sc") {
@@ -214,11 +215,19 @@ int main(int argc, char* argv[]) {
     PhenoData pheno_data(pheno_file, params.data_type);
     if (params.data_type == "single-cell") {
         pheno_data.prepare_sc_pheno_data();
-        pheno_data.read_anno_data(params.anno_file);
-        if (result.count("pheno-chr")) {
-            pheno_data.filter_pheno_ids(params.pheno_chr);
-        } else if (one_chrom && params.mode == "cis") {
-            pheno_data.filter_pheno_ids(geno_data.chrom.front());
+        if (!params.anno_file.empty()) {
+            pheno_data.read_anno_data(params.anno_file);
+            if (result.count("pheno-chr")) {
+                pheno_data.filter_pheno_ids(params.pheno_chr);
+            } else if (one_chrom && params.mode == "cis") {
+                pheno_data.filter_pheno_ids(geno_data.chrom.front());
+            }
+        } else {
+            pheno_data.has_genomic_coords = false;
+            if (result.count("pheno-chr")) {
+                std::cerr << "Error: --pheno-chr requires --anno for single-cell data." << std::endl;
+                exit(1);
+            }
         }
         pheno_data.read_sc_pheno_data(params.model != "lmm_sc");
     } else {
