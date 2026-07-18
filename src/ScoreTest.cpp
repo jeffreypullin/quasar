@@ -126,11 +126,17 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             w = Eigen::VectorXd::Ones(n_samples);
         }
 
-        Eigen::MatrixXd XtWX_inv, Xt, XtX_inv;
+        Eigen::MatrixXd XtWX_inv, Xt, XtX_inv, XtWZ;
+        Eigen::VectorXd Xty_res, XtWX_inv_Xty_res;
         if (params.data_type != "single-cell") {
             XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
             XtX_inv = (X.transpose() * X).inverse();
             Xt = X.transpose();
+        } else {
+            XtWZ = model_fit.XtWZ_vec[i];
+            XtWX_inv = model_fit.XtWX_inv_vec[i];
+            Xty_res = model_fit.Xty_res_vec[i];
+            XtWX_inv_Xty_res = XtWX_inv * Xty_res;
         }
 
         Eigen::VectorXd g_s(n_samples);
@@ -210,12 +216,9 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     u = g_s.cwiseProduct(w).dot(Y.col(i));
                     gtg = g_s.cwiseProduct(w).dot(g_s);
                 } else {
-                    Eigen::MatrixXd XtWZ = model_fit.XtWZ_vec[i]; 
-                    Eigen::MatrixXd XtWX_inv = model_fit.XtWX_inv_vec[i]; 
-                    Eigen::VectorXd Xty_res = model_fit.Xty_res_vec[i]; 
                     Eigen::VectorXd t = XtWZ * g;
 
-                    u = g.dot(Y.col(i)) - t.dot(XtWX_inv * Xty_res);
+                    u = g.dot(Y.col(i)) - t.dot(XtWX_inv_Xty_res);
                     gtg = g.cwiseProduct(w).dot(g) - t.dot(XtWX_inv * t);
                 }
                 v = gtg;
@@ -320,9 +323,6 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     
                 } else {
 
-                    Eigen::MatrixXd XtWZ = model_fit.XtWZ_vec[i]; 
-                    Eigen::MatrixXd XtWX_inv = model_fit.XtWX_inv_vec[i]; 
-                    Eigen::VectorXd Xty_res = model_fit.Xty_res_vec[i]; 
                     Eigen::VectorXd ZtDy_res = model_fit.ZtDy_res_vec[i];
                     Eigen::VectorXd Zty_res = model_fit.Zty_res_vec[i];
                     Eigen::MatrixXd XtWDZ = model_fit.XtWDZ_vec[i];
@@ -335,7 +335,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
                     // Compute main effect.
                     double main_u, main_v, gtg;
-                    main_u = g.dot(Y.col(i)) - t.dot(XtWX_inv * Xty_res);
+                    main_u = g.dot(Y.col(i)) - t.dot(XtWX_inv_Xty_res);
                     gtg = g.cwiseProduct(w).dot(g) - t.dot(XtWX_inv * t);
                     main_v = gtg * model_fit.tr[i];
                     main_beta = main_u / main_v;
