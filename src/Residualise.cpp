@@ -84,6 +84,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<Eigen::MatrixXd> XtWX_inv_vec;
     std::vector<Eigen::VectorXd> Xty_res_vec;
     std::vector<Eigen::MatrixXd> XtWZ_vec;
+    std::vector<Eigen::VectorXd> ZtSigma_invZ_diag_vec;
+    std::vector<Eigen::MatrixXd> ZtSigma_invX_vec;
+    std::vector<Eigen::MatrixXd> XtSigma_invX_inv_vec;
     std::vector<Eigen::VectorXd> ZtDy_res_vec;
     std::vector<Eigen::MatrixXd> XtWDZ_vec;
     std::vector<Eigen::VectorXd> Zty_res_vec;
@@ -94,8 +97,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<std::vector<Eigen::VectorXd>> Xty_res_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtWZ_g_vec;
     std::vector<std::vector<Eigen::VectorXd>> y_out_g_vec;
-    std::vector<std::vector<Eigen::VectorXd>> w_g_donor_vec;
-    std::vector<std::vector<double>> tr_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> ZtSigma_invZ_diag_g_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> ZtSigma_invX_g_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> XtSigma_invX_inv_g_vec;
     std::vector<std::vector<double>> sigma2_g_vec;
     std::vector<std::vector<bool>> glmm_converged_g_vec;
     Eigen::VectorXd ns(pheno_data.cell_counts.size());
@@ -136,8 +140,10 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             XtWX_inv_vec.push_back(lmm_sc.XtWX_inv);
             Xty_res_vec.push_back(lmm_sc.Xty_res);
             XtWZ_vec.push_back(lmm_sc.XtWZ);
+            ZtSigma_invZ_diag_vec.push_back(lmm_sc.ZtSigma_invZ_diag);
+            ZtSigma_invX_vec.push_back(lmm_sc.ZtSigma_invX);
+            XtSigma_invX_inv_vec.push_back(lmm_sc.XtSigma_invX_inv);
 
-            tr.push_back(lmm_sc.r_approx);
             sigma2.push_back(lmm_sc.sigma2);
         }
         std::cout << "Null single-cell LMMs fitted." << std::endl;
@@ -171,6 +177,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             XtWX_inv_vec.push_back(p_glmm_sc.XtWX_inv);
             Xty_res_vec.push_back(p_glmm_sc.Xty_res);
             XtWZ_vec.push_back(p_glmm_sc.XtWZ);
+            ZtSigma_invZ_diag_vec.push_back(p_glmm_sc.ZtSigma_invZ_diag);
+            ZtSigma_invX_vec.push_back(p_glmm_sc.ZtSigma_invX);
+            XtSigma_invX_inv_vec.push_back(p_glmm_sc.XtSigma_invX_inv);
 
             if (cell_groups.n_groups > 0) {
                 
@@ -179,8 +188,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                 std::vector<Eigen::VectorXd> Xty_res_g(cell_groups.n_groups, Eigen::VectorXd::Zero(c_sc));
                 std::vector<Eigen::MatrixXd> XtWZ_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(c_sc, n_donors_sc));
                 std::vector<Eigen::VectorXd> y_out_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
-                std::vector<Eigen::VectorXd> mu_out_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
-                std::vector<double> tr_g(cell_groups.n_groups, nan_val);
+                std::vector<Eigen::VectorXd> ZtSigma_invZ_diag_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
+                std::vector<Eigen::MatrixXd> ZtSigma_invX_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(n_donors_sc, c_sc));
+                std::vector<Eigen::MatrixXd> XtSigma_invX_inv_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(c_sc, c_sc));
                 std::vector<double> sigma2_g(cell_groups.n_groups, nan_val);
                 std::vector<bool> converged_g(cell_groups.n_groups, false);
 
@@ -237,21 +247,24 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                         Xty_res_g[gi].setConstant(nan_val);
                         XtWZ_g[gi].setConstant(nan_val);
                         y_out_g[gi].setConstant(nan_val);
-                        mu_out_g[gi].setConstant(nan_val);
+                        ZtSigma_invZ_diag_g[gi].setConstant(nan_val);
+                        ZtSigma_invX_g[gi].setConstant(nan_val);
+                        XtSigma_invX_inv_g[gi].setConstant(nan_val);
                         converged_g[gi] = false;
                         continue;
                     }
 
                     XtWX_inv_g[gi] = fit_g.XtWX_inv;
                     Xty_res_g[gi] = fit_g.Xty_res;
+                    XtSigma_invX_inv_g[gi] = fit_g.XtSigma_invX_inv;
                     for (size_t d = 0; d < n_donors_g; ++d) {
                         const Eigen::Index full_d = static_cast<Eigen::Index>(donor_keep_g[d]);
                         const Eigen::Index kept_d = static_cast<Eigen::Index>(d);
                         y_out_g[gi](full_d) = fit_g.y_out(kept_d);
-                        mu_out_g[gi](full_d) = fit_g.mu_out(kept_d);
+                        ZtSigma_invZ_diag_g[gi](full_d) = fit_g.ZtSigma_invZ_diag(kept_d);
                         XtWZ_g[gi].col(full_d) = fit_g.XtWZ.col(kept_d);
+                        ZtSigma_invX_g[gi].row(full_d) = fit_g.ZtSigma_invX.row(kept_d);
                     }
-                    tr_g[gi] = fit_g.r_approx;
                     sigma2_g[gi] = fit_g.sigma2;
                     converged_g[gi] = fit_g.glmm_converged;
                 }
@@ -260,13 +273,13 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                 Xty_res_g_vec.push_back(Xty_res_g);
                 XtWZ_g_vec.push_back(XtWZ_g);
                 y_out_g_vec.push_back(y_out_g);
-                w_g_donor_vec.push_back(mu_out_g);
-                tr_g_vec.push_back(tr_g);
+                ZtSigma_invZ_diag_g_vec.push_back(ZtSigma_invZ_diag_g);
+                ZtSigma_invX_g_vec.push_back(ZtSigma_invX_g);
+                XtSigma_invX_inv_g_vec.push_back(XtSigma_invX_inv_g);
                 sigma2_g_vec.push_back(sigma2_g);
                 glmm_converged_g_vec.push_back(converged_g);
             }
 
-            tr.push_back(p_glmm_sc.r_approx);
             glmm_converged.push_back(p_glmm_sc.glmm_converged);
             sigma2.push_back(p_glmm_sc.sigma2);
         }
@@ -457,6 +470,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.XtWX_inv_vec = XtWX_inv_vec;
     model_fit.Xty_res_vec = Xty_res_vec;
     model_fit.XtWZ_vec = XtWZ_vec;
+    model_fit.ZtSigma_invZ_diag_vec = ZtSigma_invZ_diag_vec;
+    model_fit.ZtSigma_invX_vec = ZtSigma_invX_vec;
+    model_fit.XtSigma_invX_inv_vec = XtSigma_invX_inv_vec;
     model_fit.ZtDy_res_vec = ZtDy_res_vec;
     model_fit.XtWDZ_vec = XtWDZ_vec;
     model_fit.Zty_res_vec = Zty_res_vec;
@@ -475,8 +491,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         model_fit.Xty_res_g_vec = Xty_res_g_vec;
         model_fit.XtWZ_g_vec = XtWZ_g_vec;
         model_fit.y_out_g_vec = y_out_g_vec;
-        model_fit.mu_out_g_vec = w_g_donor_vec;
-        model_fit.tr_g_vec = tr_g_vec;
+        model_fit.ZtSigma_invZ_diag_g_vec = ZtSigma_invZ_diag_g_vec;
+        model_fit.ZtSigma_invX_g_vec = ZtSigma_invX_g_vec;
+        model_fit.XtSigma_invX_inv_g_vec = XtSigma_invX_inv_g_vec;
         model_fit.sigma2_g_vec = sigma2_g_vec;
         model_fit.glmm_converged_g_vec = glmm_converged_g_vec;
     }

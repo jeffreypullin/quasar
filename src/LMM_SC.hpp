@@ -53,7 +53,10 @@ class LMM_SC {
         Eigen::MatrixXd XtWX_inv;
         Eigen::VectorXd Xty_res;
         Eigen::MatrixXd XtWZ;
-        double r_approx;
+        // Exact P-score variance: g^T Z^T P Z g.
+        Eigen::VectorXd ZtSigma_invZ_diag;
+        Eigen::MatrixXd ZtSigma_invX;
+        Eigen::MatrixXd XtSigma_invX_inv;
 
         LMM_SC(const Eigen::Ref<Eigen::MatrixXd> X_,
                const Eigen::Ref<Eigen::VectorXd> y_,
@@ -134,24 +137,14 @@ class LMM_SC {
             return ll;
         };
 
-        void compute_r_approx() {
-
-            double a, a1, a2, b;
-            double tau = 1.0 / sigma2;
-
+        void compute_output() {
+            const double tau = 1.0 / sigma2;
             Eigen::VectorXd psi_vals = delta * ns.array() / (delta * ns.array() + 1.0);
             Eigen::MatrixXd XtPsiX = X_tilde.transpose() * psi_vals.asDiagonal() * X_tilde;
-            Eigen::MatrixXd XtSigma_invX_inv = (tau * (XtX - XtPsiX)).inverse();
+            XtSigma_invX_inv = (tau * (XtX - XtPsiX)).inverse();
             Eigen::VectorXd ns_sqrt_psi = ns.array().sqrt().matrix().cwiseProduct(psi_vals);
-            Eigen::MatrixXd ZtSigma_invX = (tau * (ZtX - ns_sqrt_psi.asDiagonal() * X_tilde));
-
-            a1 = tau * N - tau * (ns.array() * psi_vals.array()).sum();
-            a2 = (ZtSigma_invX * XtSigma_invX_inv * ZtSigma_invX.transpose()).trace();
-            a = a1 - a2;
-
-            b = N - (ZtX * XtX.inverse() * ZtX.transpose()).trace();
-
-            r_approx = a / b;
+            ZtSigma_invX = tau * (ZtX - ns_sqrt_psi.asDiagonal() * X_tilde);
+            ZtSigma_invZ_diag = (tau * ns.array() * (1.0 - psi_vals.array())).matrix();
         }
 
         void fit() {
@@ -181,7 +174,7 @@ class LMM_SC {
             XtWX_inv = XtX.inverse();
             Xty_res = X.transpose() * y_res;
             XtWZ = ZtX.transpose();
-            compute_r_approx();
+            compute_output();
 
             return;
         }

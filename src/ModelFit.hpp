@@ -46,6 +46,10 @@ class ModelFit {
     std::vector<Eigen::MatrixXd> XtWX_inv_vec;
     std::vector<Eigen::VectorXd> Xty_res_vec;
     std::vector<Eigen::MatrixXd> XtWZ_vec;
+    
+    std::vector<Eigen::VectorXd> ZtSigma_invZ_diag_vec;
+    std::vector<Eigen::MatrixXd> ZtSigma_invX_vec;
+    std::vector<Eigen::MatrixXd> XtSigma_invX_inv_vec;
     std::vector<Eigen::VectorXd> ZtDy_res_vec;
     std::vector<Eigen::VectorXd> Zty_res_vec;
     std::vector<Eigen::MatrixXd> XtWDZ_vec;
@@ -64,8 +68,9 @@ class ModelFit {
     std::vector<std::vector<Eigen::VectorXd>> Xty_res_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtWZ_g_vec;
     std::vector<std::vector<Eigen::VectorXd>> y_out_g_vec;
-    std::vector<std::vector<Eigen::VectorXd>> mu_out_g_vec;
-    std::vector<std::vector<double>> tr_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> ZtSigma_invZ_diag_g_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> ZtSigma_invX_g_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> XtSigma_invX_inv_g_vec;
     std::vector<std::vector<double>> sigma2_g_vec;
     std::vector<std::vector<bool>> glmm_converged_g_vec;
 

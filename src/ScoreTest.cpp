@@ -127,7 +127,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         }
 
         Eigen::MatrixXd XtWX_inv, Xt, XtX_inv, XtWZ;
-        Eigen::VectorXd Xty_res, XtWX_inv_Xty_res;
+        Eigen::MatrixXd ZtSigma_invX, XtSigma_invX_inv;
+        Eigen::VectorXd Xty_res, XtWX_inv_Xty_res, ZtSigma_invZ_diag;
         if (params.data_type != "single-cell") {
             XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
             XtX_inv = (X.transpose() * X).inverse();
@@ -137,6 +138,11 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             XtWX_inv = model_fit.XtWX_inv_vec[i];
             Xty_res = model_fit.Xty_res_vec[i];
             XtWX_inv_Xty_res = XtWX_inv * Xty_res;
+            if ((model == "p_glmm_sc" || model == "lmm_sc") && !params.do_interaction) {
+                ZtSigma_invZ_diag = model_fit.ZtSigma_invZ_diag_vec[i];
+                ZtSigma_invX = model_fit.ZtSigma_invX_vec[i];
+                XtSigma_invX_inv = model_fit.XtSigma_invX_inv_vec[i];
+            }
         }
 
         Eigen::VectorXd g_s(n_samples);
@@ -215,18 +221,28 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
                     u = g_s.cwiseProduct(w).dot(Y.col(i));
                     gtg = g_s.cwiseProduct(w).dot(g_s);
-                } else {
-                    Eigen::VectorXd t = XtWZ * g;
+                    v = gtg;
+                    if (model == "lmm") {
+                        v *= sigma2;
+                    } else if (is_glmm_model) {
+                        v *= model_fit.tr[i];
+                    }
+                } else if (model == "p_glmm_sc" || model == "lmm_sc") {
 
+                    Eigen::VectorXd t = XtWZ * g;
+                    u = g.dot(Y.col(i)) - t.dot(XtWX_inv_Xty_res);
+                    Eigen::VectorXd t_p = ZtSigma_invX.transpose() * g;
+                    v = g.cwiseProduct(ZtSigma_invZ_diag).dot(g) - t_p.dot(XtSigma_invX_inv * t_p);
+
+                } else {
+
+                    Eigen::VectorXd t = XtWZ * g;
                     u = g.dot(Y.col(i)) - t.dot(XtWX_inv_Xty_res);
                     gtg = g.cwiseProduct(w).dot(g) - t.dot(XtWX_inv * t);
-                }
-                v = gtg;
-
-                if (model == "lmm") {
-                    v *= sigma2;
-                } else if (is_glmm_model || model == "lmm_sc") {
-                    v *= model_fit.tr[i];
+                    v = gtg;
+                    if (is_glmm_model) {
+                        v *= model_fit.tr[i];
+                    }
                 }
 
                 main_beta = u / v;
@@ -249,14 +265,16 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                         const Eigen::MatrixXd& XtWX_inv_g = model_fit.XtWX_inv_g_vec[i][gi];
                         const Eigen::VectorXd& Xty_res_g = model_fit.Xty_res_g_vec[i][gi];
                         const Eigen::VectorXd& y_g_donor = model_fit.y_out_g_vec[i][gi];
-                        const Eigen::VectorXd& w_g_donor = model_fit.mu_out_g_vec[i][gi];
+                        const Eigen::VectorXd& ZtSigma_invZ_diag_g = model_fit.ZtSigma_invZ_diag_g_vec[i][gi];
+                        const Eigen::MatrixXd& ZtSigma_invX_g = model_fit.ZtSigma_invX_g_vec[i][gi];
+                        const Eigen::MatrixXd& XtSigma_invX_inv_g = model_fit.XtSigma_invX_inv_g_vec[i][gi];
 
                         Eigen::VectorXd t_g = XtWZ_g * g;
                         double raw_u_g = g.dot(y_g_donor);
                         double correction_g = t_g.dot(XtWX_inv_g * Xty_res_g);
                         double u_g = raw_u_g - correction_g;
-                        double gtg_g = g.cwiseProduct(w_g_donor).dot(g) - t_g.dot(XtWX_inv_g * t_g);
-                        double v_g = model_fit.tr_g_vec[i][gi] * gtg_g;
+                        Eigen::VectorXd t_p_g = ZtSigma_invX_g.transpose() * g;
+                        double v_g = g.cwiseProduct(ZtSigma_invZ_diag_g).dot(g) - t_p_g.dot(XtSigma_invX_inv_g * t_p_g);
 
                         if (v_g <= 0.0 || std::isnan(v_g)) {
                             group_betas[gi] = group_ses[gi] = group_pvals[gi] = std::numeric_limits<double>::quiet_NaN();
