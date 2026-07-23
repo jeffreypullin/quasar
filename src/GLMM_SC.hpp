@@ -363,6 +363,10 @@ class GLMM_SC {
                 glmm_converged = false;
             }
 
+            if (sigma2 > 5) {
+                glmm_converged = false;
+            }
+
             update_Sigma_invXs();
             update_XtSigma_invX_inv();
             update_ZtSigma_invX();
