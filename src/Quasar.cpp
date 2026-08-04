@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
         ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file)->default_value("no-grm"))
         ("i,interaction", "Covariate column name for GxE interaction testing", cxxopts::value<std::string>(params.interaction_cov))
         ("cell-groups", "File with `group` and `cell_id` columns assigning each cell to a group (single-cell only)", cxxopts::value<std::string>(params.cell_groups_file)->default_value("no-cell-groups"))
+        ("offset-file", "File with pre-computed log-scale offsets", cxxopts::value<std::string>(params.offset_file)->default_value("no-offset-file"))
         // Execution arguments.
         ("mode", "Mode to run quasar in (residualise, cis, trans, gwas)", cxxopts::value<std::string>(params.mode))
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
@@ -138,6 +139,20 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
     }
+
+    bool use_offset_file = params.offset_file != "no-offset-file";
+    if (use_offset_file) {
+        if (params.model == "lm" || params.model == "lmm" || params.model == "lmm_sc") {
+            std::cerr << "Error: --offset-file cannot be used with models that do not use an offset "
+                      << "('lm', 'lmm', 'lmm_sc')." << std::endl;
+            exit(1);
+        }
+        if (!params.resid_file.empty() && params.resid_file != "no-resid") {
+            std::cerr << "Error: --offset-file cannot be combined with --resid "
+                      << "(residualisation is skipped)." << std::endl;
+            exit(1);
+        }
+    }
     
     std::cout << "\nMode: " << params.mode << std::endl;
     std::cout << "Model: " << params.model << std::endl;
@@ -229,7 +244,7 @@ int main(int argc, char* argv[]) {
                 exit(1);
             }
         }
-        pheno_data.read_sc_pheno_data(params.model != "lmm_sc");
+        pheno_data.read_sc_pheno_data(params.model != "lmm_sc" && !use_offset_file);
     } else {
         pheno_data.read_pheno_data(params.mode);
     }
@@ -292,6 +307,15 @@ int main(int argc, char* argv[]) {
 
     if (params.data_type == "single-cell" && cov_data.cov_data_type == "single-cell") {
         align_sc_cell_ids(pheno_data, cov_data);
+    }
+
+    OffsetData offset_data(params.offset_file);
+    if (use_offset_file) {
+        std::cout << "\nReading offset file..." << std::endl;
+        offset_data.read_offset_data(params.data_type);
+        pheno_data.offset = (params.data_type == "single-cell")
+            ? offset_data.align_to_cells(pheno_data.cell_ids)
+            : offset_data.align_to_samples(pheno_data.sample_ids);
     }
 
     CellGroups cell_groups(params.cell_groups_file);

@@ -1479,3 +1479,147 @@ void GRM::slice_samples(std::vector<std::string>& sample_ids) {
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
 }
+
+void OffsetData::read_offset_data(const std::string& data_type) {
+
+    std::ifstream f(file);
+    if (!f.is_open()) {
+        std::cerr << "Error: Unable to open offset file: " << file << std::endl;
+        exit(1);
+    }
+
+    offset_data_type = data_type;
+    key_to_offset_.clear();
+
+    std::string line;
+    if (!std::getline(f, line)) {
+        std::cerr << "Error: offset file is empty: " << file << std::endl;
+        exit(1);
+    }
+    remove_carriage_return(line);
+    std::vector<std::string> tokens = string_split(line, ",\t ");
+
+    const bool is_sc = (data_type == "single-cell");
+    if (is_sc) {
+        if (tokens.size() < 3 || tokens[0] != "sample_id" || tokens[1] != "cell_id" || tokens[2] != "offset") {
+            std::cerr << "Error: Invalid header in offset file for single-cell data. "
+                      << "Expected 'sample_id', 'cell_id', 'offset'." << std::endl;
+            exit(1);
+        }
+    } else {
+        if (tokens.size() < 2 || tokens[0] != "sample_id" || tokens[1] != "offset") {
+            std::cerr << "Error: Invalid header in offset file for bulk data. "
+                      << "Expected 'sample_id', 'offset'." << std::endl;
+            exit(1);
+        }
+    }
+
+    size_t row = 1;
+    while (std::getline(f, line)) {
+        row++;
+        remove_carriage_return(line);
+        if (line.empty()) {
+            continue;
+        }
+        tokens = string_split(line, ",\t ");
+
+        std::string key;
+        std::string offset_str;
+        if (is_sc) {
+            if (tokens.size() < 3) {
+                std::cerr << "Error: Offset file at line " << row
+                          << " has fewer than 3 columns." << std::endl;
+                exit(1);
+            }
+            key = tokens[1];
+            offset_str = tokens[2];
+        } else {
+            if (tokens.size() < 2) {
+                std::cerr << "Error: Offset file at line " << row
+                          << " has fewer than 2 columns." << std::endl;
+                exit(1);
+            }
+            key = tokens[0];
+            offset_str = tokens[1];
+        }
+
+        double value;
+        try {
+            value = std::stod(offset_str);
+        } catch (...) {
+            std::cerr << "Error: Offset file at line " << row
+                      << " has a non-numeric offset '" << offset_str << "'." << std::endl;
+            exit(1);
+        }
+
+        auto inserted = key_to_offset_.emplace(key, value);
+        if (!inserted.second) {
+            if (is_sc) {
+                std::cerr << "Error: Duplicate cell_id '" << key
+                          << "' in offset file at line " << row << "." << std::endl;
+            } else {
+                std::cerr << "Error: Duplicate sample_id '" << key
+                          << "' in offset file at line " << row << "." << std::endl;
+            }
+            exit(1);
+        }
+    }
+
+    f.close();
+
+    if (key_to_offset_.empty()) {
+        std::cerr << "Error: No offsets found in offset file." << std::endl;
+        exit(1);
+    }
+
+    std::cout << "Read " << format_with_commas(key_to_offset_.size())
+              << " offsets from offset file." << std::endl;
+}
+
+Eigen::VectorXd OffsetData::align_to_samples(const std::vector<std::string>& sample_ids) {
+
+    Eigen::VectorXd out(static_cast<Eigen::Index>(sample_ids.size()));
+    size_t n_assigned = 0;
+    for (size_t i = 0; i < sample_ids.size(); ++i) {
+        auto it = key_to_offset_.find(sample_ids[i]);
+        if (it == key_to_offset_.end()) {
+            std::cerr << "Error: sample_id '" << sample_ids[i]
+                      << "' is present in phenotype data but missing from offset file." << std::endl;
+            exit(1);
+        }
+        out(static_cast<Eigen::Index>(i)) = it->second;
+        n_assigned++;
+    }
+
+    if (n_assigned != key_to_offset_.size()) {
+        std::cerr << "Warning: " << (key_to_offset_.size() - n_assigned)
+                  << " sample_id(s) in offset file are not present in phenotype data; ignoring."
+                  << std::endl;
+    }
+
+    return out;
+}
+
+Eigen::VectorXd OffsetData::align_to_cells(const std::vector<std::string>& cell_ids) {
+
+    Eigen::VectorXd out(static_cast<Eigen::Index>(cell_ids.size()));
+    size_t n_assigned = 0;
+    for (size_t i = 0; i < cell_ids.size(); ++i) {
+        auto it = key_to_offset_.find(cell_ids[i]);
+        if (it == key_to_offset_.end()) {
+            std::cerr << "Error: cell_id '" << cell_ids[i]
+                      << "' is present in phenotype data but missing from offset file." << std::endl;
+            exit(1);
+        }
+        out(static_cast<Eigen::Index>(i)) = it->second;
+        n_assigned++;
+    }
+
+    if (n_assigned != key_to_offset_.size()) {
+        std::cerr << "Warning: " << (key_to_offset_.size() - n_assigned)
+                  << " cell_id(s) in offset file are not present in phenotype data; ignoring."
+                  << std::endl;
+    }
+
+    return out;
+}

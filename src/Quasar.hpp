@@ -42,6 +42,7 @@ struct Params {
     std::string resid_file;
     std::string fit_file;
     std::string cell_groups_file;
+    std::string offset_file;
 
     std::string interaction_cov;
     bool do_interaction = false;

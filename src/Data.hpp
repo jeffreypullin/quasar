@@ -150,4 +150,22 @@ class CellGroups {
     std::unordered_map<std::string, double> cell_id_to_value_;
 };
 
+class OffsetData {
+
+  public:
+    std::string file;
+    std::string offset_data_type;
+
+    OffsetData(std::string file) {
+      this->file = file;
+    }
+
+    void read_offset_data(const std::string& data_type);
+    Eigen::VectorXd align_to_samples(const std::vector<std::string>& sample_ids);
+    Eigen::VectorXd align_to_cells(const std::vector<std::string>& cell_ids);
+
+  private:
+    std::unordered_map<std::string, double> key_to_offset_;
+};
+
 #endif

@@ -285,6 +285,42 @@ sample_id sample_1 sample_2 sample_3 sample_4 ...
 
 To construct the GRM we recommend using the plink2 --make-king command after pruning variants. The resulting matrix will then need to be multiplied by 2, and possibly slightly altered, for example by setting negative eigenvalues to 0, to ensure it is positive definite. Other methods for constructing the GRM should work but have not been evaluated.
 
+### Offset data
+
+--offset-file
+
+By default, for count-based models quasar uses `log(total counts)` as an offset (per sample for bulk/pseudobulk, per cell for single-cell), so you **don't need to pass the offset file**.
+
+However, if you want to supply pre-computed offsets you can pass `--offset-file` instead. Values are used **directly on the log scale** as the offset term in the linear predictor; quasar does not take `log()` of them.
+
+`--offset-file` is only compatible with models that use an offset (`p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_grm`, `p_glmm_sc`). It cannot be combined with `--resid`.
+
+#### Bulk / pseudobulk format
+
+A tab-separated file with columns `sample_id` and `offset`:
+
+```
+sample_id	offset
+sample_1	10.52
+sample_2	9.87
+sample_3	11.03
+...
+```
+
+#### Single-cell format
+
+A tab-separated file with columns `sample_id`, `cell_id`, and `offset`:
+
+```
+sample_id	cell_id	offset
+sample_1	AAACCTGAGAAACCAT-1	7.21
+sample_1	AAACCTGAGAAACCGC-1	6.95
+sample_2	AAACCTGAGAAAGTGG-1	7.44
+...
+```
+
+Every sample (bulk) or cell (single-cell) present in the phenotype data after sample intersection must appear in the offset file. Extra rows in the offset file are ignored with a warning.
+
 ## Output
 
 In cis mode, quasar produces two files:
@@ -341,6 +377,7 @@ ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39  
 |`--sc-pheno` | FILE | Required (single-cell) | Single-cell phenotype file |
 |`--anno` | FILE | Required (single-cell; optional in `gwas` with `lmm_sc`) | Annotation file |
 |`--grm` | FILE | Optional | A (dense) genetic relatedness matrix |
+|`--offset-file` | FILE | Optional | Pre-computed log-scale offset |
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |
 |`--interaction` | STRING | Optional | The covariate to perform interaction-QTL testing with. Must be a column header in the covariate data. |

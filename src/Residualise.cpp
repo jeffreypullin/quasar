@@ -63,9 +63,9 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         std::cout << "Rank normalization finished." << std::endl;
     }
 
-    // Compute offset for count-distribution models.
+    // Use precomputed / file-provided offset when available; otherwise log library size (bulk).
     Eigen::VectorXd offset;
-    if (params.data_type == "single-cell") {
+    if (pheno_data.offset.size() > 0) {
         offset = pheno_data.offset;
     } else {
         offset = Y.rowwise().sum().array().log();
