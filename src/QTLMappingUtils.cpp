@@ -28,9 +28,9 @@
 double pnorm(double x, bool lower) {
     boost::math::normal N01(0.0, 1.0);
     if (lower) { 
-        return boost::math::cdf(boost::math::complement(N01, x));
+        return boost::math::cdf(N01, x);
     } 
-    return boost::math::cdf(N01, x);
+    return boost::math::cdf(boost::math::complement(N01, x));
 }
 
 double p_bd = 1e-300;
@@ -39,9 +39,9 @@ double q_bd = 3e+299;
 double qnorm(double p, bool lower){
     boost::math::normal N01(0.0, 1.0);
     if (lower) { 
-        return boost::math::quantile(boost::math::complement(N01, p));
+        return boost::math::quantile(N01, p);
     } 
-    return boost::math::quantile(N01, p);
+    return boost::math::quantile(boost::math::complement(N01, p));
 }
 
 double qcauchy(double p, bool lower){
@@ -260,7 +260,7 @@ WeightedTrendResult compute_weighted_trend(
     if (res.se <= 0.0 || std::isnan(z)) {
         return res;
     }
-    res.pvalue = 2 * pnorm(std::abs(z), true);
+    res.pvalue = 2 * pnorm(std::abs(z), false);
     return res;
 }
 

@@ -248,7 +248,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 main_beta = u / v;
                 main_se = 1 / std::sqrt(v);
                 main_zscore = main_beta / main_se;
-                main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
+                main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
 
                 if (mode == "cis") {
                     main_pvals.push_back(main_pval_snp);
@@ -284,7 +284,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                             double z_g = beta_g / se_g;
                             group_betas[gi] = beta_g;
                             group_ses[gi] = se_g;
-                            group_pvals[gi] = 2 * pnorm(std::abs(z_g), true);
+                            group_pvals[gi] = 2 * pnorm(std::abs(z_g), false);
                         }
                     }
                     het_result = compute_cochran_q(group_betas, group_ses);
@@ -335,8 +335,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                         main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
                         int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();
                     } else {
-                        main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
-                        int_pval_snp = 2 * pnorm(std::abs(int_zscore), true);
+                        main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
+                        int_pval_snp = 2 * pnorm(std::abs(int_zscore), false);
                     }
                     
                 } else {
@@ -362,7 +362,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     if ((main_se < 0) | std::isnan(main_zscore)) {
                         main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
                     } else {
-                        main_pval_snp = 2 * pnorm(std::abs(main_zscore), true);
+                        main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
                     }
 
                     // Compute interaction effect.
@@ -393,7 +393,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     if ((int_se < 0) | std::isnan(main_zscore)) {
                         int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();
                     } else {
-                        int_pval_snp = 2 * pnorm(std::abs(int_zscore), true);
+                        int_pval_snp = 2 * pnorm(std::abs(int_zscore), false);
                     }
 
                     if (mode == "cis") {
