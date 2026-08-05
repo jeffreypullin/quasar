@@ -147,10 +147,10 @@ void GenoData::read_bed_file() {
             for (size_t k = 0; k < 4 && j + k < n_samples; ++k) {
                 int genotype = (byte >> (k << 1)) & 0x3;
                  switch(genotype) {
-                    case 0: genotype_matrix(i, j + k) = 0; break;
+                    case 0: genotype_matrix(i, j + k) = 2; break;
                     case 1: genotype_matrix(i, j + k) = -1; break;
                     case 2: genotype_matrix(i, j + k) = 1; break;
-                    case 3: genotype_matrix(i, j + k) = 2; break;
+                    case 3: genotype_matrix(i, j + k) = 0; break;
                 } 
             }
         }
