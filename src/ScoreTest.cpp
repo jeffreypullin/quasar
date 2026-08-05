@@ -145,7 +145,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 se = 1 / std::sqrt(v);
                 if (v > 0) {
                     zscore = beta / se;
-                    pval_esnp = 2 * pnorm(std::abs(zscore), true);
+                    pval_esnp = 2 * pnorm(std::abs(zscore), false);
                 } else {
                     zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
                 }

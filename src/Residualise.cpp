@@ -175,7 +175,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                         u = unif(rng);
                     }
                     u = std::max(1e-12, std::min(u, 1.0 - 1e-12));
-                    Y(j, i) = qnorm(u, false);
+                    Y(j, i) = qnorm(u, true);
                 }
                 W.row(i).setOnes();
             }
