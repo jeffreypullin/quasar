@@ -45,14 +45,22 @@ class GLM {
         GLM(const Eigen::Ref<Eigen::MatrixXd> X_, 
             const Eigen::Ref<Eigen::VectorXd> y_,
             const Eigen::Ref<Eigen::VectorXd> offset_,
-            std::unique_ptr<Family> family_) :
+            std::unique_ptr<Family> family_,
+            const Eigen::VectorXd& mu_init = Eigen::VectorXd()) :
             X(X_),
             y(y_),
             offset(offset_),
             family(std::move(family_))
         {
             beta = Eigen::VectorXd::Zero(X.cols());
-            mu = family->init(y);
+            if (mu_init.size() == 0) {
+                mu = family->init(y);
+            } else {
+                if (mu_init.size() != y.size()) {
+                    throw std::invalid_argument("Initial mu must have the same length as y");
+                }
+                mu = mu_init;
+            }
             w = compute_w(mu);
         };
 

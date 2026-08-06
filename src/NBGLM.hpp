@@ -98,7 +98,7 @@ class NBGLM {
             for (int i = 0; i < max_iter; ++i) {
                 
                 auto nb = std::unique_ptr<Family>(new NegativeBinomial(phi));
-                GLM nb_glm(X, y, offset, std::move(nb));
+                GLM nb_glm(X, y, offset, std::move(nb), mu);
                 nb_glm.fit();
                 mu = nb_glm.mu;
                 beta = nb_glm.beta;
@@ -114,7 +114,8 @@ class NBGLM {
                 ll_0 = ll_m;
                 ll_m = ll();
 
-                if ((std::abs(ll_0 - ll_m) / d1 + std::abs(theta_delta)) < tol) {
+                double relative_theta_delta = std::abs(theta_delta) / (1.0 + std::abs(theta_0));
+                if ((std::abs(ll_0 - ll_m) / d1 + relative_theta_delta) < tol) {
                     glm_converged = true;
                     break;
                 }
