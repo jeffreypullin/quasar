@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include <vector>
 #include <string>
 #include <numeric>
@@ -46,6 +47,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         std::string region_header_line = "feature_id\tchrom\tstart\tend\tpvalue\n";
         region_file << region_header_line;
     }
+
+    bool is_glmm_model = model == "p_glmm" || model == "nb_glmm";
 
     // Iterate over features.
     for (size_t i = 0; i < pheno_data.n_pheno; ++i) {
@@ -99,6 +102,15 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
         Eigen::VectorXd g_s(n_samples);
         Eigen::VectorXd g(n_samples);
+
+        bool model_converged = false;
+        if (is_glmm_model) {
+            model_converged = model_fit.glmm_converged[i];
+        } else if (model == "p_glm" || model == "nb_glm") {
+            model_converged = model_fit.glm_converged[i];
+        } else {
+            model_converged = true;
+        }
         
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
@@ -114,30 +126,29 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 continue;
             }
 
-            g = G_slice.col(slice_ind); 
-            g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
-            
-            u = g_s.cwiseProduct(w).dot(Y.col(i));
-            gtg = g_s.cwiseProduct(w).dot(g_s);
-            v = gtg;
-
-            if (model == "lmm") {
-                v *= sigma2;
-            }
-            if (model == "p_glmm" || model == "nb_glmm") {
-                v *= model_fit.tr[i];
-            }
-            beta = u / v;
-            se = 1 / std::sqrt(v);
-            if (v > 0) {
-                zscore = beta / se;
-                pval_esnp = 2 * pnorm(std::abs(zscore), true);
-            } else {
-                zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
-            }
-            // MAF == 0 case.
-            if (std::abs(geno_data.maf[k]) < 1e-8) {
+            g = G_slice.col(slice_ind);
+            if (std::abs(geno_data.maf[k]) < 1e-8 || !model_converged) {
                 beta = se = zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
+            } else {
+                g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
+
+                u = g_s.cwiseProduct(w).dot(Y.col(i));
+                gtg = g_s.cwiseProduct(w).dot(g_s);
+                v = gtg;
+
+                if (model == "lmm") {
+                    v *= sigma2;
+                } else if (is_glmm_model) {
+                    v *= model_fit.tr[i];
+                }
+                beta = u / v;
+                se = 1 / std::sqrt(v);
+                if (v > 0) {
+                    zscore = beta / se;
+                    pval_esnp = 2 * pnorm(std::abs(zscore), true);
+                } else {
+                    zscore = pval_esnp = std::numeric_limits<double>::quiet_NaN();
+                }
             }
             if (mode == "cis") {
                 pvals.push_back(pval_esnp);
