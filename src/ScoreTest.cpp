@@ -222,7 +222,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     u = g_s.cwiseProduct(w).dot(Y.col(i));
                     gtg = g_s.cwiseProduct(w).dot(g_s);
                     v = gtg;
-                    if (model == "lmm") {
+                    if (model == "lmm" || (model == "nb_glm" && params.use_quant_res)) {
+                        // Mid-p quantile residuals have Var < 1; scale by residual variance.
                         v *= sigma2;
                     } else if (is_glmm_model) {
                         v *= model_fit.tr[i];

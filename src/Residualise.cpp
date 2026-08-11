@@ -37,7 +37,6 @@
 #include <numeric>
 #include <algorithm>
 #include <limits>
-#include <random>
 #include <boost/math/special_functions/beta.hpp>
 
 void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm, CellGroups& cell_groups) {
@@ -55,7 +54,6 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     Eigen::MatrixXd& X = (params.data_type == "single-cell") ? cov_data.sc_data : cov_data.data;
 
     int n_pheno = pheno_data.n_pheno;
-    std::mt19937_64 rng(std::random_device{}());
 
     if (params.model == "lmm" || params.model == "lm") {
         std::cout << "\nPerforming rank normalization..." << std::endl;
@@ -393,6 +391,8 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                 Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta + offset).array().exp()) / nb_glm.mu.array();
                 W.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
             } else {
+                // Mid-p quantile residual: Phi^{-1}((a+b)/2). Residual scale is
+                // estimated in the score test via sigma2.
                 const double size = 1.0 / nb_glm.phi;
                 for (size_t j = 0; j < pheno_data.n_samples; ++j) {
                     const double y_raw = Y(j, i);
@@ -406,11 +406,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                     double b = boost::math::ibeta(size, y + 1.0, p);
                     a = std::max(0.0, std::min(a, 1.0));
                     b = std::max(a,   std::min(b, 1.0));
-                    double u = a;
-                    if (b > a) {
-                        std::uniform_real_distribution<double> unif(a, b);
-                        u = unif(rng);
-                    }
+                    double u = 0.5 * (a + b);
                     u = std::max(1e-12, std::min(u, 1.0 - 1e-12));
                     Y(j, i) = qnorm(u, true);
                 }
