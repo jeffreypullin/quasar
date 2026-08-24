@@ -171,10 +171,10 @@ class LMM_SC {
 
             y_out = collapse_vec(y_res);
             mu_out = ns;
-            XtWX_inv = XtX.inverse();
             Xty_res = X.transpose() * y_res;
-            XtWZ = ZtX.transpose();
             compute_output();
+            XtWX_inv = XtSigma_invX_inv;
+            XtWZ = ZtSigma_invX.transpose();
 
             return;
         }

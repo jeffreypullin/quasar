@@ -35,7 +35,6 @@ class GLMM_SC_INT {
         size_t N;
         size_t c;
         size_t n;
-        int n_int_groups;
         double tol = 1e-5;
         int max_iter = 50;
 
@@ -49,18 +48,17 @@ class GLMM_SC_INT {
         Eigen::MatrixXd XtSigma_invX_inv;
         Eigen::MatrixXd XSigma_inv;
         Eigen::VectorXd y_tilde;
-        std::vector<Eigen::MatrixXd> Sigma_invXs;
+        Eigen::VectorXd Py_tilde;
+        Eigen::MatrixXd Sigma_invX;
         std::vector<Eigen::MatrixXd> Xis;
         std::vector<Eigen::MatrixXd> Zis;
         std::vector<Eigen::VectorXd> wis;
         std::vector<Eigen::VectorXd> xis;
-        std::vector<Eigen::MatrixXd> M_invs;
+        std::vector<Eigen::Matrix2d> M_invs;
         Eigen::MatrixXd ZtSigma_invX;
-        Eigen::MatrixXd ZtESigma_invX;
+        Eigen::MatrixXd ZtDSigma_invX;
 
         // Output.
-        double r_approx;
-        double r_approx_int;
         Eigen::VectorXd y_out;
         Eigen::VectorXd mu_out;
         Eigen::MatrixXd XtWX_inv;
@@ -69,6 +67,9 @@ class GLMM_SC_INT {
         Eigen::VectorXd ZtDy_res;
         Eigen::MatrixXd XtWDZ;
         Eigen::VectorXd Zty_res;
+        Eigen::VectorXd ZtSigma_invZ_diag;
+        Eigen::VectorXd ZtDSigma_invDZ_diag;
+        Eigen::VectorXd ZtDSigma_invZ_diag;
         Eigen::VectorXd d_out;
         Eigen::VectorXd dw_out;
         Eigen::VectorXd dwd_out;
@@ -124,29 +125,27 @@ class GLMM_SC_INT {
         }
 
         void update_M_invs() {
-            M_invs.clear();
-            Eigen::MatrixXd G_inv = G.inverse();
+            Eigen::Matrix2d G_inv = G.inverse();
             for (size_t i = 0; i < n; ++i) {
-                Eigen::MatrixXd ZiTWiZi = Zis[i].transpose() * wis[i].asDiagonal() * Zis[i];
-                M_invs.push_back((G_inv + ZiTWiZi).inverse());
+                Eigen::Matrix2d ZiTWiZi = Zis[i].transpose() * wis[i].asDiagonal() * Zis[i];
+                M_invs[i] = (G_inv + ZiTWiZi).inverse();
             }
         }
 
         Eigen::VectorXd Sigma_inv_x(Eigen::VectorXd y) {
             Eigen::VectorXd out = Eigen::VectorXd::Zero(N);
             for (size_t i = 0; i < n; ++i) {
-                const Eigen::VectorXd y_i = y.segment(cum_ns(i), ns(i));
-                Eigen::VectorXd tmp = wis[i].cwiseProduct(y_i);
-                Eigen::VectorXd A = Zis[i].transpose() * tmp;
-                out.segment(cum_ns(i), ns(i)) = tmp - wis[i].asDiagonal() * Zis[i] * M_invs[i] * A;
-            }
-            return out;
-        }
+                const auto y_i = y.segment(cum_ns(i), ns(i));
+                const Eigen::VectorXd& w_i = wis[i];
+                const Eigen::VectorXd& x_i = xis[i];
 
-        Eigen::MatrixXd Sigma_inv_X(Eigen::MatrixXd X) {
-            Eigen::MatrixXd out = Eigen::MatrixXd::Zero(X.rows(), X.cols());
-            for (size_t j = 0; j < c; ++j) {
-                out.col(j) = Sigma_inv_x(X.col(j));
+                Eigen::Vector2d ZtWy;
+                ZtWy(0) = w_i.dot(y_i);
+                ZtWy(1) = (w_i.array() * x_i.array() * y_i.array()).sum();
+                Eigen::Vector2d v = M_invs[i] * ZtWy;
+
+                out.segment(cum_ns(i), ns(i)).array() =
+                    w_i.array() * (y_i.array() - v(0) - v(1) * x_i.array());
             }
             return out;
         }
@@ -182,35 +181,30 @@ class GLMM_SC_INT {
             }
         }
 
-        void update_Sigma_invXs() {
-            Sigma_invXs.clear();
-            Eigen::MatrixXd full_Sigma_invX = Sigma_inv_X(Eigen::MatrixXd(X));
+        void update_Sigma_invX() {
             for (size_t i = 0; i < n; ++i) {
-                Sigma_invXs.push_back(full_Sigma_invX.block(cum_ns(i), 0, ns(i), c));
+                auto block = Sigma_invX.block(cum_ns(i), 0, ns(i), c);
+                const Eigen::VectorXd& w_i = wis[i];
+
+                block = Xis[i];
+                block.array().colwise() *= w_i.array();
+
+                Eigen::MatrixXd WZ(static_cast<Eigen::Index>(ns(i)), 2);
+                WZ.col(0) = w_i;
+                WZ.col(1) = w_i.cwiseProduct(xis[i]);
+                Eigen::MatrixXd A = M_invs[i] * (Zis[i].transpose() * block);
+                block.noalias() -= WZ * A;
             }
         }
 
         void update_XtSigma_invX_inv() {
-            Eigen::MatrixXd XtSigma_invX = Eigen::MatrixXd::Zero(c, c);
-            for (size_t i = 0; i < n; ++i) {
-                XtSigma_invX += Xis[i].transpose() * Sigma_invXs[i];
-            }
-            XtSigma_invX_inv = XtSigma_invX.inverse();
+            XtSigma_invX_inv = (X.transpose() * Sigma_invX).inverse();
         }
         
         Eigen::VectorXd P_x(Eigen::VectorXd x) {
             Eigen::VectorXd a = Sigma_inv_x(x);
-            Eigen::VectorXd b = Eigen::VectorXd::Zero(N);
-            Eigen::VectorXd tmp = Eigen::VectorXd::Zero(c);
-            for (size_t i = 0; i < n; ++i) {
-                tmp += Sigma_invXs[i].transpose() * x.segment(cum_ns(i), ns(i));
-            }
-            tmp = XtSigma_invX_inv * tmp;
-            for (size_t i = 0; i < n; ++i) {
-                b.segment(cum_ns(i), ns(i)) = Sigma_invXs[i] * tmp;
-            }
-            Eigen::VectorXd result = a - b;
-            return result;
+            Eigen::VectorXd tmp = XtSigma_invX_inv * (Sigma_invX.transpose() * x);
+            return a - Sigma_invX * tmp;
         }
 
         Eigen::VectorXd Omega_x(Eigen::VectorXd x) {
@@ -246,14 +240,14 @@ class GLMM_SC_INT {
         Eigen::VectorXd ZtGZ_x(Eigen::VectorXd x) {
             Eigen::VectorXd out = Eigen::VectorXd::Zero(N);
             for (size_t i = 0; i < n; ++i) {
-                Eigen::VectorXd x_seg = x.segment(cum_ns(i), ns(i));
-                Eigen::VectorXd ones = Eigen::VectorXd::Ones(x_seg.size());
-                Eigen::VectorXd a = G(0, 0) * ones * ones.dot(x_seg);
-                Eigen::VectorXd b = G(0, 1) * (xis[i] * ones.dot(x_seg) + ones * xis[i].dot(x_seg));
-                Eigen::VectorXd c = G(1, 1) * xis[i] * xis[i].dot(x_seg);
-                out.segment(cum_ns(i), ns(i)) = a.array() + b.array() + c.array();
+                const auto v_i = x.segment(cum_ns(i), ns(i));
+                const double s = v_i.sum();
+                const double d = xis[i].dot(v_i);
+                out.segment(cum_ns(i), ns(i)).array() =
+                    (G(0, 0) * s + G(0, 1) * d) +
+                    (G(0, 1) * s + G(1, 1) * d) * xis[i].array();
             }
-            return out; 
+            return out;
         }
 
         Eigen::MatrixXd Omega_X(Eigen::MatrixXd X) {
@@ -275,22 +269,22 @@ class GLMM_SC_INT {
         void update_ZtSigma_invX() {
             ZtSigma_invX = Eigen::MatrixXd::Zero(n, c);
             for (size_t i = 0; i < n; ++i) {
-                ZtSigma_invX.row(i) = Sigma_invXs[i].colwise().sum();
+                ZtSigma_invX.row(i) = Sigma_invX.block(cum_ns(i), 0, ns(i), c).colwise().sum();
             }
         }
 
-        void update_ZtESigma_invX() {
-            ZtESigma_invX = Eigen::MatrixXd::Zero(n, c);
+        void update_ZtDSigma_invX() {
+            ZtDSigma_invX = Eigen::MatrixXd::Zero(n, c);
             for (size_t i = 0; i < n; ++i) {
-                ZtESigma_invX.row(i) =
-                    (xis[i].asDiagonal() * Sigma_invXs[i]).colwise().sum();
+                ZtDSigma_invX.row(i) =
+                    xis[i].transpose() * Sigma_invX.block(cum_ns(i), 0, ns(i), c);
             }
         }
 
         Eigen::MatrixXd compute_DtSigma_invX() {
             Eigen::MatrixXd DtSigma_invX = Eigen::MatrixXd::Zero(n, c);
             for (size_t i = 0; i < n; ++i) {
-                DtSigma_invX.row(i) = xis[i].transpose() * Sigma_invXs[i];
+                DtSigma_invX.row(i) = xis[i].transpose() * Sigma_invX.block(cum_ns(i), 0, ns(i), c);
             }
             return DtSigma_invX;
         }
@@ -353,11 +347,16 @@ class GLMM_SC_INT {
 
         void update_beta() {
             beta_prev = beta;
-            beta = XtSigma_invX_inv * X.transpose() * (Sigma_inv_x(y_tilde));
+            beta = XtSigma_invX_inv * (Sigma_invX.transpose() * y_tilde);
+        }
+
+        void update_Py_tilde() {
+            Py_tilde = Sigma_inv_x(y_tilde);
+            Py_tilde.noalias() -= Sigma_invX * beta;
         }
 
         void update_u() {
-            u = ZtGZ_x(Sigma_inv_x(y_tilde - (X * beta)));
+            u = ZtGZ_x(Py_tilde);
         }
 
         void update_tau() {
@@ -366,7 +365,6 @@ class GLMM_SC_INT {
             Eigen::VectorXd U = Eigen::VectorXd::Zero(3);
             Eigen::MatrixXd AI = Eigen::MatrixXd::Zero(3, 3);
 
-            Eigen::VectorXd Py_tilde = P_x(y_tilde);
             Eigen::VectorXd OmegaPy_tilde = Omega_x(Py_tilde);
             Eigen::VectorXd DeltaPy_tilde = Delta_x(Py_tilde);
             Eigen::VectorXd PiPy_tilde = Pi_x(Py_tilde);
@@ -375,12 +373,16 @@ class GLMM_SC_INT {
             U(1) = Py_tilde.dot(PiPy_tilde) - compute_trPPi();
             U(2) = Py_tilde.dot(DeltaPy_tilde) - compute_trPDelta();
 
-            AI(0, 0) = (OmegaPy_tilde.transpose() * P_x(OmegaPy_tilde));
-            AI(1, 1) = (PiPy_tilde.transpose() * P_x(PiPy_tilde));
-            AI(2, 2) = (DeltaPy_tilde.transpose() * P_x(DeltaPy_tilde));
-            AI(0, 1) = (OmegaPy_tilde.transpose() * P_x(PiPy_tilde));
-            AI(0, 2) = (OmegaPy_tilde.transpose() * P_x(DeltaPy_tilde));
-            AI(1, 2) = (PiPy_tilde.transpose() * P_x(DeltaPy_tilde));
+            Eigen::VectorXd POmegaPy_tilde = P_x(OmegaPy_tilde);
+            Eigen::VectorXd PPiPy_tilde = P_x(PiPy_tilde);
+            Eigen::VectorXd PDeltaPy_tilde = P_x(DeltaPy_tilde);
+
+            AI(0, 0) = (OmegaPy_tilde.transpose() * POmegaPy_tilde);
+            AI(1, 1) = (PiPy_tilde.transpose() * PPiPy_tilde);
+            AI(2, 2) = (DeltaPy_tilde.transpose() * PDeltaPy_tilde);
+            AI(0, 1) = (OmegaPy_tilde.transpose() * PPiPy_tilde);
+            AI(0, 2) = (OmegaPy_tilde.transpose() * PDeltaPy_tilde);
+            AI(1, 2) = (PiPy_tilde.transpose() * PDeltaPy_tilde);
             AI(1, 0) = AI(0, 1);
             AI(2, 0) = AI(0, 2);
             AI(2, 1) = AI(1, 2);
@@ -420,170 +422,25 @@ class GLMM_SC_INT {
             glmm_converged = (2 * std::max(diff1, diff2)) < tol;
         }
 
-        double compute_trWPwOmega() {
-            double a = w.sum();
-            Eigen::MatrixXd WX = w.asDiagonal() * X;
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::MatrixXd XtWOmegaWX = WX.transpose() * Omega_X(WX);
-            double b = (XtWOmegaWX * XtWX_inv).trace();
-            return a - b;
-        }
-        
-        double compute_trPOmegaWPwOmega() {
-            double a = 0;
-            double a_1 = 0;
-            double a_2 = 0;
-            double b = 0;
-            double c1 = 0;
-            double c2 = 0;
-
-            for (size_t i = 0; i < n; ++i) {
-                double wis_sum = wis[i].sum();
-                a_1 = pow(wis_sum, 2);
-                Eigen::MatrixXd WiZi = wis[i].asDiagonal() * Zis[i];
-                Eigen::MatrixXd wis_sum_mat = Eigen::MatrixXd::Constant(ns(i), ns(i), wis[i].sum());
-                a_2 = ((WiZi.transpose() * wis_sum_mat * WiZi) * M_invs[i]).trace();
-                a += a_1 - a_2;
+        void check_psd_boundary() {
+            const double eps = 1e-8;
+            bool at_boundary = tau.hasNaN() || tau.size() < 3;
+            if (!at_boundary) {
+                const double t0 = tau(0);
+                const double t1 = tau(1);
+                const double t2 = tau(2);
+                if (t0 <= eps || t2 <= eps) {
+                    at_boundary = true;
+                } else {
+                    const double det = t0 * t2 - t1 * t1;
+                    at_boundary = (det <= eps * t0 * t2);
+                }
             }
-
-            Eigen::MatrixXd tmp = (XtSigma_invX_inv) * ZtSigma_invX.transpose();
-            b = (ZtSigma_invX * tmp * collapse_vec(w).asDiagonal()).trace();
-
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::MatrixXd OmegaWX = Omega_X(w.asDiagonal() * X);
-            Eigen::MatrixXd Sigma_invOmegaWX = Sigma_inv_X(OmegaWX);
-            Eigen::MatrixXd tmp1 = OmegaWX.transpose() * Sigma_invOmegaWX;
-            c1 = (tmp1 * XtWX_inv).trace();
-
-            Eigen::MatrixXd XtSigma_invOmegaWX = X.transpose() * Sigma_invOmegaWX;
-            Eigen::MatrixXd tmp2 = XtSigma_invOmegaWX.transpose() * (XtSigma_invX_inv * XtSigma_invOmegaWX);
-            c2 = (tmp2 * XtWX_inv).trace();
-
-            return a - b - (c1 - c2);
-        }
-
-        double compute_trWPwOmegaWPwOmega() {
-            double a = 0;
-
-            for (size_t i = 0; i < n; ++i) {
-                a += pow(wis[i].sum(), 2);
-            } 
-
-            Eigen::MatrixXd WX = w.asDiagonal() * X;
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::MatrixXd tmp = (WX.transpose() * Omega_X(w.asDiagonal() * Omega_X(WX)));
-            double b = (XtWX_inv * tmp).trace();
-
-            Eigen::MatrixXd XtWOmegaWX = WX.transpose() * Omega_X(WX);
-            double c = (XtWX_inv * XtWOmegaWX * XtWX_inv * XtWOmegaWX).trace();
-            
-            return a - 2 * b + c;
-        }
-
-        void compute_r_approx() {
-
-            double tr_POmega = compute_trPOmega();
-            double tr_WPwOmega = compute_trWPwOmega();
-            
-            double a = tr_POmega / tr_WPwOmega;
-            double b = 2 * compute_trPOmegaWPwOmega()  / pow(tr_WPwOmega, 2);
-            double c = ((2 * compute_trWPwOmegaWPwOmega()) * tr_POmega) / pow(tr_WPwOmega, 3);
-            r_approx = a - b + c;
-        }
-
-        void compute_r_approx_int() {
-            double tr_EPEOmega = compute_trEPEOmega();
-            double tr_EWPwEOmega = compute_trEWPwEOmega();
-
-            double a = tr_EPEOmega / tr_EWPwEOmega;
-            double b = 2 * compute_trEPEOmegaEWPwEOmega() / pow(tr_EWPwEOmega, 2);
-            double c = ((2 * compute_trEWPwEOmegaEWPwEOmega()) * tr_EPEOmega) / pow(tr_EWPwEOmega, 3);
-            r_approx_int = a - b + c;
-        }
-
-        double compute_trEPEOmega() {
-            double tr_ESigmaE_invOmega = 0;
-            double tr_ESigmaE_invRest = 0;
-
-            for (size_t i = 0; i < n; ++i) {
-                double wi_sum = wis[i].cwiseProduct(xis[i]).cwiseProduct(xis[i]).sum();
-                Eigen::VectorXd ZiTEiWi1 =
-                    Zis[i].transpose() * wis[i].cwiseProduct(xis[i]);
-                tr_ESigmaE_invOmega += wi_sum - ZiTEiWi1.dot(M_invs[i] * ZiTEiWi1);
+            if (at_boundary) {
+                glmm_converged = false;
             }
-
-            Eigen::MatrixXd tmp = (XtSigma_invX_inv) * ZtESigma_invX.transpose();
-            tr_ESigmaE_invRest = (ZtESigma_invX * tmp).trace();
-
-            return tr_ESigmaE_invOmega - tr_ESigmaE_invRest;
         }
 
-        double compute_trEWPwEOmega() {
-            double a = w.cwiseProduct(x).cwiseProduct(x).sum();
-            Eigen::MatrixXd EWX = w.cwiseProduct(x).asDiagonal() * X;
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::MatrixXd XtWEOmegaEWX = EWX.transpose() * Omega_X(EWX);
-            double b = (XtWEOmegaEWX * XtWX_inv).trace();
-            return a - b;
-        }
-
-        double compute_trEPEOmegaEWPwEOmega() {
-            double a = 0;
-            double a_1 = 0;
-            double a_2 = 0;
-            double b = 0;
-            double c1 = 0;
-            double c2 = 0;
-
-            for (size_t i = 0; i < n; ++i) {
-                Eigen::VectorXd wisxis = wis[i].cwiseProduct(xis[i]);
-                double wisxis_sum = wisxis.sum();
-                a_1 = pow(wisxis_sum, 2);
-                Eigen::MatrixXd WiZi = wisxis.asDiagonal() * Zis[i];
-                Eigen::MatrixXd wisxis_sum_mat = Eigen::MatrixXd::Constant(
-                    ns(i), ns(i), wisxis_sum
-                );
-                a_2 = ((WiZi.transpose() * wisxis_sum_mat * WiZi) * M_invs[i]).trace();
-                a += a_1 - a_2;
-            }
-
-            Eigen::MatrixXd tmp = (XtSigma_invX_inv) * ZtESigma_invX.transpose();
-            b = (ZtESigma_invX * tmp * collapse_vec(w.cwiseProduct(x).cwiseProduct(x)).asDiagonal()).trace();
-
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::MatrixXd EOmegaEWX = x.asDiagonal() * Omega_X(w.cwiseProduct(x).asDiagonal() * X);
-            Eigen::MatrixXd Sigma_invEOmegaEWX = Sigma_inv_X(EOmegaEWX);
-            Eigen::MatrixXd tmp1 = EOmegaEWX.transpose() * Sigma_invEOmegaEWX;
-            c1 = (tmp1 * XtWX_inv).trace();
-
-            Eigen::MatrixXd XtSigma_invEOmegaEWX = X.transpose() * Sigma_invEOmegaEWX;
-            Eigen::MatrixXd tmp2 = XtSigma_invEOmegaEWX.transpose() * (XtSigma_invX_inv * XtSigma_invEOmegaEWX);
-            c2 = (tmp2 * XtWX_inv).trace();
-
-            return a - b - (c1 - c2);
-        }
-
-        double compute_trEWPwEOmegaEWPwEOmega() {
-            double a = 0;
-            
-            // FIXME.
-            for (size_t i = 0; i < n; ++i) {
-                a += pow(wis[i].cwiseProduct(xis[i]).sum(), 2);
-            }
-
-            Eigen::MatrixXd WX = w.asDiagonal() * X;
-            Eigen::MatrixXd EWX = w.cwiseProduct(x).asDiagonal() * X;
-            Eigen::MatrixXd XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
-            Eigen::VectorXd wxx = w.cwiseProduct(x).cwiseProduct(x);
-            Eigen::MatrixXd tmp = (EWX.transpose() * Omega_X(wxx.asDiagonal() * Omega_X(EWX)));
-            double b = (XtWX_inv * tmp).trace();
-
-            Eigen::MatrixXd XtWEOmegaEWX = EWX.transpose() * Omega_X(EWX);
-            double c = (XtWX_inv * XtWEOmegaEWX * XtWX_inv * XtWEOmegaEWX).trace();
-
-            return a - 2 * b + c;
-        }
-       
         void compute_output() {
 
             mu_out = collapse_vec(mu);
@@ -605,6 +462,20 @@ class GLMM_SC_INT {
             d_out = collapse_vec(x);
             dw_out = collapse_vec(x.cwiseProduct(w));
             dwd_out = collapse_vec(x.cwiseProduct(w).cwiseProduct(x));
+
+            ZtSigma_invZ_diag = Eigen::VectorXd::Zero(n);
+            ZtDSigma_invDZ_diag = Eigen::VectorXd::Zero(n);
+            ZtDSigma_invZ_diag = Eigen::VectorXd::Zero(n);
+            for (size_t i = 0; i < n; ++i) {
+                Eigen::VectorXd ZiTWi1 = Zis[i].transpose() * wis[i];
+                ZtSigma_invZ_diag(i) = wis[i].sum() - ZiTWi1.dot(M_invs[i] * ZiTWi1);
+
+                Eigen::VectorXd ZiTWixi = Zis[i].transpose() * wis[i].cwiseProduct(xis[i]);
+                double tmp1 = (wis[i].array() * xis[i].array().square()).sum();
+                double tmp2 = ZiTWixi.dot(M_invs[i] * ZiTWixi);
+                ZtDSigma_invDZ_diag(i) = tmp1 - tmp2;
+                ZtDSigma_invZ_diag(i) = wis[i].dot(xis[i]) - ZiTWixi.dot(M_invs[i] * ZiTWi1);
+            }
         }
 
         GLMM_SC_INT(
@@ -649,7 +520,10 @@ class GLMM_SC_INT {
             tau(1) = 0.5;
             tau(2) = 1.0;
             update_G();
+            M_invs.resize(n);
             update_M_invs();
+            Sigma_invX.resize(N, c);
+            Py_tilde.resize(N);
             iter = 0;
             glmm_converged = false;
             step_size = 1;
@@ -658,13 +532,14 @@ class GLMM_SC_INT {
         void fit() {
 
             while (iter < max_iter) {
-
+           
                 update_M_invs();
-                update_Sigma_invXs();
+                update_Sigma_invX();
                 update_XtSigma_invX_inv();
                 update_ZtSigma_invX();
-                update_ZtESigma_invX();
+                update_ZtDSigma_invX();
                 update_beta();
+                update_Py_tilde();
                 update_u();
                 update_eta();
                 update_mu();
@@ -684,14 +559,13 @@ class GLMM_SC_INT {
             if (tau.hasNaN() || (beta.hasNaN())) {
                 glmm_converged = false;
             }
+            check_psd_boundary();
 
             update_M_invs();
-            update_Sigma_invXs();
+            update_Sigma_invX();
             update_XtSigma_invX_inv();
             update_ZtSigma_invX();
-            update_ZtESigma_invX();
-            compute_r_approx();
-            compute_r_approx_int();
+            update_ZtDSigma_invX();
             compute_output();
         }
 };

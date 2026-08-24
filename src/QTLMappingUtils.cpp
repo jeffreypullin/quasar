@@ -275,31 +275,6 @@ std::vector<double> make_group_linear_scores_values(const std::vector<double>& v
     return scores;
 }
 
-std::vector<double> make_group_quadratic_scores(const std::vector<double>& linear_scores) {
-    std::vector<double> scores(linear_scores.size());
-    double mean = 0.0;
-    for (size_t i = 0; i < linear_scores.size(); ++i) {
-        scores[i] = linear_scores[i] * linear_scores[i];
-        mean += scores[i];
-    }
-    mean /= static_cast<double>(scores.size());
-    for (double& score : scores) {
-        score -= mean;
-    }
-
-    double lin_quad = 0.0;
-    double lin_lin = 0.0;
-    for (size_t i = 0; i < linear_scores.size(); ++i) {
-        lin_quad += linear_scores[i] * scores[i];
-        lin_lin += linear_scores[i] * linear_scores[i];
-    }
-    double slope = lin_lin > 0.0 ? lin_quad / lin_lin : 0.0;
-    for (size_t i = 0; i < scores.size(); ++i) {
-        scores[i] -= slope * linear_scores[i];
-    }
-    return scores;
-}
-
 std::string make_variant_header_line(const Params& params, const std::vector<std::string>& group_ids, bool has_group_values) {
 
     const std::string& model = params.model;
@@ -321,7 +296,9 @@ std::string make_variant_header_line(const Params& params, const std::vector<std
                ((model == "p_glmm_sc") & !params.do_interaction)) {
         line = line + "\tglmm_converged\tsigma2";
     } else if ((model == "p_glmm_sc") & params.do_interaction) {
-        line = line + "\tglmm_converged";
+        line = line + "\tglmm_converged\ttau0\ttau1\ttau2";
+    } else if ((model == "lmm_sc") & params.do_interaction) {
+        line = line + "\tlmm_converged\tsigma2\ttau0\ttau1\ttau2";
     } else if (model == "nb_glmm") {
         line = line + "\tglmm_converged\tsigma2\tphi\tphi_converged";
     }
@@ -357,8 +334,32 @@ std::string make_variant_header_line(const Params& params, const std::vector<std
         line += "\tgroup_het_q\tgroup_het_pvalue";
         if (has_group_values) {
             line += "\tgroup_linear_beta\tgroup_linear_se\tgroup_linear_pvalue";
-            line += "\tgroup_quadratic_beta\tgroup_quadratic_se\tgroup_quadratic_pvalue";
             line += "\tgroup_acat_pvalue";
+        }
+    }
+
+    line = line + "\n";
+    return line;
+}
+
+std::string make_region_header_line(const Params& params, const std::vector<std::string>& group_ids, bool has_group_values) {
+
+    std::string line = "feature_id\tchrom\tstart\tend";
+
+    if (params.do_interaction) {
+        line += "\tmain_acat_pvalue\tint_acat_pvalue";
+    } else {
+        line += "\tpvalue";
+    }
+
+    if (!group_ids.empty()) {
+        for (const auto& gid : group_ids) {
+            line += "\t" + gid + "_acat_pvalue";
+        }
+        line += "\tgroup_het_acat_pvalue";
+        if (has_group_values) {
+            line += "\tgroup_linear_acat_pvalue";
+            line += "\tgroup_combined_acat_pvalue";
         }
     }
 

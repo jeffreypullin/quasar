@@ -75,16 +75,23 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<double> tr_int;
     std::vector<double> phi;
     std::vector<double> sigma2;
+    std::vector<double> tau0;
+    std::vector<double> tau1;
+    std::vector<double> tau2;
 
     std::vector<bool> glm_converged;
     std::vector<bool> phi_converged;
     std::vector<bool> glmm_converged;
+    std::vector<bool> lmm_converged;
     std::vector<Eigen::MatrixXd> XtWX_inv_vec;
     std::vector<Eigen::VectorXd> Xty_res_vec;
     std::vector<Eigen::MatrixXd> XtWZ_vec;
     std::vector<Eigen::VectorXd> ZtSigma_invZ_diag_vec;
     std::vector<Eigen::MatrixXd> ZtSigma_invX_vec;
     std::vector<Eigen::MatrixXd> XtSigma_invX_inv_vec;
+    std::vector<Eigen::VectorXd> ZtDSigma_invDZ_diag_vec;
+    std::vector<Eigen::VectorXd> ZtDSigma_invZ_diag_vec;
+    std::vector<Eigen::MatrixXd> ZtDSigma_invX_vec;
     std::vector<Eigen::VectorXd> ZtDy_res_vec;
     std::vector<Eigen::MatrixXd> XtWDZ_vec;
     std::vector<Eigen::VectorXd> Zty_res_vec;
@@ -141,7 +148,6 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             ZtSigma_invZ_diag_vec.push_back(lmm_sc.ZtSigma_invZ_diag);
             ZtSigma_invX_vec.push_back(lmm_sc.ZtSigma_invX);
             XtSigma_invX_inv_vec.push_back(lmm_sc.XtSigma_invX_inv);
-
             sigma2.push_back(lmm_sc.sigma2);
         }
         std::cout << "Null single-cell LMMs fitted." << std::endl;
@@ -291,23 +297,30 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             Eigen::VectorXd x = cov_data.sc_data.col(cov_data.interaction_ind);
             Eigen::VectorXd y = pheno_data.sc_data.col(i);
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM_SC_INT nb_glmm(X, y, x, offset, std::move(poisson), ns);
-            nb_glmm.fit();
+            GLMM_SC_INT p_glmm(X, y, x, offset, std::move(poisson), ns);
+            p_glmm.fit();
 
-            Y.col(i) = nb_glmm.y_out;
-            W.row(i) = nb_glmm.mu_out;
-            XtWX_inv_vec.push_back(nb_glmm.XtWX_inv);
-            Xty_res_vec.push_back(nb_glmm.Xty_res);
-            XtWZ_vec.push_back(nb_glmm.XtWZ);
-            ZtDy_res_vec.push_back(nb_glmm.ZtDy_res);
-            XtWDZ_vec.push_back(nb_glmm.XtWDZ);
-            Zty_res_vec.push_back(nb_glmm.Zty_res);
-            d_out_vec.push_back(nb_glmm.d_out);
-            dw_out_vec.push_back(nb_glmm.dw_out);
-            dwd_out_vec.push_back(nb_glmm.dwd_out);
-            tr.push_back(nb_glmm.r_approx);
-            tr_int.push_back(nb_glmm.r_approx_int);
-            glmm_converged.push_back(nb_glmm.glmm_converged);
+            Y.col(i) = p_glmm.y_out;
+            W.row(i) = p_glmm.mu_out;
+            XtWX_inv_vec.push_back(p_glmm.XtWX_inv);
+            Xty_res_vec.push_back(p_glmm.Xty_res);
+            XtWZ_vec.push_back(p_glmm.XtWZ);
+            ZtSigma_invZ_diag_vec.push_back(p_glmm.ZtSigma_invZ_diag);
+            ZtSigma_invX_vec.push_back(p_glmm.ZtSigma_invX);
+            XtSigma_invX_inv_vec.push_back(p_glmm.XtSigma_invX_inv);
+            ZtDSigma_invDZ_diag_vec.push_back(p_glmm.ZtDSigma_invDZ_diag);
+            ZtDSigma_invZ_diag_vec.push_back(p_glmm.ZtDSigma_invZ_diag);
+            ZtDSigma_invX_vec.push_back(p_glmm.ZtDSigma_invX);
+            ZtDy_res_vec.push_back(p_glmm.ZtDy_res);
+            XtWDZ_vec.push_back(p_glmm.XtWDZ);
+            Zty_res_vec.push_back(p_glmm.Zty_res);
+            d_out_vec.push_back(p_glmm.d_out);
+            dw_out_vec.push_back(p_glmm.dw_out);
+            dwd_out_vec.push_back(p_glmm.dwd_out);
+            glmm_converged.push_back(p_glmm.glmm_converged);
+            tau0.push_back(p_glmm.tau(0));
+            tau1.push_back(p_glmm.tau(1));
+            tau2.push_back(p_glmm.tau(2));
         }
         std::cout << "Null random-slope single-cell Poisson GLMMs fitted." << std::endl;
 
@@ -463,12 +476,18 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.tr = tr;
     model_fit.tr_int = tr_int;
     model_fit.sigma2 = sigma2;
+    model_fit.tau0 = tau0;
+    model_fit.tau1 = tau1;
+    model_fit.tau2 = tau2;
     model_fit.XtWX_inv_vec = XtWX_inv_vec;
     model_fit.Xty_res_vec = Xty_res_vec;
     model_fit.XtWZ_vec = XtWZ_vec;
     model_fit.ZtSigma_invZ_diag_vec = ZtSigma_invZ_diag_vec;
     model_fit.ZtSigma_invX_vec = ZtSigma_invX_vec;
     model_fit.XtSigma_invX_inv_vec = XtSigma_invX_inv_vec;
+    model_fit.ZtDSigma_invDZ_diag_vec = ZtDSigma_invDZ_diag_vec;
+    model_fit.ZtDSigma_invZ_diag_vec = ZtDSigma_invZ_diag_vec;
+    model_fit.ZtDSigma_invX_vec = ZtDSigma_invX_vec;
     model_fit.ZtDy_res_vec = ZtDy_res_vec;
     model_fit.XtWDZ_vec = XtWDZ_vec;
     model_fit.Zty_res_vec = Zty_res_vec;
