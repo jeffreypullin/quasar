@@ -37,6 +37,16 @@ target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/cxxopts/include/)
 target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/eigen-3.4.0/)
 target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/brent/)
 
+set(PGEN_PATH "${EXTERN_LIBS_PATH}/pgenlib")
+add_custom_target(
+   pgenlib
+   COMMAND make
+   WORKING_DIRECTORY ${PGEN_PATH}
+)
+target_link_libraries(quasar PRIVATE ${PGEN_PATH}/pgenlib.a)
+target_include_directories(quasar PRIVATE ${PGEN_PATH} ${PGEN_PATH}/simde/ ${PGEN_PATH}/include/)
+add_dependencies(quasar pgenlib)
+
 enable_testing()
 
 add_executable(quasar_tests EXCLUDE_FROM_ALL tests/test_smoke.cpp)

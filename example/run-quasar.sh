@@ -2,10 +2,19 @@
 
 # Linear model.
 /home/jp2045/quasar/build/quasar \
-  -p chr22-n100 \
-  -b mean-pheno-n100.bed \
-  -c cov-n100.tsv \
+  --plink chr22-n100 \
+  --bed mean-pheno-n100.bed \
+  --cov cov-n100.tsv \
   -o lm-example \
+  --model lm \
+  --mode cis
+
+# Linear model with pgen.
+/home/jp2045/quasar/build/quasar \
+  --pgen chr22-n100 \
+  --bed mean-pheno-n100.bed \
+  --cov cov-n100.tsv \
+  -o lm-pgen-example \
   --model lm \
   --mode cis
 

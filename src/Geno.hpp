@@ -24,11 +24,13 @@
 #include <map>
 
 #include "Eigen/Dense"
+#include "pgenlibr.h"
 
 class GenoData {
   public:
-    std::string bed_prefix;
-    
+    std::string geno_prefix;
+    std::string genotype_foramt;
+  
     Eigen::MatrixXd genotype_matrix;
     
     size_t n_samples;
@@ -45,15 +47,23 @@ class GenoData {
     std::vector<size_t> index;
     std::vector<double> maf;
 
-    GenoData(std::string bed_prefix) {
-      this->bed_prefix = bed_prefix;
+    GenoData(std::string geno_prefix, std::string genotype_format) {
+        this->geno_prefix = geno_prefix;
+        this->genotype_foramt = genotype_format;
     }
 
-    void read_bim_file();
-    void read_fam_file();
-    void prepare_bed_file();
+     // PLINK1 format (.bed, .bim, .fam)
+     void read_bim_file();
+     void read_fam_file();
+     void prepare_bed_file();
+     void read_bed_file();
+     
+     // PLINK2 format (.pgen, .pvar, .psam)
+     void read_pvar_file();
+     void read_psam_file();
+     void read_pgen_file();
+
     void run_mean_imputation();
-    void read_bed_file();
     void compute_maf();
     void compute_maf_problems();
     void maf_warning();

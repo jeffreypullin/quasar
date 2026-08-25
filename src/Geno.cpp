@@ -25,7 +25,7 @@
 
 void GenoData::read_bim_file() {
 
-    std::string bim_file = bed_prefix + ".bim";
+    std::string bim_file = geno_prefix + ".bim";
     std::ifstream file(bim_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BIM file " << bim_file << std::endl;
@@ -61,8 +61,8 @@ void GenoData::read_bim_file() {
     }
 
     n_snps = index;
-    std::cout << "Number of SNPs: " << n_snps << std::endl;
-    std::cout << "SNPs on chromosome(s): ";
+    std::cout << "Read " << format_with_commas(n_snps) << " SNPs from .bim file,";
+    std::cout << " on chromosome(s): ";
     std::vector<int> unique_chrom = chrom;
     std::sort(unique_chrom.begin(), unique_chrom.end());
     unique_chrom.erase(std::unique(unique_chrom.begin(), unique_chrom.end()), unique_chrom.end());
@@ -79,7 +79,7 @@ void GenoData::read_bim_file() {
 
 void GenoData::read_fam_file() {
 
-    std::string fam_file = bed_prefix + ".fam";
+    std::string fam_file = geno_prefix + ".fam";
     std::ifstream file(fam_file);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open FAM file " << fam_file << std::endl;
@@ -99,13 +99,13 @@ void GenoData::read_fam_file() {
     }
     n_samples = sample_ids.size();
 
-    std::cout << "Number of samples: " << n_samples << std::endl;
+    std::cout << "Read information for " << n_samples << " samples from .fam file." << std::endl;
 
     file.close();
 }
 
 void GenoData::prepare_bed_file() {
-    std::string bed_file = bed_prefix + ".bed";
+    std::string bed_file = geno_prefix + ".bed";
     std::ifstream file(bed_file, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BED file " << bed_file << std::endl;
@@ -127,7 +127,7 @@ void GenoData::prepare_bed_file() {
 }
 
 void GenoData::read_bed_file() {
-    std::string bed_file = bed_prefix + ".bed";
+    std::string bed_file = geno_prefix + ".bed";
     std::ifstream file(bed_file, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to open BED file " << bed_file << std::endl;
@@ -253,4 +253,157 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     this->genotype_matrix = sliced_genotype_matrix;
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
+}
+
+// PLINK2 format readers
+
+void GenoData::read_pvar_file() {
+    std::string pvar_file = geno_prefix + ".pvar";
+    std::ifstream file(pvar_file);
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open pvar file " << pvar_file << std::endl;
+        exit(1);
+    }
+
+    std::string line;
+    std::vector<std::string> tokens;
+    size_t idx = 0;
+    
+    // Find column indices from header
+    int chrom_col = -1, pos_col = -1, id_col = -1, ref_col = -1, alt_col = -1;
+    
+    while (std::getline(file, line)) {
+        remove_carriage_return(line);
+        
+        // Skip comment lines but parse the header
+        if (line[0] == '#') {
+            if (line.substr(0, 6) == "#CHROM") {
+                tokens = string_split(line, "\t");
+                for (size_t i = 0; i < tokens.size(); ++i) {
+                    if (tokens[i] == "#CHROM") chrom_col = i;
+                    else if (tokens[i] == "POS") pos_col = i;
+                    else if (tokens[i] == "ID") id_col = i;
+                    else if (tokens[i] == "REF") ref_col = i;
+                    else if (tokens[i] == "ALT") alt_col = i;
+                }
+            }
+            continue;
+        }
+        
+        tokens = string_split(line, "\t");
+        
+        // Parse chromosome.
+        try {
+            chrom.push_back(std::stoi(tokens[chrom_col]));
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "Error: Invalid chromosome detected: " << tokens[chrom_col] << std::endl;
+            std::cerr << "quasar currently only supports autosomal chromosomes." << std::endl;
+            std::cerr << "Data can be filtered with plink2: " << std::endl;
+            std::cerr << "plink2 --pfile {data} --autosome --make-pgen --out {autosome_data}" << std::endl;
+            exit(1);
+        }
+        
+        pos.push_back(std::stoul(tokens[pos_col]));
+        id.push_back(tokens[id_col]);
+        ref.push_back(tokens[ref_col]);
+        alt.push_back(tokens[alt_col]);
+        snp_id.push_back(tokens[chrom_col] + ":" + tokens[pos_col] + tokens[ref_col] + "-" + tokens[alt_col]);
+        this->index.push_back(idx);
+        idx++;
+    }
+
+    n_snps = idx;
+    std::cout << "Read " << format_with_commas(n_snps) << " SNPs from .pvar file,";
+    std::cout << " on chromosome(s): ";
+    std::vector<int> unique_chrom = chrom;
+    std::sort(unique_chrom.begin(), unique_chrom.end());
+    unique_chrom.erase(std::unique(unique_chrom.begin(), unique_chrom.end()), unique_chrom.end());
+    for (size_t i = 0; i < unique_chrom.size(); ++i) {
+        std::cout << unique_chrom[i];
+        if (i < unique_chrom.size() - 1) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << std::endl;
+
+    file.close();
+}
+
+void GenoData::read_psam_file() {
+    std::string psam_file = geno_prefix + ".psam";
+    std::ifstream file(psam_file);
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open PSAM file " << psam_file << std::endl;
+        exit(1);
+    }
+
+    std::string line;
+    std::vector<std::string> tokens;
+    int iid_col = -1;
+    
+    while (std::getline(file, line)) {
+        remove_carriage_return(line);
+        
+        // Parse header to find IID column.
+        if (line[0] == '#') {
+            tokens = string_split(line, "\t");
+            for (size_t i = 0; i < tokens.size(); ++i) {
+                if (tokens[i] == "IID" || tokens[i] == "#IID") {
+                    iid_col = i;
+                    break;
+                }
+            }
+            // If no IID column, assume FID is first and IID is second.
+            if (iid_col == -1 && tokens.size() >= 2) {
+                iid_col = 1;
+            }
+            continue;
+        }
+        
+        tokens = string_split(line, "\t");
+        if (iid_col >= 0 && iid_col < (int)tokens.size()) {
+            sample_ids.push_back(tokens[iid_col]);
+        } else if (tokens.size() >= 2) {
+            // Fallback: assume IID is second column
+            sample_ids.push_back(tokens[1]);
+        } else {
+            sample_ids.push_back(tokens[0]);
+        }
+    }
+    
+    n_samples = sample_ids.size();
+    std::cout << "Read information for " << n_samples << " samples from .psam file." << std::endl;
+
+    file.close();
+}
+
+void GenoData::read_pgen_file() {
+    std::string pgen_file = geno_prefix + ".pgen";
+    
+    PgenReader pgen_reader;
+    std::vector<int> empty_subset;
+    pgen_reader.Load(pgen_file, n_samples, empty_subset, 1);
+    
+    uint32_t variant_ct = pgen_reader.GetVariantCt();
+    if (variant_ct != n_snps) {
+        std::cerr << "Error: Variant count mismatch between .pvar (" << n_snps 
+                  << ") and .pgen (" << variant_ct << ")" << std::endl;
+        exit(1);
+    }
+    
+    // Allocate genotype matrix (samples x variants)
+    genotype_matrix.resize(n_samples, n_snps);
+    
+    // Read each variant
+    std::vector<double> buf(n_samples);
+    for (size_t i = 0; i < n_snps; ++i) {
+        pgen_reader.Read(buf.data(), n_samples, 0, i, 1);
+        for (size_t j = 0; j < n_samples; ++j) {
+            genotype_matrix(j, i) = buf[j];
+        }
+    }
+    
+    pgen_reader.Close();
+    
+    std::cout << "Genotype matrix read successfully." << std::endl;
 }
