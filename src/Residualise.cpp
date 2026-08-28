@@ -77,7 +77,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<double> sigma2;
     std::vector<double> tau0;
     std::vector<double> tau1;
-    std::vector<double> tau2;
+    std::vector<double> tau01;
 
     std::vector<bool> glm_converged;
     std::vector<bool> phi_converged;
@@ -89,15 +89,10 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<Eigen::VectorXd> ZtSigma_invZ_diag_vec;
     std::vector<Eigen::MatrixXd> ZtSigma_invX_vec;
     std::vector<Eigen::MatrixXd> XtSigma_invX_inv_vec;
-    std::vector<Eigen::VectorXd> ZtDSigma_invDZ_diag_vec;
-    std::vector<Eigen::VectorXd> ZtDSigma_invZ_diag_vec;
-    std::vector<Eigen::MatrixXd> ZtDSigma_invX_vec;
-    std::vector<Eigen::VectorXd> ZtDy_res_vec;
-    std::vector<Eigen::MatrixXd> XtWDZ_vec;
-    std::vector<Eigen::VectorXd> Zty_res_vec;
-    std::vector<Eigen::VectorXd> d_out_vec;
-    std::vector<Eigen::VectorXd> dw_out_vec;
-    std::vector<Eigen::VectorXd> dwd_out_vec;
+    std::vector<Eigen::MatrixXd> ZtASigma_invAZ_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> ZtAkSigma_invX_vec;
+    std::vector<Eigen::MatrixXd> ZtAy_res_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> XtWAkZ_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtWX_inv_g_vec;
     std::vector<std::vector<Eigen::VectorXd>> Xty_res_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtWZ_g_vec;
@@ -292,12 +287,15 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     } else if ((params.model == "p_glmm_sc") & params.do_interaction) {
 
         std::cout <<"\nFitting null random slope single-cell Poisson GLMMs..." << std::endl; 
+        Eigen::MatrixXd X_int(X.rows(), static_cast<Eigen::Index>(cov_data.interaction_inds.size()));
+        for (size_t k = 0; k < cov_data.interaction_inds.size(); ++k) {
+            X_int.col(static_cast<Eigen::Index>(k)) = cov_data.sc_data.col(cov_data.interaction_inds[k]);
+        }
         for (int i = 0; i < n_pheno; ++i) {
 
-            Eigen::VectorXd x = cov_data.sc_data.col(cov_data.interaction_ind);
             Eigen::VectorXd y = pheno_data.sc_data.col(i);
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM_SC_INT p_glmm(X, y, x, offset, std::move(poisson), ns);
+            GLMM_SC_INT p_glmm(X, y, X_int, offset, std::move(poisson), ns);
             p_glmm.fit();
 
             Y.col(i) = p_glmm.y_out;
@@ -308,19 +306,14 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             ZtSigma_invZ_diag_vec.push_back(p_glmm.ZtSigma_invZ_diag);
             ZtSigma_invX_vec.push_back(p_glmm.ZtSigma_invX);
             XtSigma_invX_inv_vec.push_back(p_glmm.XtSigma_invX_inv);
-            ZtDSigma_invDZ_diag_vec.push_back(p_glmm.ZtDSigma_invDZ_diag);
-            ZtDSigma_invZ_diag_vec.push_back(p_glmm.ZtDSigma_invZ_diag);
-            ZtDSigma_invX_vec.push_back(p_glmm.ZtDSigma_invX);
-            ZtDy_res_vec.push_back(p_glmm.ZtDy_res);
-            XtWDZ_vec.push_back(p_glmm.XtWDZ);
-            Zty_res_vec.push_back(p_glmm.Zty_res);
-            d_out_vec.push_back(p_glmm.d_out);
-            dw_out_vec.push_back(p_glmm.dw_out);
-            dwd_out_vec.push_back(p_glmm.dwd_out);
+            ZtASigma_invAZ_vec.push_back(p_glmm.ZtASigma_invAZ);
+            ZtAkSigma_invX_vec.push_back(p_glmm.ZtAkSigma_invX);
+            ZtAy_res_vec.push_back(p_glmm.ZtAy_res);
+            XtWAkZ_vec.push_back(p_glmm.XtWAkZ);
             glmm_converged.push_back(p_glmm.glmm_converged);
             tau0.push_back(p_glmm.tau(0));
             tau1.push_back(p_glmm.tau(1));
-            tau2.push_back(p_glmm.tau(2));
+            tau01.push_back(p_glmm.tau(2));
         }
         std::cout << "Null random-slope single-cell Poisson GLMMs fitted." << std::endl;
 
@@ -478,22 +471,17 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.sigma2 = sigma2;
     model_fit.tau0 = tau0;
     model_fit.tau1 = tau1;
-    model_fit.tau2 = tau2;
+    model_fit.tau01 = tau01;
     model_fit.XtWX_inv_vec = XtWX_inv_vec;
     model_fit.Xty_res_vec = Xty_res_vec;
     model_fit.XtWZ_vec = XtWZ_vec;
     model_fit.ZtSigma_invZ_diag_vec = ZtSigma_invZ_diag_vec;
     model_fit.ZtSigma_invX_vec = ZtSigma_invX_vec;
     model_fit.XtSigma_invX_inv_vec = XtSigma_invX_inv_vec;
-    model_fit.ZtDSigma_invDZ_diag_vec = ZtDSigma_invDZ_diag_vec;
-    model_fit.ZtDSigma_invZ_diag_vec = ZtDSigma_invZ_diag_vec;
-    model_fit.ZtDSigma_invX_vec = ZtDSigma_invX_vec;
-    model_fit.ZtDy_res_vec = ZtDy_res_vec;
-    model_fit.XtWDZ_vec = XtWDZ_vec;
-    model_fit.Zty_res_vec = Zty_res_vec;
-    model_fit.d_out_vec = d_out_vec;
-    model_fit.dw_out_vec = dw_out_vec;
-    model_fit.dwd_out_vec = dwd_out_vec;
+    model_fit.ZtASigma_invAZ_vec = ZtASigma_invAZ_vec;
+    model_fit.ZtAkSigma_invX_vec = ZtAkSigma_invX_vec;
+    model_fit.ZtAy_res_vec = ZtAy_res_vec;
+    model_fit.XtWAkZ_vec = XtWAkZ_vec;
 
     model_fit.phi_converged = phi_converged;
     model_fit.glm_converged = glm_converged;

@@ -90,8 +90,8 @@ class CovData {
       Eigen::MatrixXd data;
       Eigen::MatrixXd sc_data;
 
-      int interaction_ind = -1;
-      std::string interaction_id;
+      std::vector<int> interaction_inds;
+      std::vector<std::string> interaction_ids;
 
       CovData(std::string cov_file) {
         this->cov_file = cov_file;
@@ -102,8 +102,6 @@ class CovData {
       void read_sc_cov_data();
       void expand_cov_data(std::vector<int> cell_counts);
       void collapse_cov_data();
-      bool is_covariate_categorical();
-      void add_squared_covariate();
       void add_bw_covariates();
       void standardisze_data();
 

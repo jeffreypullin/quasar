@@ -21,6 +21,7 @@
 #include <string>
 #include <cstring>
 #include <cstdlib>
+#include <cctype>
 #include <algorithm>
 #include <unordered_set>
 #include <iostream>
@@ -59,6 +60,41 @@ std::vector<std::string> string_split(std::string const& s, const char* delims) 
   }
 
   return(out);
+}
+
+std::string trim_string(const std::string& s) {
+  size_t start = 0;
+  while (start < s.size() && std::isspace(static_cast<unsigned char>(s[start]))) {
+    ++start;
+  }
+  size_t end = s.size();
+  while (end > start && std::isspace(static_cast<unsigned char>(s[end - 1]))) {
+    --end;
+  }
+  return s.substr(start, end - start);
+}
+
+std::vector<std::string> parse_comma_separated_names(const std::string& s) {
+  std::vector<std::string> out;
+  if (s.empty()) {
+    return out;
+  }
+
+  std::vector<std::string> parts = string_split(s, ",");
+  std::unordered_set<std::string> seen;
+  for (const auto& part : parts) {
+    std::string name = trim_string(part);
+    if (name.empty()) {
+      std::cerr << "Error: empty name in comma-separated --interaction list." << std::endl;
+      std::exit(1);
+    }
+    if (!seen.insert(name).second) {
+      std::cerr << "Error: duplicate interaction covariate '" << name << "'." << std::endl;
+      std::exit(1);
+    }
+    out.push_back(name);
+  }
+  return out;
 }
 
 // From regenie.

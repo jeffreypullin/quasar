@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         ("r,resid", "Residualised phenotype bed file", cxxopts::value<std::string>(params.resid_file)->default_value("no-resid"))
         ("f,fit", "Model fit file", cxxopts::value<std::string>(params.fit_file)->default_value("no-fit"))
         ("g,grm", "Genomic relatedness matrix", cxxopts::value<std::string>(params.grm_file)->default_value("no-grm"))
-        ("i,interaction", "Covariate column name for GxE interaction testing", cxxopts::value<std::string>(params.interaction_cov))
+        ("i,interaction", "Comma-separated covariate column names for GxE interaction testing", cxxopts::value<std::string>(params.interaction_cov))
         ("cell-groups", "File with `group` and `cell_id` columns assigning each cell to a group (single-cell only)", cxxopts::value<std::string>(params.cell_groups_file)->default_value("no-cell-groups"))
         ("offset-file", "File with pre-computed log-scale offsets", cxxopts::value<std::string>(params.offset_file)->default_value("no-offset-file"))
         // Execution arguments.
@@ -73,7 +73,8 @@ int main(int argc, char* argv[]) {
     if (params.out == "") {
         params.out = "quasar_output";
     }
-    params.do_interaction = !params.interaction_cov.empty();
+    params.interaction_covs = parse_comma_separated_names(params.interaction_cov);
+    params.do_interaction = !params.interaction_covs.empty();
 
     std::cout << "\nquasar execution started." << std::endl;
 
@@ -159,7 +160,16 @@ int main(int argc, char* argv[]) {
     std::cout << "Data type: " << params.data_type << std::endl;
     if (params.do_interaction) {
         std::cout << "\nPerforming interaction testing" << std::endl;
-        std::cout << "Interaction covariate: " << params.interaction_cov << std::endl;
+        std::cout << "Interaction covariate";
+        if (params.interaction_covs.size() > 1) {
+            std::cout << "s";
+        }
+        std::cout << ": ";
+        for (size_t k = 0; k < params.interaction_covs.size(); ++k) {
+            if (k > 0) std::cout << ", ";
+            std::cout << params.interaction_covs[k];
+        }
+        std::cout << std::endl;
     }
 
     if (params.model == "p_glm") {
@@ -258,14 +268,16 @@ int main(int argc, char* argv[]) {
     }
 
     if (params.do_interaction) {
-        auto it = std::find(cov_data.cov_ids.begin(), cov_data.cov_ids.end(), params.interaction_cov);
-        if (it == cov_data.cov_ids.end()) {
-            std::cerr << "Error: interaction covariate '" << params.interaction_cov
-                      << "' not found in covariate file columns." << std::endl;
-            exit(1);
+        for (const auto& name : params.interaction_covs) {
+            auto it = std::find(cov_data.cov_ids.begin(), cov_data.cov_ids.end(), name);
+            if (it == cov_data.cov_ids.end()) {
+                std::cerr << "Error: interaction covariate '" << name
+                          << "' not found in covariate file columns." << std::endl;
+                exit(1);
+            }
+            cov_data.interaction_ids.push_back(name);
+            cov_data.interaction_inds.push_back(static_cast<int>(std::distance(cov_data.cov_ids.begin(), it)));
         }
-        cov_data.interaction_id = params.interaction_cov;
-        cov_data.interaction_ind = std::distance(cov_data.cov_ids.begin(), it);
     }
 
     GRM grm(params.grm_file);
@@ -331,21 +343,30 @@ int main(int argc, char* argv[]) {
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs." << std::endl;
 
     if (params.do_interaction) {
+        auto join_quoted = [](const std::vector<std::string>& names) {
+            std::string out;
+            for (size_t i = 0; i < names.size(); ++i) {
+                if (i > 0) out += ", ";
+                out += "'" + names[i] + "'";
+            }
+            return out;
+        };
+        const bool compact = params.interaction_covs.size() > 3;
+
         if (cov_data.cov_data_type == "single-cell") {
             cov_data.add_bw_covariates();
-            std::cout << "\nInteraction covariate '" << params.interaction_cov << "' is single-cell level." << std::endl;
-            std::cout << "Converted to between-sample ('" << params.interaction_cov << "_b') and within-sample ('" <<
-                params.interaction_cov << "_w') covariates." << std::endl;
-        }
-        bool interaction_is_categorical = cov_data.is_covariate_categorical();
-        if (interaction_is_categorical) {
-            std::cout << "\nInteraction covariate '" << cov_data.interaction_id << "' treated as categorical (<=10 unique finite values)." << std::endl;
-            std::cout << "Not adding squared nuisance covariate." << std::endl;
-        } else {
-            std::string squared_covariate_id = cov_data.interaction_id + "_sq";
-            cov_data.add_squared_covariate();
-            std::cout << "\nInteraction covariate '" << cov_data.interaction_id << "' treated as continuous (>10 unique finite values)." << std::endl;
-            std::cout << "Added squared nuisance covariate '" << squared_covariate_id << "'." << std::endl;
+            if (compact) {
+                std::cout << "\nInteraction covariates " << join_quoted(params.interaction_covs)
+                          << " are single-cell level." << std::endl;
+                std::cout << "Converting all single-cell covariates to between- and within-sample."
+                          << std::endl;
+            } else {
+                for (const auto& name : params.interaction_covs) {
+                    std::cout << "\nInteraction covariate '" << name << "' is single-cell level." << std::endl;
+                    std::cout << "Converted to between-sample ('" << name << "_b') and within-sample ('" <<
+                        name << "_w') covariates." << std::endl;
+                }
+            }
         }
     }
 

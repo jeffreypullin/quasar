@@ -45,7 +45,7 @@ class ModelFit {
     std::vector<double> sigma2;
     std::vector<double> tau0;
     std::vector<double> tau1;
-    std::vector<double> tau2;
+    std::vector<double> tau01;
     std::vector<Eigen::MatrixXd> XtWX_inv_vec;
     std::vector<Eigen::VectorXd> Xty_res_vec;
     std::vector<Eigen::MatrixXd> XtWZ_vec;
@@ -53,15 +53,10 @@ class ModelFit {
     std::vector<Eigen::VectorXd> ZtSigma_invZ_diag_vec;
     std::vector<Eigen::MatrixXd> ZtSigma_invX_vec;
     std::vector<Eigen::MatrixXd> XtSigma_invX_inv_vec;
-    std::vector<Eigen::VectorXd> ZtDSigma_invDZ_diag_vec;
-    std::vector<Eigen::VectorXd> ZtDSigma_invZ_diag_vec;
-    std::vector<Eigen::MatrixXd> ZtDSigma_invX_vec;
-    std::vector<Eigen::VectorXd> ZtDy_res_vec;
-    std::vector<Eigen::VectorXd> Zty_res_vec;
-    std::vector<Eigen::MatrixXd> XtWDZ_vec;
-    std::vector<Eigen::VectorXd> d_out_vec;
-    std::vector<Eigen::VectorXd> dw_out_vec;
-    std::vector<Eigen::VectorXd> dwd_out_vec;
+    std::vector<Eigen::MatrixXd> ZtASigma_invAZ_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> ZtAkSigma_invX_vec;
+    std::vector<Eigen::MatrixXd> ZtAy_res_vec;
+    std::vector<std::vector<Eigen::MatrixXd>> XtWAkZ_vec;
     
     std::vector<bool> phi_converged;
     std::vector<bool> glm_converged;

@@ -24,6 +24,8 @@
 #include <vector>
 #include <iostream>
 #include <numeric>
+#include <cctype>
+#include <string>
 
 double pnorm(double x, bool lower) {
     boost::math::normal N01(0.0, 1.0);
@@ -275,6 +277,26 @@ std::vector<double> make_group_linear_scores_values(const std::vector<double>& v
     return scores;
 }
 
+namespace {
+
+std::string to_snake_case(const std::string& id) {
+    std::string snake_case_id;
+    snake_case_id.reserve(id.size());
+    for (unsigned char c : id) {
+        if (std::isalnum(c)) {
+            snake_case_id.push_back(static_cast<char>(std::tolower(c)));
+        } else if (!snake_case_id.empty() && snake_case_id.back() != '_') {
+            snake_case_id.push_back('_');
+        }
+    }
+    if (!snake_case_id.empty() && snake_case_id.back() == '_') {
+        snake_case_id.pop_back();
+    }
+    return snake_case_id;
+}
+
+}
+
 std::string make_variant_header_line(const Params& params, const std::vector<std::string>& group_ids, bool has_group_values) {
 
     const std::string& model = params.model;
@@ -296,32 +318,20 @@ std::string make_variant_header_line(const Params& params, const std::vector<std
                ((model == "p_glmm_sc") & !params.do_interaction)) {
         line = line + "\tglmm_converged\tsigma2";
     } else if ((model == "p_glmm_sc") & params.do_interaction) {
-        line = line + "\tglmm_converged\ttau0\ttau1\ttau2";
+        line = line + "\tglmm_converged\ttau0\ttau1\ttau01";
     } else if ((model == "lmm_sc") & params.do_interaction) {
-        line = line + "\tlmm_converged\tsigma2\ttau0\ttau1\ttau2";
+        line = line + "\tlmm_converged\tsigma2\ttau0\ttau1";
     } else if (model == "nb_glmm") {
         line = line + "\tglmm_converged\tsigma2\tphi\tphi_converged";
     }
 
     if (params.do_interaction) {
-        std::string interaction_id = params.interaction_cov;
-
-        std::string snake_case_id;
-        snake_case_id.reserve(interaction_id.size());
-        for (unsigned char c : interaction_id) {
-            if (std::isalnum(c)) {
-                snake_case_id.push_back(static_cast<char>(std::tolower(c)));
-            } else if (!snake_case_id.empty() && snake_case_id.back() != '_') {
-                snake_case_id.push_back('_');
-            }
+        for (const auto& interaction_id : params.interaction_covs) {
+            std::string snake_case_id = to_snake_case(interaction_id);
+            line += "\tsnp_x_" + snake_case_id + "_beta";
+            line += "\tsnp_x_" + snake_case_id + "_se";
+            line += "\tsnp_x_" + snake_case_id + "_pvalue";
         }
-        if (!snake_case_id.empty() && snake_case_id.back() == '_') {
-            snake_case_id.pop_back();
-        }
-
-        line += "\tsnp_x_" + snake_case_id + "_beta";
-        line += "\tsnp_x_" + snake_case_id + "_se";
-        line += "\tsnp_x_" + snake_case_id + "_pvalue";
     }
 
     if (!group_ids.empty()) {
@@ -347,7 +357,10 @@ std::string make_region_header_line(const Params& params, const std::vector<std:
     std::string line = "feature_id\tchrom\tstart\tend";
 
     if (params.do_interaction) {
-        line += "\tmain_acat_pvalue\tint_acat_pvalue";
+        line += "\tmain_acat_pvalue";
+        for (const auto& interaction_id : params.interaction_covs) {
+            line += "\tint_" + to_snake_case(interaction_id) + "_acat_pvalue";
+        }
     } else {
         line += "\tpvalue";
     }

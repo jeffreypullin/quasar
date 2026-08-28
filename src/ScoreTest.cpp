@@ -19,15 +19,20 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <string>
 #include <numeric>
+#include <algorithm>
+#include <limits>
 #include <Eigen/Eigenvalues>
 
 void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoData& pheno_data, CovData& cov_data, CellGroups& cell_groups) {
 
     std::string model = params.model;
     std::string mode = params.mode;
+    const size_t n_int = params.interaction_covs.size();
+    const size_t m_int = n_int + 1;
 
     Eigen::MatrixXd& G = geno_data.genotype_matrix;
     // This X is only used in the case of bulk data.
@@ -64,7 +69,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     for (size_t i = 0; i < pheno_data.n_pheno; ++i) {
 
         std::vector<double> main_pvals;
-        std::vector<double> int_pvals;
+        std::vector<std::vector<double>> int_pvals(n_int);
         std::vector<std::vector<double>> group_pvals_cis(use_cell_groups ? cell_groups.n_groups : 0);
         std::vector<double> group_het_pvals_cis;
         std::vector<double> group_linear_pvals_cis;
@@ -121,9 +126,11 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             w = Eigen::VectorXd::Ones(n_samples);
         }
 
-        Eigen::MatrixXd XtWX_inv, Xt, XtX_inv, XtWZ, XtWDZ;
-        Eigen::MatrixXd ZtSigma_invX, XtSigma_invX_inv, ZtDSigma_invX;
-        Eigen::VectorXd Xty_res, XtWX_inv_Xty_res, ZtSigma_invZ_diag, ZtDSigma_invDZ_diag, ZtDSigma_invZ_diag, ZtDy_res;
+        Eigen::MatrixXd XtWX_inv, Xt, XtX_inv, XtWZ;
+        Eigen::MatrixXd ZtSigma_invX, XtSigma_invX_inv;
+        Eigen::VectorXd Xty_res, XtWX_inv_Xty_res, ZtSigma_invZ_diag;
+        Eigen::MatrixXd ZtASigma_invAZ, ZtAy_res;
+        std::vector<Eigen::MatrixXd> ZtAkSigma_invX, XtWAkZ;
         if (params.data_type != "single-cell") {
             XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
             XtX_inv = (X.transpose() * X).inverse();
@@ -138,11 +145,10 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 ZtSigma_invX = model_fit.ZtSigma_invX_vec[i];
                 XtSigma_invX_inv = model_fit.XtSigma_invX_inv_vec[i];
                 if (params.do_interaction) {
-                    ZtDSigma_invDZ_diag = model_fit.ZtDSigma_invDZ_diag_vec[i];
-                    ZtDSigma_invZ_diag = model_fit.ZtDSigma_invZ_diag_vec[i];
-                    ZtDSigma_invX = model_fit.ZtDSigma_invX_vec[i];
-                    ZtDy_res = model_fit.ZtDy_res_vec[i];
-                    XtWDZ = model_fit.XtWDZ_vec[i];
+                    ZtASigma_invAZ = model_fit.ZtASigma_invAZ_vec[i];
+                    ZtAkSigma_invX = model_fit.ZtAkSigma_invX_vec[i];
+                    ZtAy_res = model_fit.ZtAy_res_vec[i];
+                    XtWAkZ = model_fit.XtWAkZ_vec[i];
                 }
             }
         }
@@ -171,7 +177,11 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             std::stringstream variant_line;
             double u, v, gtg;
             double main_beta, main_se, main_zscore, main_pval_snp;
-            double int_beta, int_se, int_zscore, int_pval_snp;
+            const double nan_val = std::numeric_limits<double>::quiet_NaN();
+            std::vector<double> int_beta(n_int, nan_val);
+            std::vector<double> int_se(n_int, nan_val);
+            std::vector<double> int_zscore(n_int, nan_val);
+            std::vector<double> int_pval_snp(n_int, nan_val);
 
             std::vector<double> group_betas;
             std::vector<double> group_ses;
@@ -207,7 +217,10 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             if (geno_data.mac[k] < params.min_mac || !model_converged) {
 
                 main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
-                int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();
+                std::fill(int_beta.begin(), int_beta.end(), nan_val);
+                std::fill(int_se.begin(), int_se.end(), nan_val);
+                std::fill(int_zscore.begin(), int_zscore.end(), nan_val);
+                std::fill(int_pval_snp.begin(), int_pval_snp.end(), nan_val);
                 if (use_cell_groups) {
                     std::fill(group_betas.begin(), group_betas.end(), std::numeric_limits<double>::quiet_NaN());
                     std::fill(group_ses.begin(), group_ses.end(), std::numeric_limits<double>::quiet_NaN());
@@ -310,78 +323,109 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
             } else {
                 if (params.data_type == "bulk") {
-                    Eigen::VectorXd x_int = X.col(cov_data.interaction_ind);
-                    Eigen::VectorXd g_main = g - X * (XtX_inv * (Xt * g));
-
-                    Eigen::VectorXd g_int_raw = x_int.cwiseProduct(g);
-                    Eigen::VectorXd g_int = g_int_raw - X * (XtX_inv * (Xt * g_int_raw));
-                    Eigen::MatrixXd Z(g.size(), 2);
-                    Z.col(0) = g_main;
-                    Z.col(1) = g_int;
+                    Eigen::MatrixXd Z(g.size(), static_cast<Eigen::Index>(m_int));
+                    Z.col(0) = g - X * (XtX_inv * (Xt * g));
+                    for (size_t ik = 0; ik < n_int; ++ik) {
+                        Eigen::VectorXd g_int_raw = X.col(cov_data.interaction_inds[ik]).cwiseProduct(g);
+                        Z.col(static_cast<Eigen::Index>(ik + 1)) =
+                            g_int_raw - X * (XtX_inv * (Xt * g_int_raw));
+                    }
 
                     Eigen::MatrixXd ZtZ = Z.transpose() * Z;
                     Eigen::VectorXd ZtY = Z.transpose() * Y.col(i);
                     Eigen::VectorXd beta = ZtZ.ldlt().solve(ZtY);
                     Eigen::MatrixXd cov_mat = ZtZ.inverse();
 
-                    double full_rss, sigma_hat;
-                    full_rss = (Y.col(i) - Z * beta).squaredNorm();
-                    sigma_hat = full_rss / static_cast<double>(Y.rows() - 2);
+                    double full_rss = (Y.col(i) - Z * beta).squaredNorm();
+                    double sigma_hat = full_rss / static_cast<double>(Y.rows() - static_cast<int>(m_int));
                     cov_mat *= sigma_hat;
 
                     main_beta = beta(0);
-                    int_beta = beta(1);
                     main_se = std::sqrt(cov_mat(0, 0));
-                    int_se = std::sqrt(cov_mat(1, 1));
                     main_zscore = main_beta / main_se;
-                    int_zscore = int_beta / int_se;
+                    bool bad_se = (main_se < 0) || std::isnan(main_zscore);
+                    for (size_t ik = 0; ik < n_int; ++ik) {
+                        int_beta[ik] = beta(static_cast<Eigen::Index>(ik + 1));
+                        int_se[ik] = std::sqrt(cov_mat(static_cast<Eigen::Index>(ik + 1),
+                                                       static_cast<Eigen::Index>(ik + 1)));
+                        int_zscore[ik] = int_beta[ik] / int_se[ik];
+                        if ((int_se[ik] < 0) || std::isnan(int_zscore[ik])) {
+                            bad_se = true;
+                        }
+                    }
 
-                    if (main_se < 0 || int_se < 0) {
-                        main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
-                        int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();
+                    if (bad_se) {
+                        main_beta = main_se = main_zscore = main_pval_snp = nan_val;
+                        std::fill(int_beta.begin(), int_beta.end(), nan_val);
+                        std::fill(int_se.begin(), int_se.end(), nan_val);
+                        std::fill(int_zscore.begin(), int_zscore.end(), nan_val);
+                        std::fill(int_pval_snp.begin(), int_pval_snp.end(), nan_val);
                     } else {
                         main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
-                        int_pval_snp = 2 * pnorm(std::abs(int_zscore), false);
+                        for (size_t ik = 0; ik < n_int; ++ik) {
+                            int_pval_snp[ik] = 2 * pnorm(std::abs(int_zscore[ik]), false);
+                        }
                     }
 
                 } else {
 
-                    Eigen::VectorXd t = XtWZ * g;
-                    Eigen::VectorXd Dt = XtWDZ * g;
+                    Eigen::VectorXd U = Eigen::VectorXd::Zero(static_cast<Eigen::Index>(m_int));
+                    Eigen::MatrixXd V = Eigen::MatrixXd::Zero(static_cast<Eigen::Index>(m_int),
+                                                              static_cast<Eigen::Index>(m_int));
+                    std::vector<Eigen::VectorXd> t(m_int);
+                    std::vector<Eigen::VectorXd> t_p(m_int);
+                    for (size_t a = 0; a < m_int; ++a) {
+                        t[a] = XtWAkZ[a] * g;
+                        t_p[a] = ZtAkSigma_invX[a].transpose() * g;
+                        U(static_cast<Eigen::Index>(a)) =
+                            g.dot(ZtAy_res.col(static_cast<Eigen::Index>(a))) - t[a].dot(XtWX_inv_Xty_res);
+                    }
+                    for (size_t a = 0; a < m_int; ++a) {
+                        for (size_t b = 0; b < m_int; ++b) {
+                            Eigen::VectorXd diag_ab = ZtASigma_invAZ.col(static_cast<Eigen::Index>(a * m_int + b));
+                            V(static_cast<Eigen::Index>(a), static_cast<Eigen::Index>(b)) =
+                                g.cwiseProduct(diag_ab).dot(g) - t_p[a].dot(XtSigma_invX_inv * t_p[b]);
+                        }
+                    }
 
-                    double main_u = g.dot(Y.col(i)) - t.dot(XtWX_inv_Xty_res);
-                    Eigen::VectorXd t_p = ZtSigma_invX.transpose() * g;
-                    double main_v = g.cwiseProduct(ZtSigma_invZ_diag).dot(g) - t_p.dot(XtSigma_invX_inv * t_p);
+                    double main_u = U(0);
+                    double main_v = V(0, 0);
                     main_beta = main_u / main_v;
                     main_se = 1 / std::sqrt(main_v);
                     main_zscore = main_beta / main_se;
-                    if ((main_se < 0) | std::isnan(main_zscore)) {
-                        main_beta = main_se = main_zscore = main_pval_snp = std::numeric_limits<double>::quiet_NaN();
+                    if ((main_se < 0) || std::isnan(main_zscore)) {
+                        main_beta = main_se = main_zscore = main_pval_snp = nan_val;
                     } else {
                         main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
                     }
 
-                    Eigen::VectorXd tD_p = ZtDSigma_invX.transpose() * g;
-                    double int_v = g.cwiseProduct(ZtDSigma_invDZ_diag).dot(g) - tD_p.dot(XtSigma_invX_inv * tD_p);
-                    double main_int_v = g.cwiseProduct(ZtDSigma_invZ_diag).dot(g) - tD_p.dot(XtSigma_invX_inv * t_p);
-                    double int_v_cond = int_v - (main_int_v * main_int_v) / main_v;
-
-                    double int_u = g.dot(ZtDy_res) - Dt.dot(XtWX_inv_Xty_res);
-                    double int_u_cond = int_u - (main_int_v / main_v) * main_u;
-
-                    int_beta = int_u_cond / int_v_cond;
-                    int_se = 1 / std::sqrt(int_v_cond);
-                    int_zscore = int_beta / int_se;
-
-                    if ((int_se < 0) | std::isnan(int_zscore)) {
-                        int_beta = int_se = int_zscore = int_pval_snp = std::numeric_limits<double>::quiet_NaN();
-                    } else {
-                        int_pval_snp = 2 * pnorm(std::abs(int_zscore), false);
+                    if (n_int > 0 && main_v > 0.0 && !std::isnan(main_v)) {
+                        Eigen::VectorXd v_cross = V.col(0).tail(static_cast<Eigen::Index>(n_int));
+                        Eigen::MatrixXd V_int = V.bottomRightCorner(static_cast<Eigen::Index>(n_int),
+                                                                    static_cast<Eigen::Index>(n_int));
+                        Eigen::VectorXd U_int = U.tail(static_cast<Eigen::Index>(n_int));
+                        Eigen::MatrixXd V_cond = V_int - v_cross * v_cross.transpose() / main_v;
+                        Eigen::VectorXd U_cond = U_int - v_cross * (main_u / main_v);
+                        Eigen::MatrixXd V_cond_inv = V_cond.inverse();
+                        Eigen::VectorXd beta_int = V_cond_inv * U_cond;
+                        for (size_t ik = 0; ik < n_int; ++ik) {
+                            int_beta[ik] = beta_int(static_cast<Eigen::Index>(ik));
+                            int_se[ik] = std::sqrt(V_cond_inv(static_cast<Eigen::Index>(ik),
+                                                              static_cast<Eigen::Index>(ik)));
+                            int_zscore[ik] = int_beta[ik] / int_se[ik];
+                            if ((int_se[ik] < 0) || std::isnan(int_zscore[ik])) {
+                                int_beta[ik] = int_se[ik] = int_zscore[ik] = int_pval_snp[ik] = nan_val;
+                            } else {
+                                int_pval_snp[ik] = 2 * pnorm(std::abs(int_zscore[ik]), false);
+                            }
+                        }
                     }
+                }
 
-                    if (mode == "cis") {
-                        main_pvals.push_back(main_pval_snp);
-                        int_pvals.push_back(int_pval_snp);
+                if (mode == "cis") {
+                    main_pvals.push_back(main_pval_snp);
+                    for (size_t ik = 0; ik < n_int; ++ik) {
+                        int_pvals[ik].push_back(int_pval_snp[ik]);
                     }
                 }
             }
@@ -413,7 +457,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 variant_line << "\t" << model_fit.glmm_converged[i] <<
                     "\t" << model_fit.tau0[i] <<
                     "\t" << model_fit.tau1[i] <<
-                    "\t" << model_fit.tau2[i];
+                    "\t" << model_fit.tau01[i];
             } else if (model == "nb_glmm") {
                 variant_line << "\t" << model_fit.glmm_converged[i] << 
                     "\t" << model_fit.phi[i] <<
@@ -422,10 +466,12 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             }
 
             if (params.do_interaction) {
-                variant_line << "\t" <<
-                    int_beta << "\t" << 
-                    int_se << "\t" <<
-                    int_pval_snp;
+                for (size_t ik = 0; ik < n_int; ++ik) {
+                    variant_line << "\t" <<
+                        int_beta[ik] << "\t" <<
+                        int_se[ik] << "\t" <<
+                        int_pval_snp[ik];
+                }
             }
 
             if (use_cell_groups) {
@@ -462,7 +508,9 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                 ACAT(main_pvals);
 
             if (params.do_interaction) {
-                region_line << "\t" << ACAT(int_pvals);
+                for (size_t ik = 0; ik < n_int; ++ik) {
+                    region_line << "\t" << ACAT(int_pvals[ik]);
+                }
             } 
 
             if (use_cell_groups) {

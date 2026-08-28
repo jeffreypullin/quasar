@@ -45,6 +45,7 @@ struct Params {
     std::string offset_file;
 
     std::string interaction_cov;
+    std::vector<std::string> interaction_covs;
     bool do_interaction = false;
 
     std::string mode; 

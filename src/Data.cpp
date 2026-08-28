@@ -28,7 +28,6 @@
 #include <cstdlib>
 #include <iomanip>
 #include <limits>
-#include <set>
 #include <algorithm>
 #include <cmath>
 
@@ -789,77 +788,56 @@ void CovData::check_cov_data_type() {
 
 }
 
-bool CovData::is_covariate_categorical() {
-    static const size_t max_unique_values = 10;
-    
-    const Eigen::MatrixXd* active_cov_data = &data;
-    if (cov_data_type == "single-cell" && sc_data.size() > 0) {
-        active_cov_data = &sc_data;
-    }
-
-    std::set<double> unique_values;
-    for (Eigen::Index i = 0; i < active_cov_data->rows(); ++i) {
-        double x = (*active_cov_data)(i, interaction_ind);
-        unique_values.insert(x);
-        if (unique_values.size() > max_unique_values) {
-            return false;
-        }
-    }
-    return true;
-}
-
-void CovData::add_squared_covariate() {
-    std::string sq_covariate_id = interaction_id + "_sq";
-
-    if (cov_data_type == "single-cell" && sc_data.size() > 0) {
-        Eigen::MatrixXd updated_sc_data(sc_data.rows(), sc_data.cols() + 1);
-        updated_sc_data.leftCols(sc_data.cols()) = sc_data;
-        updated_sc_data.col(sc_data.cols()) = sc_data.col(interaction_ind).array().square().matrix();
-        sc_data = updated_sc_data;
-    } else {
-        Eigen::MatrixXd updated_data(data.rows(), data.cols() + 1);
-        updated_data.leftCols(data.cols()) = data;
-        updated_data.col(data.cols()) = data.col(interaction_ind).array().square().matrix();
-        data = updated_data;
-    }
-
-    cov_ids.push_back(sq_covariate_id);
-    n_cov++;
-}
-
 void CovData::add_bw_covariates() {
-    Eigen::VectorXd int_col = sc_data.col(interaction_ind);
-    int n_cells_total = sc_data.rows();
-    int old_ncols = static_cast<int>(sc_data.cols());
+    const int n_cells_total = sc_data.rows();
+    const int K = static_cast<int>(interaction_inds.size());
+    const int old_ncols = static_cast<int>(sc_data.cols());
 
-    Eigen::VectorXd b_col = Eigen::VectorXd::Zero(n_cells_total);
-    int row = 0;
-    for (size_t i = 0; i < cell_counts.size(); ++i) {
-        int nc = cell_counts[i];
-        double mean_i = int_col.segment(row, nc).mean();
-        b_col.segment(row, nc).setConstant(mean_i);
-        row += nc;
+    Eigen::MatrixXd b_cols = Eigen::MatrixXd::Zero(n_cells_total, K);
+    Eigen::MatrixXd w_cols = Eigen::MatrixXd::Zero(n_cells_total, K);
+    for (int k = 0; k < K; ++k) {
+        Eigen::VectorXd int_col = sc_data.col(interaction_inds[k]);
+        int row = 0;
+        for (size_t i = 0; i < cell_counts.size(); ++i) {
+            int nc = cell_counts[i];
+            double mean_i = int_col.segment(row, nc).mean();
+            b_cols.col(k).segment(row, nc).setConstant(mean_i);
+            row += nc;
+        }
+        w_cols.col(k) = int_col - b_cols.col(k);
     }
-    Eigen::VectorXd w_col = int_col - b_col;
 
-    // Drop the original interaction column and append the between/within replacements.
-    Eigen::MatrixXd updated(n_cells_total, old_ncols - 1 + 2);
+    std::vector<char> drop(old_ncols, 0);
+    for (int ind : interaction_inds) {
+        drop[ind] = 1;
+    }
+
+    Eigen::MatrixXd updated(n_cells_total, old_ncols + K);
+    std::vector<std::string> new_ids;
+    new_ids.reserve(old_ncols + K);
     int dest = 0;
     for (int j = 0; j < old_ncols; ++j) {
-        if (j == interaction_ind) continue;
+        if (drop[j]) continue;
         updated.col(dest++) = sc_data.col(j);
+        new_ids.push_back(cov_ids[j]);
     }
-    updated.col(dest)     = b_col;
-    updated.col(dest + 1) = w_col;
+    for (int k = 0; k < K; ++k) {
+        updated.col(dest++) = b_cols.col(k);
+        new_ids.push_back(interaction_ids[k] + "_b");
+    }
+    const int w_start = dest;
+    for (int k = 0; k < K; ++k) {
+        updated.col(dest++) = w_cols.col(k);
+        new_ids.push_back(interaction_ids[k] + "_w");
+    }
     sc_data = updated;
+    cov_ids = std::move(new_ids);
+    n_cov = cov_ids.size();
 
-    cov_ids.erase(cov_ids.begin() + interaction_ind);
-    cov_ids.push_back(interaction_id + "_b");
-    cov_ids.push_back(interaction_id + "_w");
-    n_cov += 1;
-
-    interaction_id  = interaction_id + "_w";
-    interaction_ind = static_cast<int>(sc_data.cols()) - 1;
+    for (int k = 0; k < K; ++k) {
+        interaction_ids[k] = interaction_ids[k] + "_w";
+        interaction_inds[k] = w_start + k;
+    }
 }
 
 void CovData::standardisze_data() {
