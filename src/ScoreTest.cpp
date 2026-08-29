@@ -208,6 +208,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             bool model_converged = false;
             if (is_glmm_model) {
                 model_converged = model_fit.glmm_converged[i];
+            } else if (model == "lmm_sc" && params.do_interaction) {
+                model_converged = model_fit.lmm_converged[i];
             } else if (model == "p_glm" || model == "nb_glm") {
                 model_converged = model_fit.glm_converged[i];
             } else {
@@ -458,6 +460,11 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     "\t" << model_fit.tau0[i] <<
                     "\t" << model_fit.tau1[i] <<
                     "\t" << model_fit.tau01[i];
+            } else if ((model == "lmm_sc") & params.do_interaction) {
+                variant_line << "\t" << model_fit.lmm_converged[i] <<
+                    "\t" << model_fit.sigma2[i] <<
+                    "\t" << model_fit.tau0[i] <<
+                    "\t" << model_fit.tau1[i];
             } else if (model == "nb_glmm") {
                 variant_line << "\t" << model_fit.glmm_converged[i] << 
                     "\t" << model_fit.phi[i] <<

@@ -76,6 +76,11 @@ int main(int argc, char* argv[]) {
     params.interaction_covs = parse_comma_separated_names(params.interaction_cov);
     params.do_interaction = !params.interaction_covs.empty();
 
+    if (params.model == "lmm_sc" && params.interaction_covs.size() > 1) {
+        std::cerr << "Error: model 'lmm_sc' supports only one --interaction covariate." << std::endl;
+        exit(1);
+    }
+
     std::cout << "\nquasar execution started." << std::endl;
 
     if (params.model != "lmm" && 

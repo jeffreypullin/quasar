@@ -23,6 +23,7 @@
 #include "LM.hpp"
 #include "LMM.hpp"
 #include "LMM_SC.hpp"
+#include "LMM_SC_INT.hpp"
 #include "NBGLM.hpp"
 #include "GLMM_GRM.hpp"
 #include "GLMM_SC.hpp"
@@ -297,6 +298,8 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             auto poisson = std::unique_ptr<Family>(new Poisson());
             GLMM_SC_INT p_glmm(X, y, X_int, offset, std::move(poisson), ns);
             p_glmm.fit();
+            std::cout << pheno_data.pheno_ids[i] << std::endl;
+            std::cout.flush();
 
             Y.col(i) = p_glmm.y_out;
             W.row(i) = p_glmm.mu_out;
@@ -316,6 +319,86 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             tau01.push_back(p_glmm.tau(2));
         }
         std::cout << "Null random-slope single-cell Poisson GLMMs fitted." << std::endl;
+
+    } else if ((params.model == "lmm_sc") & params.do_interaction) {
+
+        std::cout << "\nFitting null random slope single-cell LMMs..." << std::endl;
+
+        const int n_donors = static_cast<int>(ns.size());
+        const int p = static_cast<int>(X.cols());
+        Eigen::VectorXd cum_ns_lmm = Eigen::VectorXd::Zero(n_donors);
+        for (int d = 1; d < n_donors; ++d) {
+            cum_ns_lmm(d) = cum_ns_lmm(d - 1) + ns(d - 1);
+        }
+
+        Eigen::VectorXd x = cov_data.sc_data.col(cov_data.interaction_inds[0]);
+        Eigen::MatrixXd XTX = X.transpose() * X;
+        std::vector<Eigen::MatrixXd> ZiTZis(n_donors);
+        std::vector<Eigen::MatrixXd> ZiTXis(n_donors);
+        for (int d = 0; d < n_donors; ++d) {
+            const Eigen::Index start = static_cast<Eigen::Index>(cum_ns_lmm(d));
+            const Eigen::Index ni = static_cast<Eigen::Index>(ns(d));
+            const auto x_i = x.segment(start, ni);
+            const auto X_i = X.block(start, 0, ni, p);
+
+            Eigen::MatrixXd ZiTZi(2, 2);
+            ZiTZi(0, 0) = ns(d);
+            ZiTZi(0, 1) = x_i.sum();
+            ZiTZi(1, 0) = ZiTZi(0, 1);
+            ZiTZi(1, 1) = x_i.squaredNorm();
+            ZiTZis[d] = ZiTZi;
+
+            Eigen::MatrixXd ZiTX(2, p);
+            ZiTX.row(0) = X_i.colwise().sum();
+            ZiTX.row(1) = x_i.transpose() * X_i;
+            ZiTXis[d] = ZiTX;
+        }
+
+        for (int i = 0; i < n_pheno; ++i) {
+            Eigen::VectorXd y = pheno_data.sc_data.col(i);
+            rank_normalize_vec(y);
+
+            LMM_SC_INT lmm_int(X, y, x, ns, XTX, ZiTZis, ZiTXis);
+            lmm_int.fit();
+
+            Y.col(i) = lmm_int.y_out;
+            W.row(i) = lmm_int.mu_out;
+            XtWX_inv_vec.push_back(lmm_int.XtWX_inv);
+            Xty_res_vec.push_back(lmm_int.Xty_res);
+            XtWZ_vec.push_back(lmm_int.XtWZ);
+            ZtSigma_invZ_diag_vec.push_back(lmm_int.ZtSigma_invZ_diag);
+            ZtSigma_invX_vec.push_back(lmm_int.ZtSigma_invX);
+            XtSigma_invX_inv_vec.push_back(lmm_int.XtSigma_invX_inv);
+
+            const Eigen::Index n_d = static_cast<Eigen::Index>(n_donors);
+            Eigen::MatrixXd ZtAy_res = Eigen::MatrixXd::Zero(n_d, 2);
+            ZtAy_res.col(0) = lmm_int.y_out;
+            ZtAy_res.col(1) = lmm_int.ZtDy_res;
+
+            Eigen::MatrixXd ZtASigma_invAZ = Eigen::MatrixXd::Zero(n_d, 4);
+            ZtASigma_invAZ.col(0) = lmm_int.ZtSigma_invZ_diag;
+            ZtASigma_invAZ.col(1) = lmm_int.ZtDSigma_invZ_diag;
+            ZtASigma_invAZ.col(2) = lmm_int.ZtDSigma_invZ_diag;
+            ZtASigma_invAZ.col(3) = lmm_int.ZtDSigma_invDZ_diag;
+
+            std::vector<Eigen::MatrixXd> ZtAkSigma_invX(2);
+            ZtAkSigma_invX[0] = lmm_int.ZtSigma_invX;
+            ZtAkSigma_invX[1] = lmm_int.ZtDSigma_invX;
+
+            std::vector<Eigen::MatrixXd> XtWAkZ(2);
+            XtWAkZ[0] = lmm_int.XtWZ;
+            XtWAkZ[1] = lmm_int.XtWDZ;
+
+            ZtASigma_invAZ_vec.push_back(ZtASigma_invAZ);
+            ZtAkSigma_invX_vec.push_back(ZtAkSigma_invX);
+            ZtAy_res_vec.push_back(ZtAy_res);
+            XtWAkZ_vec.push_back(XtWAkZ);
+            lmm_converged.push_back(lmm_int.lmm_converged);
+            sigma2.push_back(lmm_int.sigma2);
+            tau0.push_back(lmm_int.theta(1));
+            tau1.push_back(lmm_int.theta(3));
+        }
+        std::cout << "Null random-slope single-cell LMMs fitted." << std::endl;
 
     } else if (params.model == "lmm") {
 
@@ -486,6 +569,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     model_fit.phi_converged = phi_converged;
     model_fit.glm_converged = glm_converged;
     model_fit.glmm_converged = glmm_converged;
+    model_fit.lmm_converged = lmm_converged;
 
     if (cell_groups.n_groups > 0) {
         model_fit.n_groups = cell_groups.n_groups;

@@ -61,6 +61,7 @@ class ModelFit {
     std::vector<bool> phi_converged;
     std::vector<bool> glm_converged;
     std::vector<bool> glmm_converged;
+    std::vector<bool> lmm_converged;
 
     // Per-group quantities for single-cell --cell-groups score tests.
     size_t n_groups = 0;
