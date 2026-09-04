@@ -102,6 +102,8 @@ class CovData {
       void read_sc_cov_data();
       void expand_cov_data(std::vector<int> cell_counts);
       void collapse_cov_data();
+      bool is_covariate_categorical(int ind);
+      void add_squared_covariate(int ind, const std::string& id);
       void add_bw_covariates();
       void standardisze_data();
 

@@ -28,6 +28,7 @@
 #include "GLMM_GRM.hpp"
 #include "GLMM_SC.hpp"
 #include "GLMM_SC_INT.hpp"
+#include "GLMM_SC_INT_MULTI.hpp"
 #include "NBGLMM.hpp"
 #include "Phi.hpp"
 
@@ -287,36 +288,80 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
 
     } else if ((params.model == "p_glmm_sc") & params.do_interaction) {
 
-        std::cout <<"\nFitting null random slope single-cell Poisson GLMMs..." << std::endl; 
-        Eigen::MatrixXd X_int(X.rows(), static_cast<Eigen::Index>(cov_data.interaction_inds.size()));
-        for (size_t k = 0; k < cov_data.interaction_inds.size(); ++k) {
+        std::cout <<"\nFitting null random slope single-cell Poisson GLMMs..." << std::endl;
+        const size_t K = cov_data.interaction_inds.size();
+        Eigen::MatrixXd X_int(X.rows(), static_cast<Eigen::Index>(K));
+        for (size_t k = 0; k < K; ++k) {
             X_int.col(static_cast<Eigen::Index>(k)) = cov_data.sc_data.col(cov_data.interaction_inds[k]);
         }
         for (int i = 0; i < n_pheno; ++i) {
 
             Eigen::VectorXd y = pheno_data.sc_data.col(i);
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM_SC_INT p_glmm(X, y, X_int, offset, std::move(poisson), ns);
-            p_glmm.fit();
-            std::cout << pheno_data.pheno_ids[i] << std::endl;
-            std::cout.flush();
 
-            Y.col(i) = p_glmm.y_out;
-            W.row(i) = p_glmm.mu_out;
-            XtWX_inv_vec.push_back(p_glmm.XtWX_inv);
-            Xty_res_vec.push_back(p_glmm.Xty_res);
-            XtWZ_vec.push_back(p_glmm.XtWZ);
-            ZtSigma_invZ_diag_vec.push_back(p_glmm.ZtSigma_invZ_diag);
-            ZtSigma_invX_vec.push_back(p_glmm.ZtSigma_invX);
-            XtSigma_invX_inv_vec.push_back(p_glmm.XtSigma_invX_inv);
-            ZtASigma_invAZ_vec.push_back(p_glmm.ZtASigma_invAZ);
-            ZtAkSigma_invX_vec.push_back(p_glmm.ZtAkSigma_invX);
-            ZtAy_res_vec.push_back(p_glmm.ZtAy_res);
-            XtWAkZ_vec.push_back(p_glmm.XtWAkZ);
-            glmm_converged.push_back(p_glmm.glmm_converged);
-            tau0.push_back(p_glmm.tau(0));
-            tau1.push_back(p_glmm.tau(1));
-            tau01.push_back(p_glmm.tau(2));
+            if (K == 1) {
+                
+                Eigen::VectorXd x = cov_data.sc_data.col(cov_data.interaction_inds[0]);
+                GLMM_SC_INT p_glmm(X, y, x, offset, std::move(poisson), ns);
+                p_glmm.fit();
+
+                Y.col(i) = p_glmm.y_out;
+                W.row(i) = p_glmm.mu_out;
+                XtWX_inv_vec.push_back(p_glmm.XtWX_inv);
+                Xty_res_vec.push_back(p_glmm.Xty_res);
+                XtWZ_vec.push_back(p_glmm.XtWZ);
+                ZtSigma_invZ_diag_vec.push_back(p_glmm.ZtSigma_invZ_diag);
+                ZtSigma_invX_vec.push_back(p_glmm.ZtSigma_invX);
+                XtSigma_invX_inv_vec.push_back(p_glmm.XtSigma_invX_inv);
+
+                const Eigen::Index n_d = static_cast<Eigen::Index>(ns.size());
+                Eigen::MatrixXd ZtAy_res = Eigen::MatrixXd::Zero(n_d, 2);
+                ZtAy_res.col(0) = p_glmm.y_out;
+                ZtAy_res.col(1) = p_glmm.ZtDy_res;
+
+                Eigen::MatrixXd ZtASigma_invAZ = Eigen::MatrixXd::Zero(n_d, 4);
+                ZtASigma_invAZ.col(0) = p_glmm.ZtSigma_invZ_diag;
+                ZtASigma_invAZ.col(1) = p_glmm.ZtDSigma_invZ_diag;
+                ZtASigma_invAZ.col(2) = p_glmm.ZtDSigma_invZ_diag;
+                ZtASigma_invAZ.col(3) = p_glmm.ZtDSigma_invDZ_diag;
+
+                std::vector<Eigen::MatrixXd> ZtAkSigma_invX(2);
+                ZtAkSigma_invX[0] = p_glmm.ZtSigma_invX;
+                ZtAkSigma_invX[1] = p_glmm.ZtDSigma_invX;
+
+                std::vector<Eigen::MatrixXd> XtWAkZ(2);
+                XtWAkZ[0] = p_glmm.XtWZ;
+                XtWAkZ[1] = p_glmm.XtWDZ;
+
+                ZtASigma_invAZ_vec.push_back(ZtASigma_invAZ);
+                ZtAkSigma_invX_vec.push_back(ZtAkSigma_invX);
+                ZtAy_res_vec.push_back(ZtAy_res);
+                XtWAkZ_vec.push_back(XtWAkZ);
+                glmm_converged.push_back(p_glmm.glmm_converged);
+                tau0.push_back(p_glmm.tau(0));
+                tau1.push_back(p_glmm.tau(2));
+                tau01.push_back(p_glmm.tau(1));
+            
+            } else {
+
+                GLMM_SC_INT_MULTI p_glmm(X, y, X_int, offset, std::move(poisson), ns);
+                p_glmm.fit();
+
+                Y.col(i) = p_glmm.y_out;
+                W.row(i) = p_glmm.mu_out;
+                XtWX_inv_vec.push_back(p_glmm.XtWX_inv);
+                Xty_res_vec.push_back(p_glmm.Xty_res);
+                XtWZ_vec.push_back(p_glmm.XtWZ);
+                ZtSigma_invZ_diag_vec.push_back(p_glmm.ZtSigma_invZ_diag);
+                ZtSigma_invX_vec.push_back(p_glmm.ZtSigma_invX);
+                XtSigma_invX_inv_vec.push_back(p_glmm.XtSigma_invX_inv);
+                ZtASigma_invAZ_vec.push_back(p_glmm.ZtASigma_invAZ);
+                ZtAkSigma_invX_vec.push_back(p_glmm.ZtAkSigma_invX);
+                ZtAy_res_vec.push_back(p_glmm.ZtAy_res);
+                XtWAkZ_vec.push_back(p_glmm.XtWAkZ);
+                glmm_converged.push_back(p_glmm.glmm_converged);
+                tau0.push_back(p_glmm.tau(0));
+            }
         }
         std::cout << "Null random-slope single-cell Poisson GLMMs fitted." << std::endl;
 

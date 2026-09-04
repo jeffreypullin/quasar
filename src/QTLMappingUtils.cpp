@@ -318,7 +318,10 @@ std::string make_variant_header_line(const Params& params, const std::vector<std
                ((model == "p_glmm_sc") & !params.do_interaction)) {
         line = line + "\tglmm_converged\tsigma2";
     } else if ((model == "p_glmm_sc") & params.do_interaction) {
-        line = line + "\tglmm_converged\ttau0\ttau1\ttau01";
+        line = line + "\tglmm_converged\ttau0";
+        if (params.interaction_covs.size() == 1) {
+            line = line + "\ttau1\ttau01";
+        }
     } else if ((model == "lmm_sc") & params.do_interaction) {
         line = line + "\tlmm_converged\tsigma2\ttau0\ttau1";
     } else if (model == "nb_glmm") {
@@ -331,6 +334,9 @@ std::string make_variant_header_line(const Params& params, const std::vector<std
             line += "\tsnp_x_" + snake_case_id + "_beta";
             line += "\tsnp_x_" + snake_case_id + "_se";
             line += "\tsnp_x_" + snake_case_id + "_pvalue";
+        }
+        if (params.interaction_covs.size() > 1) {
+            line += "\tsnp_x_all_acat_pvalue";
         }
     }
 
@@ -360,6 +366,9 @@ std::string make_region_header_line(const Params& params, const std::vector<std:
         line += "\tmain_acat_pvalue";
         for (const auto& interaction_id : params.interaction_covs) {
             line += "\tint_" + to_snake_case(interaction_id) + "_acat_pvalue";
+        }
+        if (params.interaction_covs.size() > 1) {
+            line += "\tint_all_acat_pvalue";
         }
     } else {
         line += "\tpvalue";

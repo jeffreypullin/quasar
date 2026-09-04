@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <limits>
+#include <set>
 #include <algorithm>
 #include <cmath>
 
@@ -786,6 +787,44 @@ void CovData::check_cov_data_type() {
     }
     file.close();
 
+}
+
+bool CovData::is_covariate_categorical(int ind) {
+    static const size_t max_unique_values = 10;
+
+    const Eigen::MatrixXd* active_cov_data = &data;
+    if (cov_data_type == "single-cell" && sc_data.size() > 0) {
+        active_cov_data = &sc_data;
+    }
+
+    std::set<double> unique_values;
+    for (Eigen::Index i = 0; i < active_cov_data->rows(); ++i) {
+        double x = (*active_cov_data)(i, ind);
+        unique_values.insert(x);
+        if (unique_values.size() > max_unique_values) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void CovData::add_squared_covariate(int ind, const std::string& id) {
+    std::string sq_covariate_id = id + "_sq";
+
+    if (cov_data_type == "single-cell" && sc_data.size() > 0) {
+        Eigen::MatrixXd updated_sc_data(sc_data.rows(), sc_data.cols() + 1);
+        updated_sc_data.leftCols(sc_data.cols()) = sc_data;
+        updated_sc_data.col(sc_data.cols()) = sc_data.col(ind).array().square().matrix();
+        sc_data = updated_sc_data;
+    } else {
+        Eigen::MatrixXd updated_data(data.rows(), data.cols() + 1);
+        updated_data.leftCols(data.cols()) = data;
+        updated_data.col(data.cols()) = data.col(ind).array().square().matrix();
+        data = updated_data;
+    }
+
+    cov_ids.push_back(sq_covariate_id);
+    n_cov++;
 }
 
 void CovData::add_bw_covariates() {

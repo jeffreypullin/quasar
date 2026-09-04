@@ -116,7 +116,12 @@ As of quasar 2.0, quasar can compute interaction-QTLs. To use this functionality
 
 Interaction testing can be performed for bulk/pseudobulk data with the linear mixed model (`lmm`), linear model (`lm`) and Negative Binomial GLM (`nb_glm`) models, and for single-cell data with the Poisson GLMM (`p_glmm_sc`) and the single-cell LMM (`lmm_sc`).
 
-For single-cell data, interaction testing with `--model p_glmm_sc` or `--model lmm_sc` fits a random-slope null model: a per-donor random intercept plus independent random slopes on the K interaction covariates. The intercept has its own variance (`tau0`); the K slopes share a single slope variance (`tau1`); and a single intercept-slope covariance (`tau01`) is shared across the K slopes. When `K = 1` this is an unstructured 2x2 random-effect covariance. `lmm_sc` additionally estimates a residual variance (`sigma2`). When covariates are provided in single-cell (cell-level) format, quasar splits each interaction covariate into between-donor (`{interaction_cov}_b`) and within-donor (`{interaction_cov}_w`) components and tests the interaction on the within-donor component (`{interaction_cov}_w`). With multiple interaction covariates (`K > 1`), those within-donor covariates are additionally scaled by `1/sqrt(K)` after centering and scaling. `--interaction` cannot be combined with `--cell-groups`.
+For single-cell data, interaction testing with `--model p_glmm_sc` or `--model lmm_sc` fits a random-slope null model: a per-donor random intercept plus independent random slopes on the K interaction covariates. When `K = 1`, the random-effect covariance is an unstructured 2×2 matrix with intercept variance (`tau0`), slope variance (`tau1`), and intercept–slope covariance (`tau01`). When `K > 1`, the covariance is diagonal with a separate variance for the intercept and for each random slope (no covariances); the variant file reports only the intercept variance (`tau0`). `lmm_sc` additionally estimates a residual variance (`sigma2`). When covariates are provided in single-cell (cell-level) format, quasar splits each interaction covariate into between-donor (`{interaction_cov}_b`) and within-donor (`{interaction_cov}_w`) components and tests the interaction on the within-donor component (`{interaction_cov}_w`). With multiple interaction covariates (`K > 1`), those within-donor covariates are additionally scaled by `1/sqrt(K)` after centering and scaling. `--interaction` cannot be combined with `--cell-groups`.
+
+For each interaction covariate, quasar inspects its values and automatically augments the nuisance covariates as follows:
+
+* if the covariate has `<=10` unique finite values, it is treated as categorical and no squared nuisance term is added;
+* if it has `>10` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which contains the square of the covariate 
 
 ## QTL mapping modes
 
@@ -140,7 +145,7 @@ The quasar software package supports a wide range of statistical models used to 
 * `p_glmm`: Poisson generalised linear mixed model (GLMM)
 * `p_glm`: Poisson GLM (**not recommended** due to producing a very high rate of false positives)
 * `nb_glmm`: negative binomial GLMM (**not generally recommended** due to producing highly similar results to the Poisson GLMM while being slower, can be used if there is known to be high relatedness between samples)
-* `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data. Without `--interaction` this is a random-intercept model; with `--interaction` it fits a per-donor random intercept and independent random slopes on the K interaction covariates (shared slope variance). Expects raw count data.
+* `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data. Without `--interaction` this is a random-intercept model; with `--interaction` it fits a per-donor random intercept and independent random slopes on the K interaction covariates (unstructured 2×2 covariance when `K = 1`; diagonal with a separate variance per random effect when `K > 1`). Expects raw count data.
 * `lmm_sc`: A linear mixed model for single-cell-level data (random intercept per donor) accounting for repeated measures. Requires normalised single-cell expression values as input (e.g. log-normalised expression), not raw counts.
 
 When the model is a mixed model i.e. is specified to be any of `lmm`, `p_glmm`, `nb_glmm` the --grm flag (see below) must be used to specify a genetic relatedness matrix used in the covarariance matrix of the random effects. 
@@ -357,12 +362,12 @@ $$
 where $g$ is the vector of genotypes and $x_k$ is the $k$-th interaction covariate. These values are denoted as `snp_*` and `snp_x_{interaction covariate}` respectively. For example if the interaction covariates were `sex` and `age` the output would be of the form:
 
 ```
-     feature_id            snp_id     chrom       pos      alt     ref     maf     snp_beta     snp_se     snp_pvalue    snp_x_sex_beta    snp_x_sex_se     snp_x_sex_pvalue    snp_x_age_beta    snp_x_age_se     snp_x_age_pvalue
-ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39        0.012      0.038         0.7385              0.02            0.03              0.5            0.01           0.02              0.6
+     feature_id            snp_id     chrom       pos      alt     ref     maf     snp_beta     snp_se     snp_pvalue    snp_x_sex_beta    snp_x_sex_se     snp_x_sex_pvalue    snp_x_age_beta    snp_x_age_se     snp_x_age_pvalue    snp_x_all_acat_pvalue
+ENSG00000100181    22:16849971A-T        22  16849971        T      A     0.39        0.012      0.038         0.7385              0.02            0.03              0.5            0.01           0.02              0.6              0.55
            ...
 ```
 
-In cis mode, the region file reports `main_acat_pvalue` and one `int_{name}_acat_pvalue` column per interaction covariate. For `p_glmm_sc` interaction fits the variant file also includes `tau0` (intercept variance), `tau1` (shared slope variance) and `tau01` (shared intercept-slope covariance).
+When \(K > 1\), `snp_x_all_acat_pvalue` is an ACAT combination of the per-covariate interaction \(p\)-values for that variant (a SNP-level test of any \(G \times x_k\)). In cis mode, the region file reports `main_acat_pvalue`, one `int_{name}_acat_pvalue` column per interaction covariate, and, when \(K > 1\), `int_all_acat_pvalue` (ACAT of `snp_x_all_acat_pvalue` across cis SNPs). For \(K = 1\) the all-covariate ACAT columns are omitted. For `p_glmm_sc` interaction fits with \(K = 1\), the variant file also includes `tau0` (intercept variance), `tau1` (slope variance), and `tau01` (intercept–slope covariance). When \(K > 1\), only `tau0` is reported.
 
 ## Option list
 

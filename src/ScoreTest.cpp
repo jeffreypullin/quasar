@@ -70,6 +70,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
         std::vector<double> main_pvals;
         std::vector<std::vector<double>> int_pvals(n_int);
+        std::vector<double> int_acat_pvals;
         std::vector<std::vector<double>> group_pvals_cis(use_cell_groups ? cell_groups.n_groups : 0);
         std::vector<double> group_het_pvals_cis;
         std::vector<double> group_linear_pvals_cis;
@@ -182,6 +183,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             std::vector<double> int_se(n_int, nan_val);
             std::vector<double> int_zscore(n_int, nan_val);
             std::vector<double> int_pval_snp(n_int, nan_val);
+            double int_acat_snp = nan_val;
 
             std::vector<double> group_betas;
             std::vector<double> group_ses;
@@ -402,18 +404,15 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     }
 
                     if (n_int > 0 && main_v > 0.0 && !std::isnan(main_v)) {
-                        Eigen::VectorXd v_cross = V.col(0).tail(static_cast<Eigen::Index>(n_int));
-                        Eigen::MatrixXd V_int = V.bottomRightCorner(static_cast<Eigen::Index>(n_int),
-                                                                    static_cast<Eigen::Index>(n_int));
-                        Eigen::VectorXd U_int = U.tail(static_cast<Eigen::Index>(n_int));
-                        Eigen::MatrixXd V_cond = V_int - v_cross * v_cross.transpose() / main_v;
-                        Eigen::VectorXd U_cond = U_int - v_cross * (main_u / main_v);
-                        Eigen::MatrixXd V_cond_inv = V_cond.inverse();
-                        Eigen::VectorXd beta_int = V_cond_inv * U_cond;
                         for (size_t ik = 0; ik < n_int; ++ik) {
-                            int_beta[ik] = beta_int(static_cast<Eigen::Index>(ik));
-                            int_se[ik] = std::sqrt(V_cond_inv(static_cast<Eigen::Index>(ik),
-                                                              static_cast<Eigen::Index>(ik)));
+                            const Eigen::Index k1 = static_cast<Eigen::Index>(ik + 1);
+                            const double u_k = U(k1);
+                            const double v_k = V(k1, k1);
+                            const double v_k0 = V(k1, 0);
+                            const double u_c = u_k - (v_k0 / main_v) * main_u;
+                            const double v_c = v_k - (v_k0 * v_k0) / main_v;
+                            int_beta[ik] = u_c / v_c;
+                            int_se[ik] = 1.0 / std::sqrt(v_c);
                             int_zscore[ik] = int_beta[ik] / int_se[ik];
                             if ((int_se[ik] < 0) || std::isnan(int_zscore[ik])) {
                                 int_beta[ik] = int_se[ik] = int_zscore[ik] = int_pval_snp[ik] = nan_val;
@@ -424,10 +423,24 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     }
                 }
 
+                if (n_int > 1) {
+                    std::vector<double> int_pvals_finite;
+                    int_pvals_finite.reserve(n_int);
+                    for (double p : int_pval_snp) {
+                        if (!std::isnan(p)) {
+                            int_pvals_finite.push_back(p);
+                        }
+                    }
+                    int_acat_snp = ACAT(int_pvals_finite);
+                }
+
                 if (mode == "cis") {
                     main_pvals.push_back(main_pval_snp);
                     for (size_t ik = 0; ik < n_int; ++ik) {
                         int_pvals[ik].push_back(int_pval_snp[ik]);
+                    }
+                    if (n_int > 1) {
+                        int_acat_pvals.push_back(int_acat_snp);
                     }
                 }
             }
@@ -457,9 +470,12 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     "\t" << model_fit.sigma2[i];
             } else if ((model == "p_glmm_sc") & params.do_interaction) {
                 variant_line << "\t" << model_fit.glmm_converged[i] <<
-                    "\t" << model_fit.tau0[i] <<
-                    "\t" << model_fit.tau1[i] <<
-                    "\t" << model_fit.tau01[i];
+                    "\t" << model_fit.tau0[i];
+                if (n_int == 1) {
+                    variant_line <<
+                        "\t" << model_fit.tau1[i] <<
+                        "\t" << model_fit.tau01[i];
+                }
             } else if ((model == "lmm_sc") & params.do_interaction) {
                 variant_line << "\t" << model_fit.lmm_converged[i] <<
                     "\t" << model_fit.sigma2[i] <<
@@ -478,6 +494,9 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                         int_beta[ik] << "\t" <<
                         int_se[ik] << "\t" <<
                         int_pval_snp[ik];
+                }
+                if (n_int > 1) {
+                    variant_line << "\t" << int_acat_snp;
                 }
             }
 
@@ -517,6 +536,9 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             if (params.do_interaction) {
                 for (size_t ik = 0; ik < n_int; ++ik) {
                     region_line << "\t" << ACAT(int_pvals[ik]);
+                }
+                if (n_int > 1) {
+                    region_line << "\t" << ACAT(int_acat_pvals);
                 }
             } 
 
