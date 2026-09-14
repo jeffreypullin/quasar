@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <limits>
 #include <boost/math/special_functions/beta.hpp>
+#include <boost/math/special_functions/gamma.hpp>
 
 void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoData& pheno_data, GRM& grm, CellGroups& cell_groups) {
 
@@ -500,9 +501,27 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             auto poisson = std::unique_ptr<Family>(new Poisson());
             GLMM_GRM p_glmm_grm(X, Y.col(i), offset, std::move(poisson), grm.mat);
             p_glmm_grm.fit();
-            
-            Y.col(i) = (Y.col(i).array() - p_glmm_grm.mu.array()) / p_glmm_grm.mu.array();
-            W.row(i) = p_glmm_grm.mu.array();
+
+            if (params.do_interaction) {
+                for (size_t j = 0; j < pheno_data.n_samples; ++j) {
+                    const double y = std::max(0.0, std::round(Y(j, i)));
+                    const double mu = std::max(p_glmm_grm.mu(j), 1e-12);
+                    double a = 0.0;
+                    if (y > 0.0) {
+                        a = boost::math::gamma_q(y, mu);
+                    }
+                    double b = boost::math::gamma_q(y + 1.0, mu);
+                    a = std::max(0.0, std::min(a, 1.0));
+                    b = std::max(a,   std::min(b, 1.0));
+                    double u = 0.5 * (a + b);
+                    u = std::max(1e-12, std::min(u, 1.0 - 1e-12));
+                    Y(j, i) = qnorm(u, true);
+                }
+                W.row(i).setOnes();
+            } else {
+                Y.col(i) = (Y.col(i).array() - p_glmm_grm.mu.array()) / p_glmm_grm.mu.array();
+                W.row(i) = p_glmm_grm.mu.array();
+            }
 
             Eigen::MatrixXd P = p_glmm_grm.P;
             Eigen::VectorXd w = p_glmm_grm.mu;
@@ -525,8 +544,6 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                 Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta + offset).array().exp()) / nb_glm.mu.array();
                 W.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
             } else {
-                // Mid-p quantile residual: Phi^{-1}((a+b)/2). Residual scale is
-                // estimated in the score test via sigma2.
                 const double size = 1.0 / nb_glm.phi;
                 for (size_t j = 0; j < pheno_data.n_samples; ++j) {
                     const double y_raw = Y(j, i);
@@ -577,8 +594,28 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             NBGLMM nb_glmm(X, Y.col(i), offset, grm.mat, use_apl);
             nb_glmm.fit();
 
-            Y.col(i) = (Y.col(i).array() - nb_glmm.mu.array()) / nb_glmm.mu.array();
-            W.row(i) = nb_glmm.mu.array() / (1 + nb_glmm.phi * nb_glmm.mu.array());
+            if (params.do_interaction) {
+                const double size = 1.0 / nb_glmm.phi;
+                for (size_t j = 0; j < pheno_data.n_samples; ++j) {
+                    const double y = std::max(0.0, std::round(Y(j, i)));
+                    const double mu = std::max(nb_glmm.mu(j), 1e-12);
+                    const double p = size / (mu + size);
+                    double a = 0.0;
+                    if (y > 0.0) {
+                        a = boost::math::ibeta(size, std::max(y, 1.0), p);
+                    }
+                    double b = boost::math::ibeta(size, y + 1.0, p);
+                    a = std::max(0.0, std::min(a, 1.0));
+                    b = std::max(a,   std::min(b, 1.0));
+                    double u = 0.5 * (a + b);
+                    u = std::max(1e-12, std::min(u, 1.0 - 1e-12));
+                    Y(j, i) = qnorm(u, true);
+                }
+                W.row(i).setOnes();
+            } else {
+                Y.col(i) = (Y.col(i).array() - nb_glmm.mu.array()) / nb_glmm.mu.array();
+                W.row(i) = nb_glmm.mu.array() / (1 + nb_glmm.phi * nb_glmm.mu.array());
+            }
 
             Eigen::MatrixXd P = nb_glmm.P;
             Eigen::VectorXd w = nb_glmm.mu;
