@@ -71,8 +71,8 @@ class NBGLMM {
             double delta1 = ((beta - beta_prev).cwiseAbs().cwiseQuotient(
                 (beta).cwiseAbs() + (beta_prev).cwiseAbs() + tol_vec_beta)).maxCoeff();
             double delta2 = std::abs(sigma2 - sigma2_prev) / (std::abs(sigma2) + std::abs(sigma2_prev) + tol);
-            double delta3 = std::abs(phi - phi_prev) / (std::abs(phi) + std::abs(phi_prev) + tol);
-            glmm_converged = (2 * std::max({delta1, delta2, delta3})) < tol;
+            double relative_phi_delta = std::abs(phi - phi_prev) / (1.0 + std::abs(phi_prev));
+            glmm_converged = ((2 * std::max(delta1, delta2)) < tol) && (relative_phi_delta < tol);
         }
 
         void fit() {
