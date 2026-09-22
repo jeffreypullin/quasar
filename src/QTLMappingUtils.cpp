@@ -18,6 +18,7 @@
 #include "QTLMappingUtils.hpp"
 
 #include <boost/math/distributions/normal.hpp>
+#include <boost/math/distributions/students_t.hpp>
 #include <boost/math/distributions/cauchy.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
 #include <cmath>
@@ -33,6 +34,14 @@ double pnorm(double x, bool lower) {
         return boost::math::cdf(N01, x);
     } 
     return boost::math::cdf(boost::math::complement(N01, x));
+}
+
+double pt(double x, double df, bool lower) {
+    boost::math::students_t T(df);
+    if (lower) {
+        return boost::math::cdf(T, x);
+    }
+    return boost::math::cdf(boost::math::complement(T, x));
 }
 
 double p_bd = 1e-300;

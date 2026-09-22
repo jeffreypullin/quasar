@@ -262,13 +262,22 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     }
                 }
 
-                main_beta = u / v;
-                main_se = 1 / std::sqrt(v);
                 if (v > 0) {
+                    main_beta = u / v;
+                    main_se = 1 / std::sqrt(v);
                     main_zscore = main_beta / main_se;
-                    main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
+
+                    if (model == "lm") {
+                        const double df = n_samples - n_cov - 1;
+                        const double s = (df + 1 - main_zscore * main_zscore) / df;
+                        main_se = std::sqrt(s / v);
+                        main_zscore = main_beta / main_se;
+                        main_pval_snp = 2 * pt(std::abs(main_zscore), df, false);
+                    } else {
+                        main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
+                    }
                 } else {
-                    main_zscore = main_pval_snp = nan_val;
+                    main_beta = main_se = main_zscore = main_pval_snp = nan_val;
                 }
 
                 if (mode == "cis") {

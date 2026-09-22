@@ -38,6 +38,7 @@ Eigen::VectorXi assign_quantile_groups(const Eigen::VectorXd& x, int n_groups);
 double ACAT(const std::vector<double>& pvals);
 
 double pnorm(double x, bool lower);
+double pt(double x, double df, bool lower);
 double qnorm(double p, bool lower);
 double qcauchy(double p, bool lower);
 double pcauchy(double x, bool lower);
