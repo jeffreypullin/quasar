@@ -1,5 +1,11 @@
 # Change log
 
+## [1.2.1] - 22/9/2026
+
+### Fixed
+
+Fix p-value computation bug introduced in 1.2.0
+
 ## [1.2.0] - 24/8/2026
 
 ### Breaking changes
