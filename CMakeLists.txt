@@ -40,6 +40,7 @@ target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/brent/)
 enable_testing()
 
 add_executable(quasar_tests EXCLUDE_FROM_ALL tests/test_smoke.cpp)
+add_dependencies(quasar_tests quasar)
 target_include_directories(quasar_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(quasar_tests PRIVATE
     EXAMPLE_DATA_DIR="${CMAKE_SOURCE_DIR}/example"

@@ -49,6 +49,14 @@ std::vector<std::string> split_string(const std::string& s, char delim) {
     return tokens;
 }
 
+// Non-NaN p-values must be in [0, 1]. NaN is allowed; infinities are not.
+bool pvalue_ok(double pval) {
+    if (std::isnan(pval)) {
+        return true;
+    }
+    return std::isfinite(pval) && pval >= 0.0 && pval <= 1.0;
+}
+
 bool all_variant_pvalues_valid(const std::string& path) {
     std::ifstream f(path);
     std::string line;
@@ -58,7 +66,7 @@ bool all_variant_pvalues_valid(const std::string& path) {
         auto tokens = split_string(line, '\t');
         if (tokens.size() > 9) {
             double pval = std::stod(tokens[9]);
-            if (pval < 0.0 || pval > 1.0 || std::isnan(pval)) {
+            if (!pvalue_ok(pval)) {
                 return false;
             }
         }
@@ -75,7 +83,7 @@ bool all_gene_pvalues_valid(const std::string& path) {
         auto tokens = split_string(line, '\t');
         if (!tokens.empty()) {
             double pval = std::stod(tokens.back());
-            if (pval < 0.0 || pval > 1.0 || std::isnan(pval)) {
+            if (!pvalue_ok(pval)) {
                 return false;
             }
         }
@@ -103,19 +111,11 @@ TEST_CASE("LM smoke test") {
         "--model lm "
         "--mode cis";
 
-    SECTION("quasar runs successfully") {
-        int exit_code = run_quasar(cmd);
-        REQUIRE(exit_code == 0);
-    }
+    REQUIRE(run_quasar(cmd) == 0);
+    REQUIRE(file_exists(out_prefix + "-quasar-cis-variant.txt"));
+    REQUIRE(file_exists(out_prefix + "-quasar-cis-region.txt"));
 
-    SECTION("output files are created") {
-        run_quasar(cmd);
-        REQUIRE(file_exists(out_prefix + "-quasar-cis-variant.txt"));
-        REQUIRE(file_exists(out_prefix + "-quasar-cis-region.txt"));
-    }
-
-    SECTION("variant output has expected header") {
-        run_quasar(cmd);
+    {
         std::ifstream f(out_prefix + "-quasar-cis-variant.txt");
         std::string header;
         std::getline(f, header);
@@ -123,21 +123,10 @@ TEST_CASE("LM smoke test") {
         REQUIRE(header.find("pvalue") != std::string::npos);
     }
 
-    SECTION("all variant p-values are valid") {
-        run_quasar(cmd);
-        REQUIRE(all_variant_pvalues_valid(out_prefix + "-quasar-cis-variant.txt"));
-    }
-
-    SECTION("gene output has 20 genes") {
-        run_quasar(cmd);
-        // 1 header + 20 genes = 21 lines
-        REQUIRE(count_lines(out_prefix + "-quasar-cis-region.txt") == 21);
-    }
-
-    SECTION("all gene-level p-values are valid") {
-        run_quasar(cmd);
-        REQUIRE(all_gene_pvalues_valid(out_prefix + "-quasar-cis-region.txt"));
-    }
+    REQUIRE(all_variant_pvalues_valid(out_prefix + "-quasar-cis-variant.txt"));
+    // 1 header + 20 genes = 21 lines
+    REQUIRE(count_lines(out_prefix + "-quasar-cis-region.txt") == 21);
+    REQUIRE(all_gene_pvalues_valid(out_prefix + "-quasar-cis-region.txt"));
 
     cleanup_output(out_prefix);
 }
@@ -158,39 +147,20 @@ TEST_CASE("NB-GLM smoke test") {
         "--use-apl "
         "--mode cis";
 
-    SECTION("quasar runs successfully") {
-        int exit_code = run_quasar(cmd);
-        REQUIRE(exit_code == 0);
-    }
+    REQUIRE(run_quasar(cmd) == 0);
+    REQUIRE(file_exists(out_prefix + "-quasar-cis-variant.txt"));
+    REQUIRE(file_exists(out_prefix + "-quasar-cis-region.txt"));
 
-    SECTION("output files are created") {
-        run_quasar(cmd);
-        REQUIRE(file_exists(out_prefix + "-quasar-cis-variant.txt"));
-        REQUIRE(file_exists(out_prefix + "-quasar-cis-region.txt"));
-    }
-
-    SECTION("variant output includes phi column") {
-        run_quasar(cmd);
+    {
         std::ifstream f(out_prefix + "-quasar-cis-variant.txt");
         std::string header;
         std::getline(f, header);
         REQUIRE(header.find("phi") != std::string::npos);
     }
 
-    SECTION("all variant p-values are valid") {
-        run_quasar(cmd);
-        REQUIRE(all_variant_pvalues_valid(out_prefix + "-quasar-cis-variant.txt"));
-    }
-
-    SECTION("gene output has 20 genes") {
-        run_quasar(cmd);
-        REQUIRE(count_lines(out_prefix + "-quasar-cis-region.txt") == 21);
-    }
-
-    SECTION("all gene-level p-values are valid") {
-        run_quasar(cmd);
-        REQUIRE(all_gene_pvalues_valid(out_prefix + "-quasar-cis-region.txt"));
-    }
+    REQUIRE(all_variant_pvalues_valid(out_prefix + "-quasar-cis-variant.txt"));
+    REQUIRE(count_lines(out_prefix + "-quasar-cis-region.txt") == 21);
+    REQUIRE(all_gene_pvalues_valid(out_prefix + "-quasar-cis-region.txt"));
 
     cleanup_output(out_prefix);
 }
@@ -211,31 +181,12 @@ TEST_CASE("LMM smoke test") {
         "--model lmm "
         "--mode cis";
 
-    SECTION("quasar runs successfully") {
-        int exit_code = run_quasar(cmd);
-        REQUIRE(exit_code == 0);
-    }
-
-    SECTION("output files are created") {
-        run_quasar(cmd);
-        REQUIRE(file_exists(out_prefix + "-quasar-cis-variant.txt"));
-        REQUIRE(file_exists(out_prefix + "-quasar-cis-region.txt"));
-    }
-
-    SECTION("all variant p-values are valid") {
-        run_quasar(cmd);
-        REQUIRE(all_variant_pvalues_valid(out_prefix + "-quasar-cis-variant.txt"));
-    }
-
-    SECTION("gene output has 20 genes") {
-        run_quasar(cmd);
-        REQUIRE(count_lines(out_prefix + "-quasar-cis-region.txt") == 21);
-    }
-
-    SECTION("all gene-level p-values are valid") {
-        run_quasar(cmd);
-        REQUIRE(all_gene_pvalues_valid(out_prefix + "-quasar-cis-region.txt"));
-    }
+    REQUIRE(run_quasar(cmd) == 0);
+    REQUIRE(file_exists(out_prefix + "-quasar-cis-variant.txt"));
+    REQUIRE(file_exists(out_prefix + "-quasar-cis-region.txt"));
+    REQUIRE(all_variant_pvalues_valid(out_prefix + "-quasar-cis-variant.txt"));
+    REQUIRE(count_lines(out_prefix + "-quasar-cis-region.txt") == 21);
+    REQUIRE(all_gene_pvalues_valid(out_prefix + "-quasar-cis-region.txt"));
 
     cleanup_output(out_prefix);
 }

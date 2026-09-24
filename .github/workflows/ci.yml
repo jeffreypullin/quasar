@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main, quasar2.0]
+  pull_request:
+    branches: [main, quasar2.0]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ libboost-dev
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --target quasar quasar_tests -j"$(nproc)"
+
+      - name: Version
+        run: ./build/quasar --version
+
+      - name: Smoke tests
+        run: ctest --test-dir build --output-on-failure -R '^smoke_'
