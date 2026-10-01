@@ -39,6 +39,13 @@ double ACAT(const std::vector<double>& pvals);
 
 double pnorm(double x, bool lower);
 double pt(double x, double df, bool lower);
+
+void apply_score_t(double beta, double v, double z, double df,
+                   double& se, double& tstat, double& pval);
+
+void apply_conditional_score_t(double beta, double v, double z, double z_main2, double df,
+                               double& se, double& tstat, double& pval);
+
 double qnorm(double p, bool lower);
 double qcauchy(double p, bool lower);
 double pcauchy(double x, bool lower);

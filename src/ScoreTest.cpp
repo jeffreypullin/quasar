@@ -25,6 +25,7 @@
 #include <numeric>
 #include <algorithm>
 #include <limits>
+#include <cmath>
 #include <Eigen/Eigenvalues>
 
 void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoData& pheno_data, CovData& cov_data, CellGroups& cell_groups) {
@@ -42,6 +43,14 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     int n_samples = X.rows();
     int n_cov = X.cols();
     size_t n_snps = geno_data.n_snps;
+
+    // Single-cell genotypes are constant within a donor, so the SNP test is a
+    // donor-level regression. X.rows() is the cell count when covariates are
+    // single-cell, so the t correction must not use it.
+    const bool use_donor_t = model == "lmm_sc" || model == "p_glmm_sc";
+    const int n_donors = use_donor_t ? static_cast<int>(pheno_data.cell_counts.size()) : 0;
+    const int donor_n_cov = use_donor_t ? static_cast<int>(cov_data.n_cov) : 0;
+    const double donor_df = static_cast<double>(n_donors - donor_n_cov - 1);
 
     bool use_cell_groups = cell_groups.n_groups > 0;
     std::vector<double> group_linear_scores;
@@ -266,15 +275,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     main_beta = u / v;
                     main_se = 1 / std::sqrt(v);
                     main_zscore = main_beta / main_se;
+                    main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
 
                     if (model == "lm") {
                         const double df = n_samples - n_cov - 1;
-                        const double s = (df + 1 - main_zscore * main_zscore) / df;
-                        main_se = std::sqrt(s / v);
-                        main_zscore = main_beta / main_se;
-                        main_pval_snp = 2 * pt(std::abs(main_zscore), df, false);
-                    } else {
-                        main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
+                        apply_score_t(main_beta, v, main_zscore, df, main_se, main_zscore, main_pval_snp);
+                    } else if (use_donor_t) {
+                        apply_score_t(main_beta, v, main_zscore, donor_df, main_se, main_zscore, main_pval_snp);
                     }
                 } else {
                     main_beta = main_se = main_zscore = main_pval_snp = nan_val;
@@ -315,6 +322,17 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                             group_betas[gi] = beta_g;
                             group_ses[gi] = se_g;
                             group_pvals[gi] = 2 * pnorm(std::abs(z_g), false);
+                            if (use_donor_t) {
+                                int n_donors_g = 0;
+                                for (Eigen::Index d = 0; d < ZtSigma_invZ_diag_g.size(); ++d) {
+                                    if (ZtSigma_invZ_diag_g(d) > 0.0) {
+                                        ++n_donors_g;
+                                    }
+                                }
+                                const double df_g = static_cast<double>(n_donors_g - donor_n_cov - 1);
+                                apply_score_t(beta_g, v_g, z_g, df_g, se_g, z_g, group_pvals[gi]);
+                                group_ses[gi] = se_g;
+                            }
                         }
                     }
                     het_result = compute_cochran_q(group_betas, group_ses);
@@ -410,10 +428,15 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     main_beta = main_u / main_v;
                     main_se = 1 / std::sqrt(main_v);
                     main_zscore = main_beta / main_se;
+                    const double z_main_score = main_zscore;
                     if ((main_se < 0) || std::isnan(main_zscore)) {
                         main_beta = main_se = main_zscore = main_pval_snp = nan_val;
                     } else {
                         main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
+                        if (use_donor_t) {
+                            apply_score_t(main_beta, main_v, main_zscore, donor_df,
+                                          main_se, main_zscore, main_pval_snp);
+                        }
                     }
 
                     if (n_int > 0 && main_v > 0.0 && !std::isnan(main_v)) {
@@ -431,6 +454,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                                 int_beta[ik] = int_se[ik] = int_zscore[ik] = int_pval_snp[ik] = nan_val;
                             } else {
                                 int_pval_snp[ik] = 2 * pnorm(std::abs(int_zscore[ik]), false);
+                                if (use_donor_t && std::isfinite(z_main_score)) {
+                                    const double df_int = donor_df - 1.0;
+                                    apply_conditional_score_t(
+                                        int_beta[ik], v_c, int_zscore[ik],
+                                        z_main_score * z_main_score, df_int,
+                                        int_se[ik], int_zscore[ik], int_pval_snp[ik]);
+                                }
                             }
                         }
                     }

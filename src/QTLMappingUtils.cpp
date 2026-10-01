@@ -44,6 +44,37 @@ double pt(double x, double df, bool lower) {
     return boost::math::cdf(boost::math::complement(T, x));
 }
 
+void apply_score_t(double beta, double v, double z, double df,
+                   double& se, double& tstat, double& pval) {
+    if (!(df > 0.0)) {
+        return;
+    }
+    const double s = (df + 1.0 - z * z) / df;
+    se = std::sqrt(s / v);
+    tstat = beta / se;
+    if (std::isnan(tstat)) {
+        pval = std::numeric_limits<double>::quiet_NaN();
+        return;
+    }
+    pval = 2.0 * pt(std::abs(tstat), df, false);
+}
+
+void apply_conditional_score_t(double beta, double v, double z, double z_main2, double df,
+                               double& se, double& tstat, double& pval) {
+    if (!(df > 0.0)) {
+        return;
+    }
+    const double d0 = df + 2.0;
+    const double s = (d0 - z_main2 - z * z) / df;
+    se = std::sqrt(s / v);
+    tstat = beta / se;
+    if (std::isnan(tstat)) {
+        pval = std::numeric_limits<double>::quiet_NaN();
+        return;
+    }
+    pval = 2.0 * pt(std::abs(tstat), df, false);
+}
+
 double p_bd = 1e-300;
 double q_bd = 3e+299;
 
