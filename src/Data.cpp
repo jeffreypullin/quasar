@@ -1737,3 +1737,74 @@ Eigen::VectorXd NCellsData::align_to_samples(const std::vector<std::string>& sam
 
     return out;
 }
+
+Eigen::VectorXd donor_cum_ns(const Eigen::VectorXd& ns) {
+    Eigen::VectorXd cum = Eigen::VectorXd::Zero(ns.size());
+    for (Eigen::Index i = 1; i < ns.size(); ++i) {
+        cum(i) = cum(i - 1) + ns(i - 1);
+    }
+    return cum;
+}
+
+bool covariates_constant_within_donor(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+) {
+    for (Eigen::Index i = 0; i < ns.size(); ++i) {
+        const Eigen::Index start = static_cast<Eigen::Index>(cum(i));
+        const Eigen::Index n_i = static_cast<Eigen::Index>(ns(i));
+        if (n_i <= 1) {
+            continue;
+        }
+        const auto x0 = X.row(start);
+        for (Eigen::Index j = 1; j < n_i; ++j) {
+            if ((X.row(start + j) - x0).cwiseAbs().maxCoeff() > 1e-12) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+Eigen::MatrixXd donor_covariates(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+) {
+    Eigen::MatrixXd X_d(ns.size(), X.cols());
+    for (Eigen::Index i = 0; i < ns.size(); ++i) {
+        X_d.row(i) = X.row(static_cast<Eigen::Index>(cum(i)));
+    }
+    return X_d;
+}
+
+Eigen::VectorXd donor_offsets(
+    const Eigen::VectorXd& offset,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+) {
+    Eigen::VectorXd out(ns.size());
+    for (Eigen::Index i = 0; i < ns.size(); ++i) {
+        const Eigen::Index start = static_cast<Eigen::Index>(cum(i));
+        const Eigen::Index n_i = static_cast<Eigen::Index>(ns(i));
+        const auto off_i = offset.segment(start, n_i);
+        const double m = off_i.maxCoeff();
+        out(i) = m + std::log((off_i.array() - m).exp().sum());
+    }
+    return out;
+}
+
+Eigen::VectorXd donor_totals(
+    const Eigen::VectorXd& y,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+) {
+    Eigen::VectorXd out(ns.size());
+    for (Eigen::Index i = 0; i < ns.size(); ++i) {
+        const Eigen::Index start = static_cast<Eigen::Index>(cum(i));
+        const Eigen::Index n_i = static_cast<Eigen::Index>(ns(i));
+        out(i) = y.segment(start, n_i).sum();
+    }
+    return out;
+}

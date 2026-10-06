@@ -61,6 +61,7 @@ struct Params {
 
     std::string out;
     bool verbose = false;
+    bool ablate_donor_totals = false;
 };
 
 #endif

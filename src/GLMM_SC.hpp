@@ -18,8 +18,8 @@
 #define GLMM_SC_H
 
 #include <Eigen/Dense>
-#include <limits>
 #include <iostream>
+#include <vector>
 #include "GLM.hpp"
 #include "Family.hpp"
 
@@ -79,11 +79,6 @@ class GLMM_SC {
 
         void update_eta() {
             eta = X * beta + offset + u;
-            for (size_t i = 0; i < n; i++) {
-                if (eta(i) < -30 || eta(i) > 30) {
-                    eta(i) = std::numeric_limits<double>::epsilon();
-                }
-            }
         }
 
         void update_mu() {
@@ -326,7 +321,7 @@ class GLMM_SC {
             update_w();
             compute_wis();
             update_y_tilde();
-            sigma2 = 1;
+            sigma2 = 1e-2;
             iter = 0;
             glmm_converged = false;
             step_size = 1;

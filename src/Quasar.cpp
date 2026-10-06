@@ -58,11 +58,14 @@ int main(int argc, char* argv[]) {
         ("o,out", "Output file prefix", cxxopts::value<std::string>(params.out))
         ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
 
+    options.add_options("hidden")
+        ("ablate-donor-totals", "", cxxopts::value<bool>(params.ablate_donor_totals));
+
     // Parse the arguments.
     auto result = options.parse(argc, argv);
 
     if (result.count("help")) {
-        std::cout << options.help() << std::endl;
+        std::cout << options.help({""}) << std::endl;
         exit(0);
     }
 
@@ -200,6 +203,10 @@ int main(int argc, char* argv[]) {
 
     if (params.model == "nb_glmm") {
         std::cout << "\nWarning: using the NB-GLMM is not recommended, use the Poisson GLMM instead." << std::endl;
+    }
+
+    if (params.ablate_donor_totals) {
+        std::cout << "\nWarning: ablation flags should generally not be used." << std::endl;
     }
 
     bool mixed_model = params.model == "lmm" || params.model == "p_glmm" || params.model == "nb_glmm";

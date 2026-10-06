@@ -128,6 +128,28 @@ class GRM {
 
 size_t align_sc_cell_ids(PhenoData& pheno_data, CovData& cov_data);
 
+Eigen::VectorXd donor_cum_ns(const Eigen::VectorXd& ns);
+bool covariates_constant_within_donor(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+);
+Eigen::MatrixXd donor_covariates(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+);
+Eigen::VectorXd donor_offsets(
+    const Eigen::VectorXd& offset,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+);
+Eigen::VectorXd donor_totals(
+    const Eigen::VectorXd& y,
+    const Eigen::VectorXd& ns,
+    const Eigen::VectorXd& cum
+);
+
 class CellGroups {
 
   public:

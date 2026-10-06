@@ -40,6 +40,7 @@
 #include <numeric>
 #include <algorithm>
 #include <limits>
+#include <cmath>
 #include <boost/math/special_functions/beta.hpp>
 #include <boost/math/special_functions/gamma.hpp>
 
@@ -156,23 +157,39 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         const size_t N_sc = static_cast<size_t>(X.rows());
         const size_t c_sc = static_cast<size_t>(X.cols());
         const size_t n_donors_sc = static_cast<size_t>(ns.size());
-        std::vector<size_t> cum_ns_sc;
+        const Eigen::VectorXd cum_ns_sc = donor_cum_ns(ns);
         if (cell_groups.n_groups > 0) {
             if (cell_groups.cell_to_group.size() != N_sc) {
                 std::cerr << "Error: cell_to_group size does not match number of cells when fitting per-group GLMMs." << std::endl;
                 std::exit(1);
             }
-            cum_ns_sc.assign(n_donors_sc, 0);
-            for (size_t d = 1; d < n_donors_sc; ++d) {
-                cum_ns_sc[d] = cum_ns_sc[d - 1] + static_cast<size_t>(ns(static_cast<Eigen::Index>(d - 1)));
-            }
         }
 
-        std::cout <<"\nFitting single-cell Poisson GLMMs..." << std::endl; 
+        const bool collapse_donors = !params.ablate_donor_totals &&
+            covariates_constant_within_donor(X, ns, cum_ns_sc);
+        Eigen::MatrixXd X_d;
+        Eigen::VectorXd offset_d;
+        Eigen::VectorXd ns_d;
+        if (collapse_donors) {
+            X_d = donor_covariates(X, ns, cum_ns_sc);
+            offset_d = donor_offsets(offset, ns, cum_ns_sc);
+            ns_d = Eigen::VectorXd::Ones(ns.size());
+        }
+
+        std::cout <<"\nFitting single-cell Poisson GLMMs..." << std::endl;
+        if (collapse_donors) {
+            std::cout << "Covariates are constant within donor, collapsing to donor totals..." << std::endl;
+        }
         for (int i = 0; i < n_pheno; ++i) {
 
             auto poisson = std::unique_ptr<Family>(new Poisson());
-            GLMM_SC p_glmm_sc(X, pheno_data.sc_data.col(i), offset, std::move(poisson), ns);
+            Eigen::MatrixXd& X_fit = collapse_donors ? X_d : X;
+            Eigen::VectorXd& offset_fit = collapse_donors ? offset_d : offset;
+            Eigen::VectorXd& ns_fit = collapse_donors ? ns_d : ns;
+            Eigen::VectorXd y_fit = collapse_donors
+                ? donor_totals(pheno_data.sc_data.col(i), ns, cum_ns_sc)
+                : Eigen::VectorXd(pheno_data.sc_data.col(i));
+            GLMM_SC p_glmm_sc(X_fit, y_fit, offset_fit, std::move(poisson), ns_fit);
             p_glmm_sc.fit();
 
             Y.col(i) = p_glmm_sc.y_out;
@@ -200,47 +217,106 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                 Eigen::VectorXd y_col = pheno_data.sc_data.col(i);
 
                 for (size_t gi = 0; gi < cell_groups.n_groups; ++gi) {
-                    std::vector<size_t> cell_inds_g;
-                    cell_inds_g.reserve(N_sc);
                     std::vector<size_t> donor_keep_g;
-                    std::vector<int> ns_g_kept;
                     donor_keep_g.reserve(n_donors_sc);
-                    ns_g_kept.reserve(n_donors_sc);
 
-                    for (size_t d = 0; d < n_donors_sc; ++d) {
-                        const size_t start = cum_ns_sc[d];
-                        const size_t end = start + static_cast<size_t>(ns(static_cast<Eigen::Index>(d)));
-                        int n_cells_d_g = 0;
-                        for (size_t k = start; k < end; ++k) {
-                            if (cell_groups.cell_to_group[k] == static_cast<int>(gi)) {
-                                cell_inds_g.push_back(k);
-                                n_cells_d_g++;
+                    Eigen::MatrixXd X_g;
+                    Eigen::VectorXd y_g;
+                    Eigen::VectorXd offset_g;
+                    Eigen::VectorXd ns_g;
+
+                    if (collapse_donors) {
+                        std::vector<double> y_kept;
+                        std::vector<double> offset_kept;
+                        y_kept.reserve(n_donors_sc);
+                        offset_kept.reserve(n_donors_sc);
+                        for (size_t d = 0; d < n_donors_sc; ++d) {
+                            const size_t start = static_cast<size_t>(cum_ns_sc(static_cast<Eigen::Index>(d)));
+                            const size_t end = start + static_cast<size_t>(ns(static_cast<Eigen::Index>(d)));
+                            double y_sum = 0.0;
+                            double off_max = -std::numeric_limits<double>::infinity();
+                            int n_cells_d_g = 0;
+                            for (size_t k = start; k < end; ++k) {
+                                if (cell_groups.cell_to_group[k] == static_cast<int>(gi)) {
+                                    y_sum += y_col(static_cast<Eigen::Index>(k));
+                                    off_max = std::max(off_max, offset(static_cast<Eigen::Index>(k)));
+                                    n_cells_d_g++;
+                                }
+                            }
+                            if (n_cells_d_g == 0) {
+                                continue;
+                            }
+                            double exp_sum = 0.0;
+                            for (size_t k = start; k < end; ++k) {
+                                if (cell_groups.cell_to_group[k] == static_cast<int>(gi)) {
+                                    exp_sum += std::exp(offset(static_cast<Eigen::Index>(k)) - off_max);
+                                }
+                            }
+                            donor_keep_g.push_back(d);
+                            y_kept.push_back(y_sum);
+                            offset_kept.push_back(off_max + std::log(exp_sum));
+                        }
+                        const size_t n_donors_g = donor_keep_g.size();
+                        X_g.resize(static_cast<Eigen::Index>(n_donors_g), static_cast<Eigen::Index>(c_sc));
+                        y_g.resize(static_cast<Eigen::Index>(n_donors_g));
+                        offset_g.resize(static_cast<Eigen::Index>(n_donors_g));
+                        ns_g = Eigen::VectorXd::Ones(static_cast<Eigen::Index>(n_donors_g));
+                        for (size_t d = 0; d < n_donors_g; ++d) {
+                            const Eigen::Index dst = static_cast<Eigen::Index>(d);
+                            X_g.row(dst) = X_d.row(static_cast<Eigen::Index>(donor_keep_g[d]));
+                            y_g(dst) = y_kept[d];
+                            offset_g(dst) = offset_kept[d];
+                        }
+                    } else {
+                        std::vector<size_t> cell_inds_g;
+                        cell_inds_g.reserve(N_sc);
+                        std::vector<int> ns_g_kept;
+                        ns_g_kept.reserve(n_donors_sc);
+                        for (size_t d = 0; d < n_donors_sc; ++d) {
+                            const size_t start = static_cast<size_t>(cum_ns_sc(static_cast<Eigen::Index>(d)));
+                            const size_t end = start + static_cast<size_t>(ns(static_cast<Eigen::Index>(d)));
+                            int n_cells_d_g = 0;
+                            for (size_t k = start; k < end; ++k) {
+                                if (cell_groups.cell_to_group[k] == static_cast<int>(gi)) {
+                                    cell_inds_g.push_back(k);
+                                    n_cells_d_g++;
+                                }
+                            }
+                            if (n_cells_d_g > 0) {
+                                donor_keep_g.push_back(d);
+                                ns_g_kept.push_back(n_cells_d_g);
                             }
                         }
-                        if (n_cells_d_g > 0) {
-                            donor_keep_g.push_back(d);
-                            ns_g_kept.push_back(n_cells_d_g);
+                        const size_t cells_g = cell_inds_g.size();
+                        const size_t n_donors_g = donor_keep_g.size();
+                        X_g.resize(static_cast<Eigen::Index>(cells_g), static_cast<Eigen::Index>(c_sc));
+                        y_g.resize(static_cast<Eigen::Index>(cells_g));
+                        offset_g.resize(static_cast<Eigen::Index>(cells_g));
+                        for (size_t k = 0; k < cells_g; ++k) {
+                            const Eigen::Index src = static_cast<Eigen::Index>(cell_inds_g[k]);
+                            const Eigen::Index dst = static_cast<Eigen::Index>(k);
+                            X_g.row(dst) = X.row(src);
+                            y_g(dst) = y_col(src);
+                            offset_g(dst) = offset(src);
+                        }
+                        ns_g.resize(static_cast<Eigen::Index>(n_donors_g));
+                        for (size_t d = 0; d < n_donors_g; ++d) {
+                            ns_g(static_cast<Eigen::Index>(d)) = static_cast<double>(ns_g_kept[d]);
                         }
                     }
 
-                    const size_t cells_g = cell_inds_g.size();
                     const size_t n_donors_g = donor_keep_g.size();
-
-                    Eigen::MatrixXd X_g(cells_g, c_sc);
-                    Eigen::VectorXd y_g(cells_g);
-                    Eigen::VectorXd offset_g(cells_g);
-                    for (size_t k = 0; k < cells_g; ++k) {
-                        const Eigen::Index src = static_cast<Eigen::Index>(cell_inds_g[k]);
-                        const Eigen::Index dst = static_cast<Eigen::Index>(k);
-                        X_g.row(dst) = X.row(src);
-                        y_g(dst) = y_col(src);
-                        offset_g(dst) = offset(src);
+                    if (n_donors_g == 0) {
+                        XtWX_inv_g[gi].setConstant(nan_val);
+                        Xty_res_g[gi].setConstant(nan_val);
+                        XtWZ_g[gi].setConstant(nan_val);
+                        y_out_g[gi].setConstant(nan_val);
+                        ZtSigma_invZ_diag_g[gi].setConstant(nan_val);
+                        ZtSigma_invX_g[gi].setConstant(nan_val);
+                        XtSigma_invX_inv_g[gi].setConstant(nan_val);
+                        converged_g[gi] = false;
+                        continue;
                     }
-                    Eigen::VectorXd ns_g(static_cast<Eigen::Index>(n_donors_g));
-                    for (size_t d = 0; d < n_donors_g; ++d) {
-                        ns_g(static_cast<Eigen::Index>(d)) = static_cast<double>(ns_g_kept[d]);
-                    }
-
                     auto poisson_g = std::unique_ptr<Family>(new Poisson());
                     GLMM_SC fit_g(X_g, y_g, offset_g, std::move(poisson_g), ns_g);
                     fit_g.fit();
