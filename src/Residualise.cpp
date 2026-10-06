@@ -21,6 +21,7 @@
 #include "ModelFit.hpp"
 #include "GLM.hpp"
 #include "LM.hpp"
+#include "LM_CW.hpp"
 #include "LMM.hpp"
 #include "LMM_SC.hpp"
 #include "LMM_SC_INT.hpp"
@@ -58,7 +59,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
 
     int n_pheno = pheno_data.n_pheno;
 
-    if (params.model == "lmm" || params.model == "lm") {
+    if (params.model == "lmm" || params.model == "lm" || params.model == "lm_cw") {
         std::cout << "\nPerforming rank normalization..." << std::endl;
         rank_normalize(Y); 
         std::cout << "Rank normalization finished." << std::endl;
@@ -492,6 +493,22 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             Y.col(i) = (Y.col(i) - X * lm.beta) / std::sqrt(lm.s);
         }
         std::cout << "Null LMs fitted." << std::endl;
+
+    } else if (params.model == "lm_cw") {
+
+        std::cout << "\nFitting null LMs with cell-number weights..." << std::endl;
+        Eigen::VectorXd sample_ns = pheno_data.sample_n_cells;
+        for (int i = 0; i < n_pheno; ++i) {
+
+            LM_CW lm_cw(X, Y.col(i), sample_ns);
+            lm_cw.fit();
+
+            Y.col(i) = (Y.col(i) - X * lm_cw.beta) / std::sqrt(lm_cw.sigma2);
+            W.row(i) = lm_cw.w;
+            sigma2.push_back(lm_cw.sigma2);
+            tau0.push_back(lm_cw.delta);
+        }
+        std::cout << "Null LMs with cell weights fitted." << std::endl;
 
     } else if (params.model == "p_glmm" || params.model == "p_glmm_grm") {
         

@@ -43,6 +43,7 @@ struct Params {
     std::string fit_file;
     std::string cell_groups_file;
     std::string offset_file;
+    std::string n_cells_file;
 
     std::string interaction_cov;
     std::vector<std::string> interaction_covs;

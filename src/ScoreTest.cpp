@@ -130,7 +130,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             model == "p_glmm_grm" || 
             model == "p_glmm_sc" || 
             model == "nb_glmm" ||
-            model == "lmm_sc") {
+            model == "lmm_sc" ||
+            model == "lm_cw") {
             w = model_fit.W.row(i);
         } else {
             w = Eigen::VectorXd::Ones(n_samples);
@@ -277,7 +278,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     main_zscore = main_beta / main_se;
                     main_pval_snp = 2 * pnorm(std::abs(main_zscore), false);
 
-                    if (model == "lm") {
+                    if (model == "lm" || model == "lm_cw") {
                         const double df = n_samples - n_cov - 1;
                         apply_score_t(main_beta, v, main_zscore, df, main_se, main_zscore, main_pval_snp);
                     } else if (use_donor_t) {
@@ -502,6 +503,9 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
             if (model == "p_glm") {
                 variant_line << "\t" << model_fit.glm_converged[i];
+            } else if (model == "lm_cw") {
+                variant_line << "\t" << model_fit.sigma2[i] <<
+                    "\t" << model_fit.tau0[i];
             } else if (model == "nb_glm") {
                 variant_line << "\t" << model_fit.glm_converged[i] <<
                     "\t" << model_fit.phi[i] <<

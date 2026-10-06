@@ -190,3 +190,34 @@ TEST_CASE("LMM smoke test") {
 
     cleanup_output(out_prefix);
 }
+
+TEST_CASE("LM_CW smoke test") {
+    std::string data_dir = EXAMPLE_DATA_DIR;
+    std::string build_dir = BUILD_DIR;
+    std::string out_prefix = build_dir + "/test_lm_cw_output";
+
+    cleanup_output(out_prefix);
+
+    std::string cmd =
+        "-p " + data_dir + "/chr22-n100 "
+        "-b " + data_dir + "/mean-pheno-n100.bed "
+        "-c " + data_dir + "/cov-n100.tsv "
+        "--n-cells-file " + data_dir + "/n-cells-n100.tsv "
+        "-o " + out_prefix + " "
+        "--model lm_cw "
+        "--mode cis";
+
+    REQUIRE(run_quasar(cmd) == 0);
+    REQUIRE(file_exists(out_prefix + "-quasar-cis-variant.txt"));
+    {
+        std::ifstream f(out_prefix + "-quasar-cis-variant.txt");
+        std::string header;
+        std::getline(f, header);
+        REQUIRE(header.find("delta") != std::string::npos);
+    }
+    REQUIRE(all_variant_pvalues_valid(out_prefix + "-quasar-cis-variant.txt"));
+    REQUIRE(count_lines(out_prefix + "-quasar-cis-region.txt") == 21);
+    REQUIRE(all_gene_pvalues_valid(out_prefix + "-quasar-cis-region.txt"));
+
+    cleanup_output(out_prefix);
+}

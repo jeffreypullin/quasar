@@ -351,6 +351,8 @@ std::string make_variant_header_line(const Params& params, const std::vector<std
 
     if (model == "p_glm") {
         line = line + "\tglm_converged";
+    } else if (model == "lm_cw") {
+        line = line + "\tsigma2\tdelta";
     } else if (model == "nb_glm") {
         line = line + "\tglm_converged\tphi\tphi_converged";
     } else if (model == "p_glmm" ||

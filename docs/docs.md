@@ -140,6 +140,7 @@ Note that trans-eQTL mapping can be affected by cross-mapping reads and paralogo
 The quasar software package supports a wide range of statistical models used to resiudalise the expression values. The supported models are:
 
 * `lm`: linear model
+* `lm_cw`: linear model with cell-count weights for pseudobulk data. Requires `--n-cells-file`.
 * `nb_glm`: negative binomial GLM 
 * `lmm`: linear mixed model
 * `p_glmm`: Poisson generalised linear mixed model (GLMM)
@@ -197,7 +198,7 @@ ENSG00000134242      39         43         45 ...
 
 When coordinates are omitted, all variants are tested and residual output (`{out-prefix}-resids.bed`) is written without `#chr`, `start`, or `end` columns. When coordinates are provided in `gwas` mode they are read and written back but are not used to define cis-windows. Modes `cis`, `trans`, and `residualise` require the four-column annotation format.
 
-For the count based models (i.e. `nb_glm`, `p_glm`, `p_glmm` and `nb_glmm`) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. `lm` and `lmm`) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.
+For the count based models (i.e. `nb_glm`, `p_glm`, `p_glmm` and `nb_glmm`) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. `lm`, `lm_cw` and `lmm`) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.
 
 #### Single-cell phenotype data
 
@@ -321,6 +322,22 @@ sample_2	AAACCTGAGAAAGTGG-1	7.44
 
 Every sample (bulk) or cell (single-cell) present in the phenotype data after sample intersection must appear in the offset file. Extra rows in the offset file are ignored with a warning.
 
+### n-cells file
+
+--n-cells-file
+
+The `lm_cw` model weights each pseudobulk sample by its number of aggregated cells. Pass a tab-separated file with columns `sample_id` and `n_cells`:
+
+```
+sample_id	n_cells
+sample_1	142
+sample_2	87
+sample_3	203
+...
+```
+
+`--n-cells-file` is required for `lm_cw` and cannot be used with other models. Every sample present in the phenotype data after sample intersection must appear in the file, and all `n_cells` values must be positive. Extra rows are ignored with a warning.
+
 ## Output
 
 In cis mode, quasar produces two files:
@@ -380,10 +397,11 @@ When \(K > 1\), `snp_x_all_acat_pvalue` is an ACAT combination of the per-covari
 |`--anno` | FILE | Required (single-cell; optional in `gwas` with `lmm_sc`) | Annotation file |
 |`--grm` | FILE | Optional | A (dense) genetic relatedness matrix |
 |`--offset-file` | FILE | Optional | Pre-computed log-scale offset |
+|`--n-cells-file` | FILE | Required (`lm_cw`) | Cells per pseudobulk sample |
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |
 |`--interaction` | STRING | Optional | Comma-separated covariate column names for interaction-QTL testing. Each name must be a column header in the covariate data. |
-|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_sc`, `lmm_sc`. |
+|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lm_cw`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_sc`, `lmm_sc`. |
 |`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
 |`--verbose` | FLAG | Optional | Write additional information to the console |

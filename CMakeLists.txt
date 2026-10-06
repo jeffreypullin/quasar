@@ -51,3 +51,4 @@ target_compile_definitions(quasar_tests PRIVATE
 add_test(NAME smoke_lm COMMAND quasar_tests "LM smoke test")
 add_test(NAME smoke_nb_glm COMMAND quasar_tests "NB-GLM smoke test")
 add_test(NAME smoke_lmm COMMAND quasar_tests "LMM smoke test")
+add_test(NAME smoke_lm_cw COMMAND quasar_tests "LM_CW smoke test")

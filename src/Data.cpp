@@ -1640,3 +1640,100 @@ Eigen::VectorXd OffsetData::align_to_cells(const std::vector<std::string>& cell_
 
     return out;
 }
+
+void NCellsData::read_n_cells_data() {
+
+    std::ifstream f(file);
+    if (!f.is_open()) {
+        std::cerr << "Error: Unable to open n-cells file: " << file << std::endl;
+        exit(1);
+    }
+
+    key_to_n_cells_.clear();
+
+    std::string line;
+    if (!std::getline(f, line)) {
+        std::cerr << "Error: n-cells file is empty: " << file << std::endl;
+        exit(1);
+    }
+    remove_carriage_return(line);
+    std::vector<std::string> tokens = string_split(line, ",\t ");
+
+    if (tokens.size() < 2 || tokens[0] != "sample_id" || tokens[1] != "n_cells") {
+        std::cerr << "Error: Invalid header in n-cells file. "
+                  << "Expected 'sample_id', 'n_cells'." << std::endl;
+        exit(1);
+    }
+
+    size_t row = 1;
+    while (std::getline(f, line)) {
+        row++;
+        remove_carriage_return(line);
+        if (line.empty()) {
+            continue;
+        }
+        tokens = string_split(line, ",\t ");
+
+        if (tokens.size() < 2) {
+            std::cerr << "Error: n-cells file at line " << row
+                      << " has fewer than 2 columns." << std::endl;
+            exit(1);
+        }
+
+        double value;
+        try {
+            value = std::stod(tokens[1]);
+        } catch (...) {
+            std::cerr << "Error: n-cells file at line " << row
+                      << " has a non-numeric n_cells '" << tokens[1] << "'." << std::endl;
+            exit(1);
+        }
+
+        if (value <= 0.0) {
+            std::cerr << "Error: n-cells file at line " << row
+                      << " has a non-positive n_cells '" << tokens[1] << "'." << std::endl;
+            exit(1);
+        }
+
+        auto inserted = key_to_n_cells_.emplace(tokens[0], value);
+        if (!inserted.second) {
+            std::cerr << "Error: Duplicate sample_id '" << tokens[0]
+                      << "' in n-cells file at line " << row << "." << std::endl;
+            exit(1);
+        }
+    }
+
+    f.close();
+
+    if (key_to_n_cells_.empty()) {
+        std::cerr << "Error: No n_cells values found in n-cells file." << std::endl;
+        exit(1);
+    }
+
+    std::cout << "Read " << format_with_commas(key_to_n_cells_.size())
+              << " n_cells values from n-cells file." << std::endl;
+}
+
+Eigen::VectorXd NCellsData::align_to_samples(const std::vector<std::string>& sample_ids) {
+
+    Eigen::VectorXd out(static_cast<Eigen::Index>(sample_ids.size()));
+    size_t n_assigned = 0;
+    for (size_t i = 0; i < sample_ids.size(); ++i) {
+        auto it = key_to_n_cells_.find(sample_ids[i]);
+        if (it == key_to_n_cells_.end()) {
+            std::cerr << "Error: sample_id '" << sample_ids[i]
+                      << "' is present in phenotype data but missing from n-cells file." << std::endl;
+            exit(1);
+        }
+        out(static_cast<Eigen::Index>(i)) = it->second;
+        n_assigned++;
+    }
+
+    if (n_assigned != key_to_n_cells_.size()) {
+        std::cerr << "Warning: " << (key_to_n_cells_.size() - n_assigned)
+                  << " sample_id(s) in n-cells file are not present in phenotype data; ignoring."
+                  << std::endl;
+    }
+
+    return out;
+}

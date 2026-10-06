@@ -41,6 +41,7 @@ class PhenoData {
       Eigen::MatrixXd data;
       Eigen::MatrixXd sc_data;
       Eigen::VectorXd offset;
+      Eigen::VectorXd sample_n_cells;
 
       std::vector<int> chrom;
       std::vector<int> start;
@@ -166,6 +167,22 @@ class OffsetData {
 
   private:
     std::unordered_map<std::string, double> key_to_offset_;
+};
+
+class NCellsData {
+
+  public:
+    std::string file;
+
+    NCellsData(std::string file) {
+      this->file = file;
+    }
+
+    void read_n_cells_data();
+    Eigen::VectorXd align_to_samples(const std::vector<std::string>& sample_ids);
+
+  private:
+    std::unordered_map<std::string, double> key_to_n_cells_;
 };
 
 #endif

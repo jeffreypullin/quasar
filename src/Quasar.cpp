@@ -45,6 +45,7 @@ int main(int argc, char* argv[]) {
         ("i,interaction", "Comma-separated covariate column names for GxE interaction testing", cxxopts::value<std::string>(params.interaction_cov))
         ("cell-groups", "File with `group` and `cell_id` columns assigning each cell to a group (single-cell only)", cxxopts::value<std::string>(params.cell_groups_file)->default_value("no-cell-groups"))
         ("offset-file", "File with pre-computed log-scale offsets", cxxopts::value<std::string>(params.offset_file)->default_value("no-offset-file"))
+        ("n-cells-file", "File with `sample_id` and `n_cells` columns giving cells per pseudobulk sample (model 'lm_cw')", cxxopts::value<std::string>(params.n_cells_file)->default_value("no-n-cells-file"))
         // Execution arguments.
         ("mode", "Mode to run quasar in (residualise, cis, trans, gwas)", cxxopts::value<std::string>(params.mode))
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
@@ -87,13 +88,14 @@ int main(int argc, char* argv[]) {
         params.model != "lmm_sc" &&
         params.model != "p_glmm" && 
         params.model != "lm" && 
+        params.model != "lm_cw" &&
         params.model != "p_glm" && 
         params.model != "nb_glm" && 
         params.model != "p_glmm_sc" &&
         params.model != "p_glmm_grm" &&
         params.model != "nb_glmm") {
-        std::cerr << "Invalid model specified. Please use 'lm', 'lmm', 'p_glm', 'nb_glm', 'p_glmm', "
-                  << "'p_glmm_sc', 'p_glmm_grm' or 'nb_glmm'." << std::endl;
+        std::cerr << "Invalid model specified. Please use 'lm', 'lm_cw', 'lmm', 'lmm_sc', 'p_glm', 'nb_glm', "
+                  << "'p_glmm', 'p_glmm_sc', 'p_glmm_grm' or 'nb_glmm'." << std::endl;
         exit(1);
     }
 
@@ -129,6 +131,21 @@ int main(int argc, char* argv[]) {
         params.data_type = "bulk";
     }
 
+    bool use_n_cells = params.n_cells_file != "no-n-cells-file";
+    if (params.model == "lm_cw") {
+        if (!use_n_cells) {
+            std::cerr << "Error: model `lm_cw` requires a cells-per-sample file (--n-cells-file)." << std::endl;
+            exit(1);
+        }
+        if (params.do_interaction) {
+            std::cerr << "Error: model `lm_cw` does not support --interaction." << std::endl;
+            exit(1);
+        }
+    } else if (use_n_cells) {
+        std::cerr << "Error: --n-cells-file can only be used with model `lm_cw`." << std::endl;
+        exit(1);
+    }
+
     if (params.data_type == "bulk" && (params.model == "p_glmm_sc" || params.model == "lmm_sc")) {
         std::cerr << "Error: models `p_glmm_sc` and `lmm_sc` are only compatible with single-cell data." << std::endl;
         exit(1);
@@ -148,9 +165,9 @@ int main(int argc, char* argv[]) {
 
     bool use_offset_file = params.offset_file != "no-offset-file";
     if (use_offset_file) {
-        if (params.model == "lm" || params.model == "lmm" || params.model == "lmm_sc") {
+        if (params.model == "lm" || params.model == "lm_cw" || params.model == "lmm" || params.model == "lmm_sc") {
             std::cerr << "Error: --offset-file cannot be used with models that do not use an offset "
-                      << "('lm', 'lmm', 'lmm_sc')." << std::endl;
+                      << "('lm', 'lm_cw', 'lmm', 'lmm_sc')." << std::endl;
             exit(1);
         }
         if (!params.resid_file.empty() && params.resid_file != "no-resid") {
@@ -344,6 +361,13 @@ int main(int argc, char* argv[]) {
 
     if (mixed_model) {
         grm.slice_samples(int_sample_ids);
+    }
+
+    if (use_n_cells) {
+        std::cout << "\nReading n-cells file..." << std::endl;
+        NCellsData n_cells_data(params.n_cells_file);
+        n_cells_data.read_n_cells_data();
+        pheno_data.sample_n_cells = n_cells_data.align_to_samples(pheno_data.sample_ids);
     }
     std::cout << "Running analysis for " << int_sample_ids.size() << " common samples across data inputs." << std::endl;
 
