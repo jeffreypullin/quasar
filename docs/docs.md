@@ -144,6 +144,7 @@ The quasar software package supports a wide range of statistical models used to 
 * `nb_glm`: negative binomial GLM 
 * `lmm`: linear mixed model
 * `p_glmm`: Poisson generalised linear mixed model (GLMM)
+* `p_glmm_id`: Poisson GLMM with independent per-sample random intercepts (no GRM). Fits the same model as `p_glmm_sc` applied to per-sample (donor) count totals, so it is suited to pseudobulk sum counts. Expects count data and does not support `--interaction` or `--resid`.
 * `p_glm`: Poisson GLM (**not recommended** due to producing a very high rate of false positives)
 * `nb_glmm`: negative binomial GLMM (**not generally recommended** due to producing highly similar results to the Poisson GLMM while being slower, can be used if there is known to be high relatedness between samples)
 * `p_glmm_sc`: A Poisson GLMM accounting for repeated measures that can be used for single-cell level data. Without `--interaction` this is a random-intercept model; with `--interaction` it fits a per-donor random intercept and independent random slopes on the K interaction covariates (unstructured 2×2 covariance when `K = 1`; diagonal with a separate variance per random effect when `K > 1`). Expects raw count data.
@@ -198,7 +199,7 @@ ENSG00000134242      39         43         45 ...
 
 When coordinates are omitted, all variants are tested and residual output (`{out-prefix}-resids.bed`) is written without `#chr`, `start`, or `end` columns. When coordinates are provided in `gwas` mode they are read and written back but are not used to define cis-windows. Modes `cis`, `trans`, and `residualise` require the four-column annotation format.
 
-For the count based models (i.e. `nb_glm`, `p_glm`, `p_glmm` and `nb_glmm`) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. `lm`, `lm_cw` and `lmm`) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.
+For the count based models (i.e. `nb_glm`, `p_glm`, `p_glmm`, `p_glmm_id` and `nb_glmm`) count data should be passed to quasar. This can be either RNA-seq counts or pseudobulk scRNA-seq counts (the sum of the counts over the inidivdual). For the linear models (i.e. `lm`, `lm_cw` and `lmm`) we recommend that when analysing scRNA-seq counts the mean over individuals is passed to quasar.
 
 #### Single-cell phenotype data
 
@@ -294,7 +295,7 @@ By default, for count-based models quasar uses `log(total counts)` as an offset 
 
 However, if you want to supply pre-computed offsets you can pass `--offset-file` instead. Values are used **directly on the log scale** as the offset term in the linear predictor; quasar does not take `log()` of them.
 
-`--offset-file` is only compatible with models that use an offset (`p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_grm`, `p_glmm_sc`). It cannot be combined with `--resid`.
+`--offset-file` is only compatible with models that use an offset (`p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_grm`, `p_glmm_id`, `p_glmm_sc`). It cannot be combined with `--resid`.
 
 #### Bulk / pseudobulk format
 
@@ -401,7 +402,7 @@ When \(K > 1\), `snp_x_all_acat_pvalue` is an ACAT combination of the per-covari
 |`--out` | STRING | Optional | The output file prefix |
 |`--mode`  | STRING | Required | The mode used to run quasar in. One of: `cis`, `trans`, `gwas`. |
 |`--interaction` | STRING | Optional | Comma-separated covariate column names for interaction-QTL testing. Each name must be a column header in the covariate data. |
-|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lm_cw`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `nb_glmm`, `p_glmm_sc`, `lmm_sc`. |
+|`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lm_cw`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `p_glmm_id`, `nb_glmm`, `p_glmm_sc`, `lmm_sc`. |
 |`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
 |`--verbose` | FLAG | Optional | Write additional information to the console |

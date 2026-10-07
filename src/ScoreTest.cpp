@@ -47,9 +47,11 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     // Single-cell genotypes are constant within a donor, so the SNP test is a
     // donor-level regression. X.rows() is the cell count when covariates are
     // single-cell, so the t correction must not use it.
-    const bool use_donor_t = model == "lmm_sc" || model == "p_glmm_sc";
-    const int n_donors = use_donor_t ? static_cast<int>(pheno_data.cell_counts.size()) : 0;
-    const int donor_n_cov = use_donor_t ? static_cast<int>(cov_data.n_cov) : 0;
+    const bool use_donor_t = model == "lmm_sc" || model == "p_glmm_sc" || model == "p_glmm_id";
+    const int n_donors = model == "p_glmm_id" ? n_samples
+        : (use_donor_t ? static_cast<int>(pheno_data.cell_counts.size()) : 0);
+    const int donor_n_cov = model == "p_glmm_id" ? n_cov
+        : (use_donor_t ? static_cast<int>(cov_data.n_cov) : 0);
     const double donor_df = static_cast<double>(n_donors - donor_n_cov - 1);
 
     bool use_cell_groups = cell_groups.n_groups > 0;
@@ -72,6 +74,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         model == "p_glmm" || 
         model == "p_glmm_grm" || 
         model == "p_glmm_sc" || 
+        model == "p_glmm_id" ||
         model == "nb_glmm";
 
     // Iterate over features.
@@ -128,7 +131,8 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             model == "nb_glm" || 
             model == "p_glmm" || 
             model == "p_glmm_grm" || 
-            model == "p_glmm_sc" || 
+            model == "p_glmm_sc" ||
+            model == "p_glmm_id" ||
             model == "nb_glmm" ||
             model == "lmm_sc" ||
             model == "lm_cw") {
@@ -142,7 +146,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         Eigen::VectorXd Xty_res, XtWX_inv_Xty_res, ZtSigma_invZ_diag;
         Eigen::MatrixXd ZtASigma_invAZ, ZtAy_res;
         std::vector<Eigen::MatrixXd> ZtAkSigma_invX, XtWAkZ;
-        if (params.data_type != "single-cell") {
+        if (params.data_type != "single-cell" && model != "p_glmm_id") {
             XtWX_inv = (X.transpose() * w.asDiagonal() * X).inverse();
             XtX_inv = (X.transpose() * X).inverse();
             Xt = X.transpose();
@@ -151,7 +155,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             XtWX_inv = model_fit.XtWX_inv_vec[i];
             Xty_res = model_fit.Xty_res_vec[i];
             XtWX_inv_Xty_res = XtWX_inv * Xty_res;
-            if (model == "p_glmm_sc" || model == "lmm_sc") {
+            if (model == "p_glmm_sc" || model == "lmm_sc" || model == "p_glmm_id") {
                 ZtSigma_invZ_diag = model_fit.ZtSigma_invZ_diag_vec[i];
                 ZtSigma_invX = model_fit.ZtSigma_invX_vec[i];
                 XtSigma_invX_inv = model_fit.XtSigma_invX_inv_vec[i];
@@ -243,7 +247,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
 
             } else if (!params.do_interaction) {
 
-                if (params.data_type == "bulk") {
+                if (params.data_type == "bulk" && model != "p_glmm_id") {
                     g_s = g - X * (XtWX_inv * (Xt * g.cwiseProduct(w)));
                     u = g_s.cwiseProduct(w).dot(Y.col(i));
                     gtg = g_s.cwiseProduct(w).dot(g_s);
@@ -254,7 +258,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     } else if (is_glmm_model) {
                         v *= model_fit.tr[i];
                     }
-                } else if (model == "p_glmm_sc" || model == "lmm_sc") {
+                } else if (model == "p_glmm_sc" || model == "lmm_sc" || model == "p_glmm_id") {
 
                     Eigen::VectorXd t = XtWZ * g;
                     u = g.dot(Y.col(i)) - t.dot(XtWX_inv_Xty_res);
@@ -512,6 +516,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     "\t" << model_fit.phi_converged[i];
             } else if (model == "p_glmm" || 
                        model == "p_glmm_grm" || 
+                       model == "p_glmm_id" ||
                        ((model == "p_glmm_sc") & !params.do_interaction)) {
                 variant_line << "\t" << model_fit.glmm_converged[i] <<
                     "\t" << model_fit.sigma2[i];

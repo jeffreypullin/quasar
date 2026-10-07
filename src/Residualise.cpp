@@ -364,6 +364,30 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         }
         std::cout << "Null single-cell Poisson GLMMs fitted." << std::endl;
 
+    } else if (params.model == "p_glmm_id") {
+
+        std::cout << "\nFitting null Poisson GLMMs with independent sample random effects..." << std::endl;
+        Eigen::VectorXd ns_id = Eigen::VectorXd::Ones(pheno_data.n_samples);
+        for (int i = 0; i < n_pheno; ++i) {
+
+            auto poisson = std::unique_ptr<Family>(new Poisson());
+            Eigen::VectorXd y = Y.col(i);
+            GLMM_SC p_glmm_id(X, y, offset, std::move(poisson), ns_id);
+            p_glmm_id.fit();
+
+            Y.col(i) = p_glmm_id.y_out;
+            W.row(i) = p_glmm_id.mu_out;
+            XtWX_inv_vec.push_back(p_glmm_id.XtWX_inv);
+            Xty_res_vec.push_back(p_glmm_id.Xty_res);
+            XtWZ_vec.push_back(p_glmm_id.XtWZ);
+            ZtSigma_invZ_diag_vec.push_back(p_glmm_id.ZtSigma_invZ_diag);
+            ZtSigma_invX_vec.push_back(p_glmm_id.ZtSigma_invX);
+            XtSigma_invX_inv_vec.push_back(p_glmm_id.XtSigma_invX_inv);
+            glmm_converged.push_back(p_glmm_id.glmm_converged);
+            sigma2.push_back(p_glmm_id.sigma2);
+        }
+        std::cout << "Null Poisson GLMMs fitted." << std::endl;
+
     } else if ((params.model == "p_glmm_sc") & params.do_interaction) {
 
         std::cout <<"\nFitting null random slope single-cell Poisson GLMMs..." << std::endl;

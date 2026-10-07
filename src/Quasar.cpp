@@ -96,10 +96,22 @@ int main(int argc, char* argv[]) {
         params.model != "nb_glm" && 
         params.model != "p_glmm_sc" &&
         params.model != "p_glmm_grm" &&
+        params.model != "p_glmm_id" &&
         params.model != "nb_glmm") {
         std::cerr << "Invalid model specified. Please use 'lm', 'lm_cw', 'lmm', 'lmm_sc', 'p_glm', 'nb_glm', "
-                  << "'p_glmm', 'p_glmm_sc', 'p_glmm_grm' or 'nb_glmm'." << std::endl;
+                  << "'p_glmm', 'p_glmm_sc', 'p_glmm_grm', 'p_glmm_id' or 'nb_glmm'." << std::endl;
         exit(1);
+    }
+
+    if (params.model == "p_glmm_id") {
+        if (params.do_interaction) {
+            std::cerr << "Error: model `p_glmm_id` does not support --interaction." << std::endl;
+            exit(1);
+        }
+        if (params.resid_file != "no-resid") {
+            std::cerr << "Error: model `p_glmm_id` cannot be used with --resid." << std::endl;
+            exit(1);
+        }
     }
 
     if (params.mode != "cis" && params.mode != "trans" && params.mode != "gwas" && params.mode != "residualise") {
@@ -452,7 +464,8 @@ int main(int argc, char* argv[]) {
             params.model == "p_glm" ||
             params.model == "nb_glm" || 
             params.model == "nb_glmm" ||
-            params.model == "p_glmm_grm"
+            params.model == "p_glmm_grm" ||
+            params.model == "p_glmm_id"
         ) {     
             Eigen::VectorXd first_gene = pheno_data.data.col(0).head(10);
             bool has_negative = (first_gene.array() < 0).any();
