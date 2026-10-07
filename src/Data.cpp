@@ -1808,3 +1808,12 @@ Eigen::VectorXd donor_totals(
     }
     return out;
 }
+
+Eigen::VectorXd library_size_offset(const Eigen::MatrixXd& Y) {
+    Eigen::VectorXd offset(Y.rows());
+    for (Eigen::Index i = 0; i < Y.rows(); ++i) {
+        const double sum = Y.row(i).sum();
+        offset(i) = (sum <= 0.0) ? 0.0 : std::log(sum);
+    }
+    return offset;
+}

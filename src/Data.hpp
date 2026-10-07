@@ -149,6 +149,7 @@ Eigen::VectorXd donor_totals(
     const Eigen::VectorXd& ns,
     const Eigen::VectorXd& cum
 );
+Eigen::VectorXd library_size_offset(const Eigen::MatrixXd& Y);
 
 class CellGroups {
 

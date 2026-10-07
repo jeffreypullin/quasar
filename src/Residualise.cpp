@@ -66,14 +66,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         std::cout << "Rank normalization finished." << std::endl;
     }
 
-    // Use precomputed / file-provided offset when available; otherwise log library size (bulk).
-    Eigen::VectorXd offset;
-    if (pheno_data.offset.size() > 0) {
-        offset = pheno_data.offset;
-    } else {
-        offset = Y.rowwise().sum().array().log();
-    }
-    
+    Eigen::VectorXd& offset = pheno_data.offset;
     Eigen::MatrixXd W(n_pheno, pheno_data.n_samples);
 
     std::vector<double> tr;

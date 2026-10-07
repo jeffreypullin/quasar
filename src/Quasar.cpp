@@ -438,6 +438,13 @@ int main(int argc, char* argv[]) {
     std::cout << "\nCentring and scaling covariate data..." << std::endl;
     cov_data.standardisze_data();
 
+    if (params.data_type == "bulk" && pheno_data.offset.size() == 0 &&
+        (params.model == "p_glm" || params.model == "nb_glm" ||
+         params.model == "p_glmm" || params.model == "nb_glmm" ||
+         params.model == "p_glmm_grm" || params.model == "p_glmm_id")) {
+        pheno_data.offset = library_size_offset(pheno_data.data);
+    }
+
     if (params.data_type == "bulk" && pheno_data.has_genomic_coords) {
         std::vector<int> g_chrom = geno_data.chrom;
         bool one_chrom = std::equal(g_chrom.begin() + 1, g_chrom.end(), g_chrom.begin());
