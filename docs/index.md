@@ -1,38 +1,37 @@
 # quasar
 
-**quasar** is a C++ program for performing quantitative trait loci (QTL) mapping.
+**quasar** is a C++ software package for performing expression quantitative trait loci (eQTL) mapping.
 
-The program has the following features:
+Compared to other eQTL mapping software, quasar:
 
-* ability to handle quantatative and count input data
-* supports the PLINK bed/bim/fam genotype data format
-* implements a fast variance-ratio approximation for mixed models
-* implements Cox-Reid adjusted profile likelihood estimation for NB dispersion
-* allows both cis and trans-QTL mapping
+* implements a much wider range of models, including both count distribution models and mixed models,
+* implements the Cox-Reid adjusted profile likelihood for estimating the negative binomial dispersion,
+* implements a novel trace-based approximation of the mixed-model score test variance, and
+* is generally faster.
 
-As of version 2.0, quasar also: 
+As of version 2.0, quasar also:
 
-* accepts single-cell resolution data as input
-* allows interaction testing
+* accepts single-cell resolution data as input,
+* allows interaction-QTL testing,
+* is generally faster than existing single-cell resolution approaches.
 
 ## Citation
 
-If you use quasar, please cite: 
+If you use quasar in your research, please cite:
 
-> Flexible and efficient count-distribution and mixed-model methods for eQTL mapping with quasar  
-> Jeffrey M. Pullin, Jarny Choi, Davis J. McCarthy, Chris Wallace  
-> medRxiv 2025.07.17.25331702; doi: https://doi.org/10.1101/2025.07.17.25331702  
+> Flexible and efficient count-distribution and mixed-model methods for eQTL mapping with quasar
+> Jeffrey M. Pullin, Jarny Choi, Davis J. McCarthy, Chris Wallace
+> medRxiv 2025.07.17.25331702; doi: https://doi.org/10.1101/2025.07.17.25331702
 
-If you are using quasar 2.X+ please also cite:
+If you use quasar version 2.X+ in your research please also cite:
 
 > TODO
 
-## Contact 
+## Contact
 
-quasar is under active developement and we appreciate your feedback, questions and feature requests. Please contact: Jeffrey Pullin (jp2045[at]cam.ac.uk). 
- 
+quasar is under active developement and we appreciate your feedback, questions and feature requests. Please contact: Jeffrey Pullin (jp2045[at]cam.ac.uk).
+
 If you wish to submit an issue please do so on quasar's [GitHub repository](https://github.com/jeffreypullin/quasar).
 
 <a href="https://github.com/jeffreypullin/quasar/issues/new"><button class="btn btn-primary btn-sm" type="submit"><i class="fab fa-github fa-2x"></i> Report Issue</button></a>
 <a href="https://github.com/jeffreypullin/quasar/issues"><button class="btn btn-primary btn-sm" type="submit"><i class="fab fa-github fa-2x"></i> Active Issues </button></a>
-

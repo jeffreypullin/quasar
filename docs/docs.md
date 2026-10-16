@@ -16,9 +16,7 @@ To see the version of quasar you are using run:
 
 ## Quickstart
 
-We recommend running quasar to perform cis-eQTL mapping using the negative binomial model and adjusted profile likelihood estimation of the negative binomial dispersion parameter. To run quasar in this mode use the command: 
-
-To run quasar with bulk or pseudobulk data use: 
+We recommend running quasar to perform cis-eQTL mapping of bulk or pseudobulk counts using the Poisson GLMM with independent per-sample random intercepts (`p_glmm_id`). To run quasar in this mode use:
 
 ### Bulk/pseduobulk data
 
@@ -28,9 +26,8 @@ To run quasar with bulk or pseudobulk data use:
     --bed phenotype_data.bed \
     --cov covariate_data.tsv \
     --mode cis \
-    --model bulk-out \
-    --use-apl \
-    --out nb_fit
+    --model p_glmm_id \
+    --out p_glmm_id_fit
 ```
 
 ### Single-cell resolution data
