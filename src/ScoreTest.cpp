@@ -270,7 +270,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     main_se = 1 / std::sqrt(v);
                     main_zscore = main_beta / main_se;
 
-                    if (model == "lm" || model == "lm_cw") {
+                    if (model == "lm") {
                         const double df = n_samples - n_cov - 1;
                         const double s = (df + 1 - main_zscore * main_zscore) / df;
                         main_se = std::sqrt(s / v);
