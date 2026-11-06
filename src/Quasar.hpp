@@ -54,8 +54,8 @@ struct Params {
     std::string data_type;
     int window_size = 1000000;
     int min_mac = 1;
-    bool use_apl;
-    bool use_quant_res;
+    bool use_apl = false;
+    bool use_quant_res = false;
     int pheno_chr;
     std::string pheno_ids_file;
 

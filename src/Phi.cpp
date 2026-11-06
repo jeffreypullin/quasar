@@ -72,7 +72,7 @@ double estimate_phi_ml(Eigen::VectorXd y, Eigen::VectorXd mu, bool& phi_converge
     }
 
     if (abs(theta) > 1e5) {
-        theta = 1e2;
+        theta = 1e5;
     }
 
     phi = 1 / theta;
