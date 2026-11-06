@@ -62,6 +62,11 @@ struct Params {
     std::string out;
     bool verbose = false;
     bool ablate_donor_totals = false;
+
+    bool permutation = false;
+    int n_perm = 10;
+    unsigned long long seed = 1;
+    std::string perm_suffix;
 };
 
 #endif

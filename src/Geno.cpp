@@ -23,6 +23,9 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <algorithm>
+#include <numeric>
+#include <random>
 
 void GenoData::read_bim_file() {
 
@@ -258,4 +261,28 @@ void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     this->genotype_matrix = sliced_genotype_matrix;
     this->sample_ids = sample_ids;
     n_samples = sample_ids.size();
+}
+
+void GenoData::permute_samples(std::mt19937_64& rng) {
+    const Eigen::Index n = genotype_matrix.rows();
+    std::vector<Eigen::Index> source(static_cast<size_t>(n));
+    std::iota(source.begin(), source.end(), static_cast<Eigen::Index>(0));
+    std::shuffle(source.begin(), source.end(), rng);
+
+    std::vector<char> placed(static_cast<size_t>(n), 0);
+    for (Eigen::Index start = 0; start < n; ++start) {
+        if (placed[static_cast<size_t>(start)]) {
+            continue;
+        }
+        placed[static_cast<size_t>(start)] = 1;
+
+        Eigen::Index here = start;
+        Eigen::Index from = source[static_cast<size_t>(start)];
+        while (from != start) {
+            genotype_matrix.row(here).swap(genotype_matrix.row(from));
+            placed[static_cast<size_t>(from)] = 1;
+            here = from;
+            from = source[static_cast<size_t>(from)];
+        }
+    }
 }

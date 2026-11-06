@@ -23,6 +23,8 @@
 #include "Geno.hpp"
 #include "Utils.hpp"
 #include <iostream>
+#include <random>
+#include <string>
 #include <utility>
 
 int main(int argc, char* argv[]) {
@@ -56,7 +58,10 @@ int main(int argc, char* argv[]) {
         ("pheno-chr", "Only map QTLs for genes on this chromosome", cxxopts::value<int>(params.pheno_chr))
         // Output arguments.
         ("o,out", "Output file prefix", cxxopts::value<std::string>(params.out))
-        ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose));
+        ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose))
+        ("permutation", "Output results on genotype-permuted data", cxxopts::value<bool>(params.permutation))
+        ("n-perm", "Number of genotype permutations", cxxopts::value<int>(params.n_perm)->default_value("10"))
+        ("seed", "Random seed for genotype permutations", cxxopts::value<unsigned long long>(params.seed)->default_value("1"));
 
     options.add_options("hidden")
         ("ablate-donor-totals", "", cxxopts::value<bool>(params.ablate_donor_totals));
@@ -116,6 +121,20 @@ int main(int argc, char* argv[]) {
 
     if (params.mode != "cis" && params.mode != "trans" && params.mode != "gwas" && params.mode != "residualise") {
         std::cerr << "Invalid mode specified. Please use one of 'cis', 'trans', 'gwas', 'residualise'" << std::endl;
+        exit(1);
+    }
+
+    if (params.permutation) {
+        if (params.n_perm < 1) {
+            std::cerr << "Error: --n-perm argument must be at least 1." << std::endl;
+            exit(1);
+        }
+        if (params.mode == "residualise") {
+            std::cerr << "Error: --permutation cannot be used in mode 'residualise'." << std::endl;
+            exit(1);
+        }
+    } else if (result.count("n-perm") || result.count("seed")) {
+        std::cerr << "Error: --n-perm and --seed require --permutation." << std::endl;
         exit(1);
     }
 
@@ -195,6 +214,9 @@ int main(int argc, char* argv[]) {
     std::cout << "\nMode: " << params.mode << std::endl;
     std::cout << "Model: " << params.model << std::endl;
     std::cout << "Data type: " << params.data_type << std::endl;
+    if (params.permutation) {
+        std::cout << "Genotype permutations: " << params.n_perm << " (seed " << params.seed << ")" << std::endl;
+    }
     if (params.do_interaction) {
         std::cout << "\nPerforming interaction testing" << std::endl;
         std::cout << "Interaction covariate";
@@ -519,7 +541,17 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "\nPerforming variant score tests..." << std::endl;
-    score_test(params, model_fit, geno_data, pheno_data, cov_data, cell_groups);
+    if (params.permutation) {
+        std::mt19937_64 rng(params.seed);
+        for (int k = 1; k <= params.n_perm; ++k) {
+            std::cout << "\nPermutation " << k << " of " << params.n_perm << "..." << std::endl;
+            geno_data.permute_samples(rng);
+            params.perm_suffix = "_perm_" + std::to_string(k);
+            score_test(params, model_fit, geno_data, pheno_data, cov_data, cell_groups);
+        }
+    } else {
+        score_test(params, model_fit, geno_data, pheno_data, cov_data, cell_groups);
+    }
     std::cout << "Variant score tests finished." << std::endl;
 
     std::cout << "\nquasar execution finished." << std::endl;

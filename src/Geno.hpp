@@ -22,6 +22,7 @@
 #include <vector>
 #include <cstdint>
 #include <map>
+#include <random>
 
 #include "Eigen/Dense"
 
@@ -59,6 +60,7 @@ class GenoData {
     void compute_maf_problems();
     void maf_warning();
     void slice_samples(std::vector<std::string>& sample_ids);
+    void permute_samples(std::mt19937_64& rng);
 };
 
 #endif

@@ -49,13 +49,13 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         group_linear_scores = make_group_linear_scores_values(cell_groups.group_values);
     }
 
-    std::ofstream variant_file(params.out + "-quasar-" + mode + "-variant.txt");
+    std::ofstream variant_file(params.out + "-quasar-" + mode + "-variant" + params.perm_suffix + ".txt");
     std::string variant_header_line = make_variant_header_line(params, use_cell_groups ? cell_groups.group_ids : std::vector<std::string>{}, use_cell_groups && cell_groups.has_values);
     variant_file << variant_header_line;
 
     std::ofstream region_file;
     if (mode == "cis") {
-        region_file.open(params.out + "-quasar-cis-region.txt");
+        region_file.open(params.out + "-quasar-cis-region" + params.perm_suffix + ".txt");
         region_file << make_region_header_line(params, use_cell_groups ? cell_groups.group_ids : std::vector<std::string>{}, use_cell_groups && cell_groups.has_values);
     }
 
