@@ -171,6 +171,10 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             std::cerr << "Error: Interaction testing is not implemented for the Poisson GLM model." << std::endl;
             std::exit(1);
         }
+
+        // One impossible effect means the shared null fit is numerically broken.
+        std::vector<std::string> variant_lines;
+        bool non_converged_gene = false;
         
         // Iterate over SNPs in the window.
         for (int k = window_start; k < window_end; ++k) {
@@ -450,6 +454,25 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
                     int_acat_snp = ACAT(int_pvals_finite);
                 }
 
+                bool effect_too_large = main_beta > 100.0 || main_beta < -100.0;
+                for (double beta : int_beta) {
+                    effect_too_large = effect_too_large || beta > 100.0 || beta < -100.0;
+                }
+                if (effect_too_large && !non_converged_gene) {
+                    non_converged_gene = true;
+                    main_pvals.clear();
+                    for (auto& pvals : int_pvals) {
+                        pvals.clear();
+                    }
+                    int_acat_pvals.clear();
+                    variant_lines.clear();
+                }
+                if (non_converged_gene) {
+                    main_pval_snp = nan_val;
+                    std::fill(int_pval_snp.begin(), int_pval_snp.end(), nan_val);
+                    int_acat_snp = nan_val;
+                }
+
                 if (mode == "cis") {
                     main_pvals.push_back(main_pval_snp);
                     for (size_t ik = 0; ik < n_int; ++ik) {
@@ -540,7 +563,15 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             }
 
             variant_line << "\n";
-            variant_file << variant_line.str();
+            if (params.do_interaction) {
+                variant_lines.push_back(variant_line.str());
+            } else {
+                variant_file << variant_line.str();
+            }
+        }
+
+        for (const auto& line : variant_lines) {
+            variant_file << line;
         }
 
         if (mode == "cis") {
