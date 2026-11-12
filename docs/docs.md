@@ -118,7 +118,7 @@ For single-cell data, interaction testing with `--model p_glmm_sc` or `--model l
 For each interaction covariate, quasar inspects its values and automatically augments the nuisance covariates as follows:
 
 * if the covariate has `<=10` unique finite values, it is treated as categorical and no squared nuisance term is added;
-* if it has `>10` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which contains the square of the covariate 
+* if it has `>10` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which contains the square of the covariate
 
 ## QTL mapping modes
 
@@ -240,6 +240,8 @@ sample_id   cell_id    covariate_1     covariate_2 ...
  sample_2    cell_4              1             1.0 ...
       ...
 ```
+
+All covariate columns must contain numeric values. Quasar does not recode categorical variables, so a categorical covariate (for example sex, batch, or cell type) must be manually encoded as binary indicator columns before it is passed to quasar. For a factor with \(L\) levels, include \(L - 1\) indicator columns; the omitted level is absorbed by the intercept.
 
 If an intercept is not present in the covariate data it will be added automatically as of quasar 1.1
 
