@@ -25,6 +25,7 @@
 #include <numeric>
 #include <algorithm>
 #include <limits>
+#include <cmath>
 #include <Eigen/Eigenvalues>
 
 void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoData& pheno_data, CovData& cov_data, CellGroups& cell_groups) {
@@ -52,6 +53,7 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
     std::ofstream variant_file(params.out + "-quasar-" + mode + "-variant" + params.perm_suffix + ".txt");
     std::string variant_header_line = make_variant_header_line(params, use_cell_groups ? cell_groups.group_ids : std::vector<std::string>{}, use_cell_groups && cell_groups.has_values);
     variant_file << variant_header_line;
+    size_t n_variants = 0;
 
     std::ofstream region_file;
     if (mode == "cis") {
@@ -563,6 +565,12 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
             }
 
             variant_line << "\n";
+            ++n_variants;
+            const bool keep_variant = !params.use_max_pvalue
+                || (std::isfinite(main_pval_snp) && main_pval_snp < params.max_pvalue);
+            if (!keep_variant) {
+                continue;
+            }
             if (params.do_interaction) {
                 variant_lines.push_back(variant_line.str());
             } else {
@@ -613,4 +621,9 @@ void score_test(Params& params, ModelFit& model_fit, GenoData& geno_data, PhenoD
         region_file.close();
     }
     variant_file.close();
+
+    if (params.use_max_pvalue) {
+        std::ofstream n_file(params.out + "-n-variants.txt");
+        n_file << n_variants << "\n";
+    }
 }

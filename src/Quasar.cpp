@@ -58,6 +58,7 @@ int main(int argc, char* argv[]) {
         ("pheno-chr", "Only map QTLs for genes on this chromosome", cxxopts::value<int>(params.pheno_chr))
         // Output arguments.
         ("o,out", "Output file prefix", cxxopts::value<std::string>(params.out))
+        ("max-pvalue", "Only write variants with p-value below this threshold; also write <out>-n-variants.txt with the number of tests", cxxopts::value<double>(params.max_pvalue))
         ("verbose", "Run with extensive output to terminal", cxxopts::value<bool>(params.verbose))
         ("permutation", "Output results on genotype-permuted data", cxxopts::value<bool>(params.permutation))
         ("n-perm", "Number of genotype permutations", cxxopts::value<int>(params.n_perm)->default_value("10"))
@@ -141,6 +142,14 @@ int main(int argc, char* argv[]) {
     if (params.min_mac < 0) {
         std::cerr << "Error: --min-mac argument must be non-negative." << std::endl;
         exit(1);
+    }
+
+    if (result.count("max-pvalue")) {
+        params.use_max_pvalue = true;
+        if (!(params.max_pvalue > 0.0) || params.max_pvalue > 1.0) {
+            std::cerr << "Error: --max-pvalue must be in (0, 1]." << std::endl;
+            exit(1);
+        }
     }
 
     if (result.count("pheno-chr")) {
@@ -237,6 +246,10 @@ int main(int argc, char* argv[]) {
 
     if (params.model == "nb_glmm") {
         std::cout << "\nWarning: using the NB-GLMM is not recommended, use the Poisson GLMM instead." << std::endl;
+    }
+
+    if (params.use_max_pvalue) {
+        std::cout << "Writing variants with p-value < " << params.max_pvalue << std::endl;
     }
 
     if (params.ablate_donor_totals) {

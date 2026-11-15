@@ -62,6 +62,8 @@ struct Params {
     std::string out;
     bool verbose = false;
     bool ablate_donor_totals = false;
+    bool use_max_pvalue = false;
+    double max_pvalue = 1.0;
 
     bool permutation = false;
     int n_perm = 10;
