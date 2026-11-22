@@ -95,6 +95,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
     std::vector<std::vector<Eigen::VectorXd>> Xty_res_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtWZ_g_vec;
     std::vector<std::vector<Eigen::VectorXd>> y_out_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> mu_out_g_vec;
     std::vector<std::vector<Eigen::VectorXd>> ZtSigma_invZ_diag_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> ZtSigma_invX_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtSigma_invX_inv_g_vec;
@@ -201,6 +202,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                 std::vector<Eigen::VectorXd> Xty_res_g(cell_groups.n_groups, Eigen::VectorXd::Zero(c_sc));
                 std::vector<Eigen::MatrixXd> XtWZ_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(c_sc, n_donors_sc));
                 std::vector<Eigen::VectorXd> y_out_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
+                std::vector<Eigen::VectorXd> mu_out_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
                 std::vector<Eigen::VectorXd> ZtSigma_invZ_diag_g(cell_groups.n_groups, Eigen::VectorXd::Zero(n_donors_sc));
                 std::vector<Eigen::MatrixXd> ZtSigma_invX_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(n_donors_sc, c_sc));
                 std::vector<Eigen::MatrixXd> XtSigma_invX_inv_g(cell_groups.n_groups, Eigen::MatrixXd::Zero(c_sc, c_sc));
@@ -304,6 +306,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                         Xty_res_g[gi].setConstant(nan_val);
                         XtWZ_g[gi].setConstant(nan_val);
                         y_out_g[gi].setConstant(nan_val);
+                        mu_out_g[gi].setConstant(nan_val);
                         ZtSigma_invZ_diag_g[gi].setConstant(nan_val);
                         ZtSigma_invX_g[gi].setConstant(nan_val);
                         XtSigma_invX_inv_g[gi].setConstant(nan_val);
@@ -319,6 +322,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                         Xty_res_g[gi].setConstant(nan_val);
                         XtWZ_g[gi].setConstant(nan_val);
                         y_out_g[gi].setConstant(nan_val);
+                        mu_out_g[gi].setConstant(nan_val);
                         ZtSigma_invZ_diag_g[gi].setConstant(nan_val);
                         ZtSigma_invX_g[gi].setConstant(nan_val);
                         XtSigma_invX_inv_g[gi].setConstant(nan_val);
@@ -333,6 +337,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                         const Eigen::Index full_d = static_cast<Eigen::Index>(donor_keep_g[d]);
                         const Eigen::Index kept_d = static_cast<Eigen::Index>(d);
                         y_out_g[gi](full_d) = fit_g.y_out(kept_d);
+                        mu_out_g[gi](full_d) = fit_g.mu_out(kept_d);
                         ZtSigma_invZ_diag_g[gi](full_d) = fit_g.ZtSigma_invZ_diag(kept_d);
                         XtWZ_g[gi].col(full_d) = fit_g.XtWZ.col(kept_d);
                         ZtSigma_invX_g[gi].row(full_d) = fit_g.ZtSigma_invX.row(kept_d);
@@ -345,6 +350,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
                 Xty_res_g_vec.push_back(Xty_res_g);
                 XtWZ_g_vec.push_back(XtWZ_g);
                 y_out_g_vec.push_back(y_out_g);
+                mu_out_g_vec.push_back(mu_out_g);
                 ZtSigma_invZ_diag_g_vec.push_back(ZtSigma_invZ_diag_g);
                 ZtSigma_invX_g_vec.push_back(ZtSigma_invX_g);
                 XtSigma_invX_inv_g_vec.push_back(XtSigma_invX_inv_g);
@@ -770,6 +776,7 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
         model_fit.Xty_res_g_vec = Xty_res_g_vec;
         model_fit.XtWZ_g_vec = XtWZ_g_vec;
         model_fit.y_out_g_vec = y_out_g_vec;
+        model_fit.mu_out_g_vec = mu_out_g_vec;
         model_fit.ZtSigma_invZ_diag_g_vec = ZtSigma_invZ_diag_g_vec;
         model_fit.ZtSigma_invX_g_vec = ZtSigma_invX_g_vec;
         model_fit.XtSigma_invX_inv_g_vec = XtSigma_invX_inv_g_vec;

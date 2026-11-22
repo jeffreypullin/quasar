@@ -21,7 +21,9 @@
 #include <boost/math/distributions/students_t.hpp>
 #include <boost/math/distributions/cauchy.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 #include <iostream>
 #include <numeric>
@@ -75,6 +77,100 @@ double pcauchy(double x, bool lower){
         return boost::math::cdf(boost::math::complement(C01, x));
     }
     return boost::math::cdf(C01, x);
+}
+
+bool is_glmm(const std::string& model) {
+    return model == "p_glmm" ||
+           model == "p_glmm_grm" ||
+           model == "p_glmm_sc" ||
+           model == "p_glmm_id" ||
+           model == "nb_glmm";
+}
+
+bool is_poisson_glmm(const std::string& model) {
+    return model == "p_glmm" ||
+           model == "p_glmm_grm" ||
+           model == "p_glmm_sc" ||
+           model == "p_glmm_id";
+}
+
+Eigen::MatrixXd donor_mean_covariates(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns
+) {
+    Eigen::MatrixXd X_d(ns.size(), X.cols());
+    Eigen::Index start = 0;
+    for (Eigen::Index i = 0; i < ns.size(); ++i) {
+        const Eigen::Index n_i = static_cast<Eigen::Index>(ns(i));
+        X_d.row(i) = X.middleRows(start, n_i).colwise().mean();
+        start += n_i;
+    }
+    return X_d;
+}
+
+std::vector<Eigen::MatrixXd> group_donor_mean_covariates(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns,
+    const std::vector<int>& cell_to_group,
+    size_t n_groups
+) {
+    const Eigen::Index n_donors = ns.size();
+    std::vector<Eigen::MatrixXd> means(n_groups, Eigen::MatrixXd::Zero(n_donors, X.cols()));
+    std::vector<Eigen::VectorXi> counts(n_groups, Eigen::VectorXi::Zero(n_donors));
+    Eigen::Index cell = 0;
+    for (Eigen::Index donor = 0; donor < n_donors; ++donor) {
+        const Eigen::Index n_i = static_cast<Eigen::Index>(ns(donor));
+        for (Eigen::Index k = 0; k < n_i; ++k) {
+            const int group = cell_to_group[static_cast<size_t>(cell)];
+            if (group >= 0) {
+                means[static_cast<size_t>(group)].row(donor) += X.row(cell);
+                counts[static_cast<size_t>(group)](donor) += 1;
+            }
+            ++cell;
+        }
+    }
+    for (size_t group = 0; group < n_groups; ++group) {
+        for (Eigen::Index donor = 0; donor < n_donors; ++donor) {
+            const int count = counts[group](donor);
+            if (count > 0) {
+                means[group].row(donor) /= static_cast<double>(count);
+            }
+        }
+        means[group] = between_donor_columns(means[group], counts[group]);
+    }
+    return means;
+}
+
+Eigen::MatrixXd between_donor_columns(const Eigen::MatrixXd& X) {
+    return between_donor_columns(X, Eigen::VectorXi::Ones(X.rows()));
+}
+
+Eigen::MatrixXd between_donor_columns(const Eigen::MatrixXd& X, const Eigen::VectorXi& donor_counts) {
+    std::vector<Eigen::Index> keep;
+    for (Eigen::Index j = 0; j < X.cols(); ++j) {
+        double min_value = std::numeric_limits<double>::infinity();
+        double max_value = -std::numeric_limits<double>::infinity();
+        double max_abs_dev = 0.0;
+        bool any = false;
+        for (Eigen::Index i = 0; i < X.rows(); ++i) {
+            if (donor_counts(i) <= 0) {
+                continue;
+            }
+            any = true;
+            const double value = X(i, j);
+            min_value = std::min(min_value, value);
+            max_value = std::max(max_value, value);
+            max_abs_dev = std::max(max_abs_dev, std::abs(value - 1.0));
+        }
+        if (any && (max_abs_dev <= 1e-8 || max_value - min_value > 1e-8)) {
+            keep.push_back(j);
+        }
+    }
+    Eigen::MatrixXd out(X.rows(), static_cast<Eigen::Index>(keep.size()));
+    for (Eigen::Index j = 0; j < out.cols(); ++j) {
+        out.col(j) = X.col(keep[static_cast<size_t>(j)]);
+    }
+    return out;
 }
 
 void rank_normalize(Eigen::MatrixXd& Y){

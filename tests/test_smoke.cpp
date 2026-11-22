@@ -2,6 +2,7 @@
 
 #define CATCH_CONFIG_MAIN
 #include "catch2/catch.hpp"
+#include "Saddlepoint.hpp"
 
 #include <cstdlib>
 #include <fstream>
@@ -89,6 +90,19 @@ bool all_gene_pvalues_valid(const std::string& path) {
         }
     }
     return true;
+}
+
+TEST_CASE("Poisson SPA") {
+    Eigen::VectorXd mu(3);
+    mu << 1.0, 2.0, 3.0;
+    Eigen::VectorXd g(3);
+    g << 1.0, -0.5, 2.0;
+
+    const double pvalue = poisson_saddlepoint_pvalue(mu, g, 8.0, 13.5, 0.0294, 2.0);
+    REQUIRE(pvalue == Approx(0.027114475361436057).epsilon(1e-10));
+
+    REQUIRE(poisson_saddlepoint_pvalue(mu, g, 1.0, 13.5, 0.75, 2.0) == 0.75);
+    REQUIRE(poisson_saddlepoint_pvalue(mu, g, 8.0, 13.5, 0.0294, 3.0) == 0.0294);
 }
 
 void cleanup_output(const std::string& prefix) {

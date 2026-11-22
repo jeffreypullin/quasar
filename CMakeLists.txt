@@ -27,6 +27,7 @@ add_executable(quasar
   ${CMAKE_SOURCE_DIR}/src/Residualise.cpp 
   ${CMAKE_SOURCE_DIR}/src/ModelFit.cpp 
   ${CMAKE_SOURCE_DIR}/src/ScoreTest.cpp 
+  ${CMAKE_SOURCE_DIR}/src/Saddlepoint.cpp
   ${CMAKE_SOURCE_DIR}/src/QTLMappingUtils.cpp
 )
 target_include_directories(quasar PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -39,9 +40,16 @@ target_include_directories(quasar PRIVATE ${EXTERN_LIBS_PATH}/brent/)
 
 enable_testing()
 
-add_executable(quasar_tests EXCLUDE_FROM_ALL tests/test_smoke.cpp)
+add_executable(quasar_tests EXCLUDE_FROM_ALL
+  tests/test_smoke.cpp
+  ${CMAKE_SOURCE_DIR}/src/Saddlepoint.cpp
+)
 add_dependencies(quasar_tests quasar)
-target_include_directories(quasar_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+target_include_directories(quasar_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/tests
+  ${CMAKE_SOURCE_DIR}/src
+)
+target_include_directories(quasar_tests SYSTEM PRIVATE ${EXTERN_LIBS_PATH}/eigen-3.4.0/)
 target_compile_definitions(quasar_tests PRIVATE
     EXAMPLE_DATA_DIR="${CMAKE_SOURCE_DIR}/example"
     QUASAR_EXECUTABLE="$<TARGET_FILE:quasar>"
@@ -50,5 +58,7 @@ target_compile_definitions(quasar_tests PRIVATE
 
 add_test(NAME smoke_lm COMMAND quasar_tests "LM smoke test")
 add_test(NAME smoke_nb_glm COMMAND quasar_tests "NB-GLM smoke test")
+add_test(NAME smoke_p_glmm_id COMMAND quasar_tests "P-GLMM ID smoke test")
 add_test(NAME smoke_lmm COMMAND quasar_tests "LMM smoke test")
 add_test(NAME smoke_lm_cw COMMAND quasar_tests "LM_CW smoke test")
+add_test(NAME spa_unit COMMAND quasar_tests "Poisson SPA")

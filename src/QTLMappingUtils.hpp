@@ -43,6 +43,21 @@ double qnorm(double p, bool lower);
 double qcauchy(double p, bool lower);
 double pcauchy(double x, bool lower);
 
+bool is_glmm(const std::string& model);
+bool is_poisson_glmm(const std::string& model);
+Eigen::MatrixXd donor_mean_covariates(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns
+);
+std::vector<Eigen::MatrixXd> group_donor_mean_covariates(
+    const Eigen::MatrixXd& X,
+    const Eigen::VectorXd& ns,
+    const std::vector<int>& cell_to_group,
+    size_t n_groups
+);
+Eigen::MatrixXd between_donor_columns(const Eigen::MatrixXd& X);
+Eigen::MatrixXd between_donor_columns(const Eigen::MatrixXd& X, const Eigen::VectorXi& donor_counts);
+
 struct CochranQResult {
     double q;
     double pvalue;

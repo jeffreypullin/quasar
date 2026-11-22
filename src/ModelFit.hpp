@@ -70,6 +70,7 @@ class ModelFit {
     std::vector<std::vector<Eigen::VectorXd>> Xty_res_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtWZ_g_vec;
     std::vector<std::vector<Eigen::VectorXd>> y_out_g_vec;
+    std::vector<std::vector<Eigen::VectorXd>> mu_out_g_vec;
     std::vector<std::vector<Eigen::VectorXd>> ZtSigma_invZ_diag_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> ZtSigma_invX_g_vec;
     std::vector<std::vector<Eigen::MatrixXd>> XtSigma_invX_inv_g_vec;
