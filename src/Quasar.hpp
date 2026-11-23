@@ -54,6 +54,7 @@ struct Params {
     std::string data_type;
     int window_size = 1000000;
     int min_mac = 1;
+    double min_maf = 0.05;
     double spa_cutoff = 2.0;
     bool use_apl = false;
     bool use_quant_res = false;

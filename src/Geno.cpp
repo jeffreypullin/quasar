@@ -281,6 +281,58 @@ void GenoData::compute_maf_problems() {
     }
 }
 
+void GenoData::filter_maf(double min_maf) {
+
+    if (min_maf <= 0.0) {
+        return;
+    }
+
+    std::vector<size_t> keep;
+    keep.reserve(n_snps);
+    for (size_t i = 0; i < n_snps; ++i) {
+        if (maf[i] >= min_maf) {
+            keep.push_back(i);
+        }
+    }
+    if (keep.empty()) {
+        std::cerr << "Error: no variants with MAF >= " << min_maf << "." << std::endl;
+        exit(1);
+    }
+    const size_t n_drop = n_snps - keep.size();
+    if (n_drop == 0) {
+        std::cout << "All " << format_with_commas(n_snps) << " SNPs have MAF >= " << min_maf << "." << std::endl;
+        return;
+    }
+
+    auto subset = [&keep](auto& v) {
+        std::remove_reference_t<decltype(v)> out;
+        out.reserve(keep.size());
+        for (size_t i : keep) {
+            out.push_back(v[i]);
+        }
+        v = std::move(out);
+    };
+    subset(chrom);
+    subset(pos);
+    subset(id);
+    subset(alt);
+    subset(ref);
+    subset(snp_id);
+    subset(index);
+    subset(maf);
+    subset(mac);
+
+    Eigen::MatrixXd sliced(genotype_matrix.rows(), keep.size());
+    for (size_t k = 0; k < keep.size(); ++k) {
+        sliced.col(k) = genotype_matrix.col(keep[k]);
+    }
+    genotype_matrix = std::move(sliced);
+    n_snps = keep.size();
+
+    std::cout << "Filtered to " << format_with_commas(n_snps) << " SNPs with MAF >= " << min_maf
+              << " (dropped " << format_with_commas(n_drop) << ")." << std::endl;
+}
+
 void GenoData::slice_samples(std::vector<std::string>& sample_ids) {
     
     Eigen::VectorXi rows;

@@ -59,6 +59,7 @@ class GenoData {
     void read_bed_file();
     void compute_maf();
     void compute_maf_problems();
+    void filter_maf(double min_maf);
     void maf_warning();
     void slice_samples(std::vector<std::string>& sample_ids);
     void permute_samples(std::mt19937_64& rng);

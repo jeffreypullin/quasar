@@ -169,6 +169,8 @@ plink2 \
 
 If using --make-bed with PLINK 1.9 or earlier, add the --keep-allele-order flag.
 
+After samples are intersected with the phenotype data, variants with minor allele frequency below `--min-maf` are removed. The default is 0.05. Pass `--min-maf 0` to keep every variant. The frequency is computed on the samples used in the analysis.
+
 ### Phenotype data
 
 #### Bulk/pseudobulk bed file 
@@ -402,5 +404,6 @@ When \(K > 1\), `snp_x_all_acat_pvalue` is an ACAT combination of the per-covari
 |`--interaction` | STRING | Optional | Comma-separated covariate column names for interaction-QTL testing. Each name must be a column header in the covariate data. |
 |`--model` | STRING | Required | The model used to residualise phenotype data. One of: `lm`, `lm_cw`, `lmm`, `p_glm`, `nb_glm`, `p_glmm`, `p_glmm_id`, `nb_glmm`, `p_glmm_sc`, `lmm_sc`. |
 |`--window_size` | NUMBER | Optional | The size of the cis window in base pairs. Default: 1000000 |
+|`--min-maf` | NUMBER | Optional | Drop variants with minor allele frequency below this value. Default: 0.05. Use 0 to keep every variant |
 |`--use-apl` | FLAG | Optional | Use Cox-Reid adjusted profile likelihood when estimating negative binomial dispersion |
 |`--verbose` | FLAG | Optional | Write additional information to the console |

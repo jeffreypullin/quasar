@@ -54,6 +54,7 @@ int main(int argc, char* argv[]) {
         ("model", "Statistical model to use for QTL mapping (lmm, glmm)", cxxopts::value<std::string>(params.model))
         ("w,window", "Cis window size in base pairs", cxxopts::value<int>(params.window_size))
         ("min-mac", "Minimum minor allele count required for variant score test", cxxopts::value<int>(params.min_mac)->default_value("1"))
+        ("min-maf", "Drop variants with minor allele frequency below this value, computed after sample subsetting. 0 keeps every variant", cxxopts::value<double>(params.min_maf)->default_value("0.05"))
         ("spa-cutoff", "Standardised score cutoff for SPA with Poisson GLMMs", cxxopts::value<double>(params.spa_cutoff)->default_value("2"))
         ("use-apl", "Use adjusted profile likelihood to estimate NB dispersion", cxxopts::value<bool>(params.use_apl))
         ("use-quant-res", "Use randomised quantile residuals to compute score tests with NB-GLM model", cxxopts::value<bool>(params.use_quant_res))
@@ -145,6 +146,11 @@ int main(int argc, char* argv[]) {
 
     if (params.min_mac < 0) {
         std::cerr << "Error: --min-mac argument must be non-negative." << std::endl;
+        exit(1);
+    }
+
+    if (!std::isfinite(params.min_maf) || params.min_maf < 0.0 || params.min_maf > 0.5) {
+        std::cerr << "Error: --min-maf must be in [0, 0.5]." << std::endl;
         exit(1);
     }
 
@@ -601,6 +607,7 @@ int main(int argc, char* argv[]) {
     geno_data.slice_samples(int_sample_ids);
     geno_data.compute_maf();
     geno_data.compute_maf_problems();
+    geno_data.filter_maf(params.min_maf);
 
     if (params.mode != "gwas") {
         std::cout << "\nConstructing cis-windows..." << std::endl;
