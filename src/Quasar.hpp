@@ -59,6 +59,14 @@ struct Params {
     bool use_quant_res = false;
     int pheno_chr;
     std::string pheno_ids_file;
+    std::string pheno_ids;
+    std::vector<std::string> pheno_id_list;
+
+    std::string region;
+    bool use_region = false;
+    int region_chr = 0;
+    int region_start = 0;
+    int region_end = 0;
 
     std::string out;
     bool verbose = false;

@@ -81,6 +81,48 @@ void GenoData::read_bim_file() {
     file.close();
 }
 
+void GenoData::subset_region(int region_chr, int region_start, int region_end) {
+
+    std::vector<size_t> keep;
+    for (size_t i = 0; i < n_snps; ++i) {
+        if (chrom[i] == region_chr && pos[i] >= region_start && pos[i] <= region_end) {
+            keep.push_back(i);
+        }
+    }
+    if (keep.empty()) {
+        std::cerr << "Error: no variants found in region " << region_chr << ":"
+                  << region_start << "-" << region_end << "." << std::endl;
+        exit(1);
+    }
+
+    auto subset = [&keep](auto& v) {
+        std::remove_reference_t<decltype(v)> out;
+        out.reserve(keep.size());
+        for (size_t i : keep) {
+            out.push_back(v[i]);
+        }
+        v = std::move(out);
+    };
+    subset(chrom);
+    subset(pos);
+    subset(id);
+    subset(alt);
+    subset(ref);
+    subset(snp_id);
+    subset(index);
+
+    // Genotypes are samples x SNPs, so keep only the selected columns.
+    Eigen::MatrixXd sliced(genotype_matrix.rows(), keep.size());
+    for (size_t k = 0; k < keep.size(); ++k) {
+        sliced.col(k) = genotype_matrix.col(keep[k]);
+    }
+    genotype_matrix = std::move(sliced);
+    n_snps = keep.size();
+
+    std::cout << "Restricted to " << format_with_commas(n_snps) << " SNPs in region "
+              << region_chr << ":" << region_start << "-" << region_end << "." << std::endl;
+}
+
 void GenoData::read_fam_file() {
 
     std::string fam_file = bed_prefix + ".fam";

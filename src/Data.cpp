@@ -359,6 +359,51 @@ void PhenoData::filter_pheno_ids(int filt_chrom) {
     std::cout << "Filtered to " << format_with_commas(n_pheno) << " phenotypes on chromosome " << filt_chrom << "." << std::endl;
 }
 
+void PhenoData::filter_pheno_ids(const std::vector<std::string>& ids) {
+
+    std::unordered_set<std::string> wanted(ids.begin(), ids.end());
+    std::vector<size_t> keep;
+    for (size_t i = 0; i < n_pheno; ++i) {
+        if (wanted.count(pheno_ids[i])) {
+            keep.push_back(i);
+        }
+    }
+    if (keep.size() != wanted.size()) {
+        for (const auto& id : ids) {
+            if (std::find(pheno_ids.begin(), pheno_ids.end(), id) == pheno_ids.end()) {
+                std::cerr << "Error: feature " << id << " from --pheno-ids not found in the phenotype data." << std::endl;
+            }
+        }
+        exit(1);
+    }
+
+    // Indices refer to columns of the phenotype file; compose with any earlier filter.
+    std::vector<size_t> new_inds;
+    std::vector<std::string> new_pheno_ids;
+    std::vector<int> new_chrom, new_start, new_end;
+    const bool has_coords = !chrom.empty();
+    for (size_t k : keep) {
+        new_inds.push_back(pheno_inds.empty() ? k : pheno_inds[k]);
+        new_pheno_ids.push_back(pheno_ids[k]);
+        if (has_coords) {
+            new_chrom.push_back(chrom[k]);
+            new_start.push_back(start[k]);
+            new_end.push_back(end[k]);
+        }
+    }
+
+    pheno_inds = new_inds;
+    pheno_ids = new_pheno_ids;
+    if (has_coords) {
+        chrom = new_chrom;
+        start = new_start;
+        end = new_end;
+    }
+    n_pheno = pheno_ids.size();
+
+    std::cout << "Filtered to " << format_with_commas(n_pheno) << " requested phenotypes." << std::endl;
+}
+
 void PhenoData::read_sc_pheno_data(bool compute_offset) {
 
     std::ifstream file(pheno_file);
@@ -636,6 +681,47 @@ void PhenoData::slice_chromosome(int chrom_id) {
     this->end = new_end;
     this->pheno_ids = new_pheno_ids;
     this->n_pheno = new_chrom.size();
+}
+
+void PhenoData::slice_ids(const std::vector<std::string>& ids) {
+
+    std::unordered_set<std::string> wanted(ids.begin(), ids.end());
+    std::vector<size_t> keep;
+    for (size_t i = 0; i < n_pheno; ++i) {
+        if (wanted.count(pheno_ids[i])) {
+            keep.push_back(i);
+        }
+    }
+    if (keep.size() != wanted.size()) {
+        for (const auto& id : ids) {
+            if (std::find(pheno_ids.begin(), pheno_ids.end(), id) == pheno_ids.end()) {
+                std::cerr << "Error: feature " << id << " from --pheno-ids not found in the phenotype data." << std::endl;
+            }
+        }
+        exit(1);
+    }
+
+    // Phenotype data are samples x features.
+    Eigen::MatrixXd new_data(data.rows(), keep.size());
+    std::vector<std::string> new_pheno_ids;
+    std::vector<int> new_chrom, new_start, new_end;
+    for (size_t k = 0; k < keep.size(); ++k) {
+        new_data.col(k) = data.col(keep[k]);
+        new_pheno_ids.push_back(pheno_ids[keep[k]]);
+        if (has_genomic_coords) {
+            new_chrom.push_back(chrom[keep[k]]);
+            new_start.push_back(start[keep[k]]);
+            new_end.push_back(end[keep[k]]);
+        }
+    }
+    this->data = new_data;
+    this->pheno_ids = new_pheno_ids;
+    if (has_genomic_coords) {
+        this->chrom = new_chrom;
+        this->start = new_start;
+        this->end = new_end;
+    }
+    this->n_pheno = keep.size();
 }
 
 void PhenoData::construct_windows(GenoData& geno_data, int window_size, bool verbose) {

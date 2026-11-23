@@ -52,6 +52,7 @@ class GenoData {
     }
 
     void read_bim_file();
+    void subset_region(int region_chr, int region_start, int region_end);
     void read_fam_file();
     void prepare_bed_file();
     void run_mean_imputation();

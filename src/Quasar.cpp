@@ -58,6 +58,8 @@ int main(int argc, char* argv[]) {
         ("use-apl", "Use adjusted profile likelihood to estimate NB dispersion", cxxopts::value<bool>(params.use_apl))
         ("use-quant-res", "Use randomised quantile residuals to compute score tests with NB-GLM model", cxxopts::value<bool>(params.use_quant_res))
         ("pheno-chr", "Only map QTLs for genes on this chromosome", cxxopts::value<int>(params.pheno_chr))
+        ("pheno-ids", "Only map QTLs for these features, as comma-separated feature IDs", cxxopts::value<std::string>(params.pheno_ids))
+        ("region", "Only test variants in this genotype region, CHR:START-END (modes 'trans' and 'gwas')", cxxopts::value<std::string>(params.region))
         // Output arguments.
         ("o,out", "Output file prefix", cxxopts::value<std::string>(params.out))
         ("max-pvalue", "Only write variants with p-value below this threshold; also write <out>-n-variants.txt with the number of tests", cxxopts::value<double>(params.max_pvalue))
@@ -162,6 +164,42 @@ int main(int argc, char* argv[]) {
     if (result.count("pheno-chr")) {
         if (params.pheno_chr < 1 || params.pheno_chr > 22) {
             std::cerr << "Error: --pheno-chr argument must integer between 1 and 22." << std::endl;
+            exit(1);
+        }
+    }
+
+    if (result.count("region")) {
+        if (params.mode != "gwas" && params.mode != "trans") {
+            std::cerr << "Error: --region can only be used with modes 'trans' and 'gwas'." << std::endl;
+            exit(1);
+        }
+        const std::string& r = params.region;
+        const size_t colon = r.find(':');
+        const size_t dash = r.find('-', colon == std::string::npos ? 0 : colon);
+        try {
+            if (colon == std::string::npos || dash == std::string::npos) {
+                throw std::invalid_argument("format");
+            }
+            params.region_chr = std::stoi(r.substr(0, colon));
+            params.region_start = std::stoi(r.substr(colon + 1, dash - colon - 1));
+            params.region_end = std::stoi(r.substr(dash + 1));
+        } catch (const std::exception&) {
+            std::cerr << "Error: --region must have the form CHR:START-END, e.g. 16:10500000-11600000." << std::endl;
+            exit(1);
+        }
+        if (params.region_start > params.region_end) {
+            std::cerr << "Error: --region start must not exceed end." << std::endl;
+            exit(1);
+        }
+        params.use_region = true;
+    }
+
+    if (result.count("pheno-ids")) {
+        for (const std::string& id : string_split(params.pheno_ids, ",")) {
+            params.pheno_id_list.push_back(trim_string(id));
+        }
+        if (params.pheno_id_list.empty()) {
+            std::cerr << "Error: --pheno-ids must list at least one feature ID." << std::endl;
             exit(1);
         }
     }
@@ -337,6 +375,9 @@ int main(int argc, char* argv[]) {
                 exit(1);
             }
         }
+        if (result.count("pheno-ids")) {
+            pheno_data.filter_pheno_ids(params.pheno_id_list);
+        }
         pheno_data.read_sc_pheno_data(params.model != "lmm_sc" && !use_offset_file);
     } else {
         pheno_data.read_pheno_data(params.mode);
@@ -502,6 +543,10 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error: --pheno-chr requires phenotype coordinates (#chr, start, end) in the bed file." << std::endl;
         exit(1);
     }
+    if (params.data_type == "bulk" && result.count("pheno-ids")) {
+        std::cout << "Filtering phenotype data to " << params.pheno_id_list.size() << " requested features." << std::endl;
+        pheno_data.slice_ids(params.pheno_id_list);
+    }
     std::cout << "\nRunning analysis for " << format_with_commas(pheno_data.n_pheno) << " phenotypes." << std::endl;
 
     ModelFit model_fit(params.model, params.fit_file, pheno_data);
@@ -549,6 +594,9 @@ int main(int argc, char* argv[]) {
     std::cout << "\nReading genotype data..." << std::endl;
     geno_data.prepare_bed_file();
     geno_data.read_bed_file();
+    if (params.use_region) {
+        geno_data.subset_region(params.region_chr, params.region_start, params.region_end);
+    }
     geno_data.run_mean_imputation();
     geno_data.slice_samples(int_sample_ids);
     geno_data.compute_maf();

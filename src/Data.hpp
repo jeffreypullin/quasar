@@ -63,11 +63,13 @@ class PhenoData {
       void construct_windows(GenoData& geno_data, int window_size, bool verbose); 
 
       void slice_chromosome(int chrom_id);
+      void slice_ids(const std::vector<std::string>& ids);
       void slice_samples(std::vector<std::string>& sample_ids);
 
       // Single-cell specific.
       void prepare_sc_pheno_data();
       void filter_pheno_ids(int filt_chrom);
+      void filter_pheno_ids(const std::vector<std::string>& ids);
       void read_sc_pheno_data(bool compute_offset);
       void slice_sc_samples(std::vector<std::string>& sample_ids);
       void read_anno_data(std::string anno_file);

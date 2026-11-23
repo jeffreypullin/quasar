@@ -77,7 +77,7 @@ For mapping trans-eQTLs with `p_glmm_sc`, `--anno` is required. Use `--pheno-chr
     --out sc-gwas-pheno-chr1-out
 ```
 
-For large datasets, consider only providing genotype data from one chromosome to parallelise variant testing over chromosomes. 
+For large datasets, consider only providing genotype data from one chromosome to parallelise variant testing over chromosomes. To map only a set of features, use `--pheno-ids` with comma-separated feature IDs. Library-size offsets for the count models are still computed from all features in the phenotype file, so results are unchanged by the filter. It can be combined with `--pheno-chr`. To test only the variants in a genotype window, use `--region CHR:START-END` (modes `trans` and `gwas`), e.g. `--region 16:10500000-11600000`. 
 
 ### Interaction QTLs
 
@@ -93,7 +93,6 @@ As of quasar 2.0, quasar can compute interaction-QTLs. To use this functionality
     --mode cis \
     --interaction sex \
     --model lm \
-    --use-apl \
     --out sex-int-out
 ```
 
