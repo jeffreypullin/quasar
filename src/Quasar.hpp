@@ -72,6 +72,7 @@ struct Params {
     std::string out;
     bool verbose = false;
     bool ablate_donor_totals = false;
+    bool ablate_interaction_sq = false;
     bool use_max_pvalue = false;
     double max_pvalue = 1.0;
 

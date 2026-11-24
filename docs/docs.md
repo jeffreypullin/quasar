@@ -117,7 +117,7 @@ For single-cell data, interaction testing with `--model p_glmm_sc` or `--model l
 For each interaction covariate, quasar inspects its values and automatically augments the nuisance covariates as follows:
 
 * if the covariate has `<=10` unique finite values, it is treated as categorical and no squared nuisance term is added;
-* if it has `>10` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which contains the square of the covariate
+* if it has `>10` unique finite values, it is treated as continuous and quasar automatically adds a nuisance covariate named `{interaction_cov}_sq` which contains the square of the covariate.
 
 ## QTL mapping modes
 

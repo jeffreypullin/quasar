@@ -70,7 +70,8 @@ int main(int argc, char* argv[]) {
         ("seed", "Random seed for genotype permutations", cxxopts::value<unsigned long long>(params.seed)->default_value("1"));
 
     options.add_options("hidden")
-        ("ablate-donor-totals", "", cxxopts::value<bool>(params.ablate_donor_totals));
+        ("ablate-donor-totals", "", cxxopts::value<bool>(params.ablate_donor_totals))
+        ("ablate-interaction-sq", "", cxxopts::value<bool>(params.ablate_interaction_sq));
 
     // Parse the arguments.
     auto result = options.parse(argc, argv);
@@ -303,7 +304,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Writing variants with p-value < " << params.max_pvalue << std::endl;
     }
 
-    if (params.ablate_donor_totals) {
+    if (params.ablate_donor_totals || params.ablate_interaction_sq) {
         std::cout << "\nWarning: ablation flags should generally not be used." << std::endl;
     }
 
@@ -507,13 +508,19 @@ int main(int argc, char* argv[]) {
         }
 
         // Continuous interaction covariates get an automatic squared nuisance term;
-        // categorical ones do not.
+        // categorical ones do not. --ablate-interaction-sq skips the squared term.
+        if (params.ablate_interaction_sq) {
+            std::cout << "\nAblation: squared nuisance terms for interaction covariates are disabled." << std::endl;
+        }
         for (size_t k = 0; k < cov_data.interaction_inds.size(); ++k) {
             const int ind = cov_data.interaction_inds[k];
             const std::string& id = cov_data.interaction_ids[k];
             bool interaction_is_categorical = cov_data.is_covariate_categorical(ind);
             if (interaction_is_categorical) {
                 std::cout << "\nInteraction covariate '" << id << "' treated as categorical (<=10 unique finite values)." << std::endl;
+                std::cout << "Not adding squared nuisance covariate." << std::endl;
+            } else if (params.ablate_interaction_sq) {
+                std::cout << "\nInteraction covariate '" << id << "' treated as continuous (>10 unique finite values)." << std::endl;
                 std::cout << "Not adding squared nuisance covariate." << std::endl;
             } else {
                 std::string squared_covariate_id = id + "_sq";
