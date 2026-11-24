@@ -655,8 +655,11 @@ void residualise(Params& params, ModelFit& model_fit, CovData& cov_data, PhenoDa
             bool use_apl = params.use_apl;
             NBGLM nb_glm(X, Y.col(i), offset, use_apl);
             nb_glm.fit();
-            
-            if (!params.use_quant_res) {
+
+            if (!nb_glm.glm_converged) {
+                Y.col(i).setZero();
+                W.row(i).setOnes();
+            } else if (!params.use_quant_res) {
                 Y.col(i) = (Y.col(i).array() - (X * nb_glm.beta + offset).array().exp()) / nb_glm.mu.array();
                 W.row(i) = nb_glm.mu.array() / (1 + nb_glm.phi * nb_glm.mu.array());
             } else {

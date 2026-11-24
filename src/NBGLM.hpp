@@ -120,6 +120,10 @@ class NBGLM {
                     break;
                 }
             }
+
+            if (!mu.allFinite()) {
+                glm_converged = false;
+            }
         }
 };
 
